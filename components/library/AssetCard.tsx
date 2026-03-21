@@ -1,0 +1,137 @@
+"use client";
+
+import { Heart, Download, MoreHorizontal, Trash2, RefreshCw, Eye } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { GeneratedAsset } from "@/lib/types";
+
+interface AssetCardProps {
+  asset: GeneratedAsset;
+  onFavorite?: (id: string) => void;
+  onDownload?: (asset: GeneratedAsset) => void;
+  onDelete?: (id: string) => void;
+  onView?: (asset: GeneratedAsset) => void;
+}
+
+export function AssetCard({
+  asset,
+  onFavorite,
+  onDownload,
+  onDelete,
+  onView,
+}: AssetCardProps) {
+  return (
+    <Card className="group overflow-hidden transition-all hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5">
+      <div
+        className="relative aspect-square bg-muted cursor-pointer"
+        onClick={() => onView?.(asset)}
+      >
+        {asset.image_url ? (
+          <img
+            src={asset.image_url}
+            alt={asset.content_type}
+            className="h-full w-full object-cover transition-transform group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            {asset.status === "processing" || asset.status === "pending" ? (
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            ) : (
+              <p className="text-xs text-muted-foreground">Failed</p>
+            )}
+          </div>
+        )}
+
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+        <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex gap-1">
+            {onFavorite && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 bg-black/50 hover:bg-black/70"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFavorite(asset.id);
+                }}
+              >
+                <Heart
+                  className={`h-3.5 w-3.5 ${asset.is_favorite ? "fill-red-500 text-red-500" : "text-white"}`}
+                />
+              </Button>
+            )}
+            {onDownload && asset.image_url && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 bg-black/50 hover:bg-black/70"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDownload(asset);
+                }}
+              >
+                <Download className="h-3.5 w-3.5 text-white" />
+              </Button>
+            )}
+          </div>
+          {onDelete && (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 bg-black/50 hover:bg-black/70"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                }
+              >
+                <MoreHorizontal className="h-3.5 w-3.5 text-white" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onView?.(asset)}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Details
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => onDelete(asset.id)}
+                  className="text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      </div>
+
+      <CardContent className="p-3">
+        <p className="text-xs font-medium truncate capitalize">
+          {asset.content_type.replace(/-/g, " ")}
+        </p>
+        <div className="flex items-center gap-1.5 mt-1">
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 capitalize">
+            {asset.channel.replace(/-/g, " ")}
+          </Badge>
+          {asset.campaign && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+              {asset.campaign}
+            </Badge>
+          )}
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-1.5">
+          {new Date(asset.created_at).toLocaleDateString()}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}

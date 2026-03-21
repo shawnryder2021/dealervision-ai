@@ -1,0 +1,234 @@
+"use client";
+
+import { useEffect, useState, useMemo } from "react";
+import { Image as ImageIcon } from "lucide-react";
+import { AssetGrid } from "@/components/library/AssetGrid";
+import { AssetFilters } from "@/components/library/AssetFilters";
+import { useAppStore } from "@/lib/store";
+import { createClient } from "@/lib/supabase/client";
+import { isDemoMode } from "@/lib/demo-data";
+import type { GeneratedAsset } from "@/lib/types";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Download, RefreshCw, Heart, Trash2 } from "lucide-react";
+
+export default function LibraryPage() {
+  const { dealership, recentAssets } = useAppStore();
+  const [assets, setAssets] = useState<GeneratedAsset[]>([]);
+  const [search, setSearch] = useState("");
+  const [contentType, setContentType] = useState("all");
+  const [channel, setChannel] = useState("all");
+  const [sortBy, setSortBy] = useState("newest");
+  const [selectedAsset, setSelectedAsset] = useState<GeneratedAsset | null>(null);
+
+  useEffect(() => {
+    async function loadAssets() {
+      if (!dealership) return;
+
+      if (isDemoMode()) {
+        setAssets(recentAssets);
+        return;
+      }
+
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("generated_assets")
+        .select("*")
+        .eq("dealership_id", dealership.id)
+        .order("created_at", { ascending: false });
+      if (data) setAssets(data);
+    }
+    loadAssets();
+  }, [dealership, recentAssets]);
+
+  const filteredAssets = useMemo(() => {
+    let result = [...assets];
+
+    if (search) {
+      const lower = search.toLowerCase();
+      result = result.filter(
+        (a) =>
+          a.content_type.toLowerCase().includes(lower) ||
+          a.channel.toLowerCase().includes(lower) ||
+          a.prompt.toLowerCase().includes(lower) ||
+          a.campaign?.toLowerCase().includes(lower)
+      );
+    }
+
+    if (contentType !== "all") {
+      result = result.filter((a) => a.content_type === contentType);
+    }
+
+    if (channel !== "all") {
+      result = result.filter((a) => a.channel === channel);
+    }
+
+    if (sortBy === "oldest") {
+      result.reverse();
+    } else if (sortBy === "favorites") {
+      result.sort((a, b) => (b.is_favorite ? 1 : 0) - (a.is_favorite ? 1 : 0));
+    }
+
+    return result;
+  }, [assets, search, contentType, channel, sortBy]);
+
+  async function handleFavorite(id: string) {
+    const asset = assets.find((a) => a.id === id);
+    if (!asset) return;
+
+    if (isDemoMode()) {
+      setAssets((prev) =>
+        prev.map((a) =>
+          a.id === id ? { ...a, is_favorite: !a.is_favorite } : a
+        )
+      );
+      return;
+    }
+
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("generated_assets")
+      .update({ is_favorite: !asset.is_favorite })
+      .eq("id", id);
+
+    if (!error) {
+      setAssets((prev) =>
+        prev.map((a) =>
+          a.id === id ? { ...a, is_favorite: !a.is_favorite } : a
+        )
+      );
+    }
+  }
+
+  function handleDownload(asset: GeneratedAsset) {
+    if (asset.image_url) {
+      window.open(asset.image_url, "_blank");
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (isDemoMode()) {
+      setAssets((prev) => prev.filter((a) => a.id !== id));
+      toast.success("Asset deleted (demo)");
+      return;
+    }
+
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("generated_assets")
+      .delete()
+      .eq("id", id);
+
+    if (!error) {
+      setAssets((prev) => prev.filter((a) => a.id !== id));
+      toast.success("Asset deleted");
+    } else {
+      toast.error("Failed to delete asset");
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-heading text-2xl font-bold flex items-center gap-2">
+          <ImageIcon className="h-6 w-6 text-primary" />
+          Asset Library
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {assets.length} generated visual{assets.length !== 1 ? "s" : ""}
+        </p>
+      </div>
+
+      <AssetFilters
+        search={search}
+        onSearchChange={setSearch}
+        contentType={contentType}
+        onContentTypeChange={setContentType}
+        channel={channel}
+        onChannelChange={setChannel}
+        sortBy={sortBy}
+        onSortByChange={setSortBy}
+      />
+
+      <AssetGrid
+        assets={filteredAssets}
+        onFavorite={handleFavorite}
+        onDownload={handleDownload}
+        onDelete={handleDelete}
+        onView={setSelectedAsset}
+      />
+
+      <Dialog
+        open={!!selectedAsset}
+        onOpenChange={(open) => !open && setSelectedAsset(null)}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="capitalize">
+              {selectedAsset?.content_type.replace(/-/g, " ")}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedAsset && (
+            <div className="space-y-4">
+              {selectedAsset.image_url && (
+                <img
+                  src={selectedAsset.image_url}
+                  alt={selectedAsset.content_type}
+                  className="w-full rounded-lg"
+                />
+              )}
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="capitalize">
+                  {selectedAsset.channel.replace(/-/g, " ")}
+                </Badge>
+                {selectedAsset.aspect_ratio && (
+                  <Badge variant="outline">{selectedAsset.aspect_ratio}</Badge>
+                )}
+                {selectedAsset.resolution && (
+                  <Badge variant="outline">{selectedAsset.resolution}</Badge>
+                )}
+                {selectedAsset.campaign && (
+                  <Badge variant="outline">{selectedAsset.campaign}</Badge>
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">
+                  Prompt
+                </p>
+                <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 font-mono">
+                  {selectedAsset.prompt}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => handleDownload(selectedAsset)}
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  Download
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleFavorite(selectedAsset.id)}
+                >
+                  <Heart
+                    className={`h-4 w-4 mr-1 ${selectedAsset.is_favorite ? "fill-red-500 text-red-500" : ""}`}
+                  />
+                  {selectedAsset.is_favorite ? "Unfavorite" : "Favorite"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
