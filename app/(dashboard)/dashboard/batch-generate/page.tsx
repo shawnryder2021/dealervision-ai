@@ -29,6 +29,7 @@ import {
   STYLE_OPTIONS,
 } from "@/lib/constants";
 import { addActivityEvent } from "@/lib/activity";
+import { createClient } from "@/lib/supabase/client";
 import type { GeneratedAsset } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -101,26 +102,44 @@ export default function BatchGeneratePage() {
           const imageUrl = data.output.image_url || data.output.url;
           updateJob(job.vehicleId, { status: "completed", imageUrl });
 
-          const asset: GeneratedAsset = {
-            id: `batch-${Date.now()}-${job.vehicleId}`,
+          const vehicle = vehicles.find((v) => v.id === job.vehicleId) || null;
+          const prompt = buildPrompt({
+            content_type: contentType,
+            channel,
+            dealership: dealership!,
+            vehicle,
+            style,
+          });
+
+          const assetData = {
             dealership_id: dealership!.id,
             created_by: null,
             vehicle_id: job.vehicleId,
             content_type: contentType,
             channel,
-            prompt: "",
+            prompt,
             image_url: imageUrl,
             storage_path: null,
             aspect_ratio: getAspectRatioForChannel(channel),
             resolution: getResolutionForChannel(channel),
             kie_task_id: taskId,
-            status: "completed",
+            status: "completed" as const,
             metadata: { batch: true },
             is_favorite: false,
             campaign: "Batch Generate",
-            created_at: new Date().toISOString(),
           };
-          addAsset(asset);
+
+          if (isDemoMode()) {
+            addAsset({ id: `batch-${Date.now()}-${job.vehicleId}`, ...assetData, created_at: new Date().toISOString() });
+          } else {
+            const supabase = createClient();
+            const { data: saved } = await supabase
+              .from("generated_assets")
+              .insert(assetData)
+              .select()
+              .single();
+            if (saved) addAsset(saved);
+          }
           return;
         }
 

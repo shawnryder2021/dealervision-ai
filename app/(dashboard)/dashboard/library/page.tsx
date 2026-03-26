@@ -52,7 +52,14 @@ export default function LibraryPage() {
         .select("*")
         .eq("dealership_id", dealership.id)
         .order("created_at", { ascending: false });
-      if (data) setAssets(data);
+
+      if (data) {
+        // Merge in any store assets not yet in the DB result
+        // (e.g. items just saved from BG swap / batch before this query ran)
+        const dbIds = new Set(data.map((a) => a.id));
+        const storeOnly = recentAssets.filter((a) => !dbIds.has(a.id));
+        setAssets([...storeOnly, ...data]);
+      }
     }
     loadAssets();
   }, [dealership, recentAssets]);

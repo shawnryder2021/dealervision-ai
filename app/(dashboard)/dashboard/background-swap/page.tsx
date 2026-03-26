@@ -19,6 +19,8 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
+import { createClient } from "@/lib/supabase/client";
+import { isDemoMode } from "@/lib/demo-data";
 
 const BACKGROUND_CATEGORIES = [
   { id: "studio", label: "Studio & Clean" },
@@ -555,8 +557,7 @@ export default function BackgroundSwapPage() {
     if (!resultImageUrl || !dealership) return;
     setIsSaving(true);
     try {
-      const asset = {
-        id: `bg-swap-${Date.now()}`,
+      const assetData = {
         dealership_id: dealership.id,
         created_by: null,
         vehicle_id: null,
@@ -572,12 +573,25 @@ export default function BackgroundSwapPage() {
         metadata: { source_image: uploadedImageUrl },
         is_favorite: false,
         campaign: null,
-        created_at: new Date().toISOString(),
       };
-      addAsset(asset);
+
+      if (isDemoMode()) {
+        addAsset({ id: `bg-swap-${Date.now()}`, ...assetData, created_at: new Date().toISOString() });
+      } else {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("generated_assets")
+          .insert(assetData)
+          .select()
+          .single();
+        if (error) throw error;
+        addAsset(data);
+      }
+
       toast.success("Saved to library!");
-    } catch {
-      toast.error("Failed to save");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to save";
+      toast.error(msg);
     } finally {
       setIsSaving(false);
     }
