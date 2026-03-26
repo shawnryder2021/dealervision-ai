@@ -18,13 +18,13 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isMagicLink, setIsMagicLink] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      const supabase = createClient();
       if (isMagicLink) {
         const { error } = await supabase.auth.signInWithOtp({
           email,
