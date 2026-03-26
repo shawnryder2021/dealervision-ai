@@ -76,10 +76,15 @@ export default function LandingPage() {
               <Wand2 className="h-4 w-4 text-white" />
             </div>
             <span className="font-heading text-lg font-bold tracking-tight">
-              DealerVision AI
+              DealerAdGen AI
             </span>
           </div>
           <div className="flex items-center gap-3">
+            <Link href="/resources">
+              <Button variant="ghost" size="sm">
+                Resources
+              </Button>
+            </Link>
             <Link href="/login">
               <Button variant="ghost" size="sm">
                 Sign In
@@ -111,7 +116,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="text-lg text-muted-foreground mt-6 max-w-2xl mx-auto leading-relaxed">
-            DealerVision AI empowers car dealerships to instantly generate
+            DealerAdGen AI empowers car dealerships to instantly generate
             professional marketing materials for social media, websites, print,
             and more — no design skills required.
           </p>
@@ -265,15 +270,26 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t border-border/50 py-8 px-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="flex h-6 w-6 items-center justify-center rounded gradient-primary">
               <Wand2 className="h-3 w-3 text-white" />
             </div>
-            <span className="text-sm font-medium">DealerVision AI</span>
+            <span className="text-sm font-medium">DealerAdGen AI</span>
+          </div>
+          <div className="flex items-center gap-6 text-xs text-muted-foreground">
+            <Link href="/resources" className="hover:text-foreground transition-colors">
+              Resources
+            </Link>
+            <Link href="/login" className="hover:text-foreground transition-colors">
+              Sign In
+            </Link>
+            <Link href="/signup" className="hover:text-foreground transition-colors">
+              Get Started
+            </Link>
           </div>
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} DealerVision AI. All rights
+            &copy; {new Date().getFullYear()} DealerAdGen AI. All rights
             reserved.
           </p>
         </div>

@@ -34,22 +34,27 @@ export async function POST(request: Request) {
     }
 
     if (status === "completed" && imageUrl) {
-      // Upload to ImgBB for permanent storage
-      let finalUrl = imageUrl;
-      try {
-        const imgbb = await uploadToImgBB(imageUrl);
-        finalUrl = imgbb.url;
-      } catch (e) {
-        console.error("ImgBB upload failed, using original URL:", e);
-      }
-
+      // Save with original URL immediately
       await supabase
         .from("generated_assets")
         .update({
           status: "completed",
-          image_url: finalUrl,
+          image_url: imageUrl,
         })
         .eq("id", asset.id);
+
+      // Fire-and-forget: upload to ImgBB in background, then update DB
+      uploadToImgBB(imageUrl)
+        .then((imgbb) => {
+          supabase
+            .from("generated_assets")
+            .update({ image_url: imgbb.url })
+            .eq("id", asset.id)
+            .then(() => {});
+        })
+        .catch((e) =>
+          console.error("Background ImgBB upload failed:", e)
+        );
     } else if (status === "failed") {
       await supabase
         .from("generated_assets")

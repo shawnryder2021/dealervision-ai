@@ -40,25 +40,31 @@ export async function GET(
         const kieResult = await getTaskStatus(asset.kie_task_id);
 
         if (kieResult.status === "completed" && kieResult.output?.image_url) {
-          // Upload to ImgBB for permanent storage
-          let finalUrl = kieResult.output.image_url;
-          try {
-            const imgbb = await uploadToImgBB(finalUrl);
-            finalUrl = imgbb.url;
-          } catch (e) {
-            console.error("ImgBB upload failed, using original URL:", e);
-          }
+          const originalUrl = kieResult.output.image_url;
 
-          // Update asset with result
+          // Update asset with original URL immediately so user sees the image fast
           const { data: updated } = await supabase
             .from("generated_assets")
             .update({
               status: "completed",
-              image_url: finalUrl,
+              image_url: originalUrl,
             })
             .eq("id", asset.id)
             .select()
             .single();
+
+          // Fire-and-forget: upload to ImgBB in background, then update DB with permanent URL
+          uploadToImgBB(originalUrl)
+            .then((imgbb) => {
+              supabase
+                .from("generated_assets")
+                .update({ image_url: imgbb.url })
+                .eq("id", asset.id)
+                .then(() => {});
+            })
+            .catch((e) =>
+              console.error("Background ImgBB upload failed:", e)
+            );
 
           return NextResponse.json(updated || asset);
         }

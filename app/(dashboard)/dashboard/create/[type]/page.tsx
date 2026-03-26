@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Wand2, Eye, Loader2 } from "lucide-react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, Wand2, Eye, Loader2, Download, BookmarkPlus } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,19 +14,27 @@ import { ChannelPicker } from "@/components/create/ChannelPicker";
 import { StyleOptions } from "@/components/create/StyleOptions";
 import { VehicleSelector } from "@/components/create/VehicleSelector";
 import { GenerationPreview } from "@/components/create/GenerationPreview";
+import { EditImageDialog } from "@/components/create/EditImageDialog";
+import { TextOverlayEditor } from "@/components/create/TextOverlayEditor";
+import { ImageUploader } from "@/components/shared/ImageUploader";
+import { SaveTemplateDialog } from "@/components/create/TemplateGallery";
+import { Switch } from "@/components/ui/switch";
 import { useAppStore } from "@/lib/store";
 import { createClient } from "@/lib/supabase/client";
 import { isDemoMode } from "@/lib/demo-data";
 import { buildPrompt, getAspectRatioForChannel, getResolutionForChannel } from "@/lib/prompt-templates";
 import { CONTENT_TYPES, CHANNEL_PRESETS } from "@/lib/constants";
 import type { Vehicle, GeneratedAsset } from "@/lib/types";
+import { useWebhook } from "@/lib/use-webhook";
 import { toast } from "sonner";
 
 export default function GenerateTypePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const contentType = params.type as string;
   const { dealership, vehicles: storeVehicles, addAsset, updateAsset } = useAppStore();
+  const { fireWebhook } = useWebhook();
 
   const typeInfo = CONTENT_TYPES.find((t) => t.id === contentType);
 
@@ -46,10 +54,31 @@ export default function GenerateTypePage() {
   const [rating, setRating] = useState(5);
   const [customPrompt, setCustomPrompt] = useState("");
   const [campaign, setCampaign] = useState("");
+  const [referencePhotos, setReferencePhotos] = useState<{ url: string; display_url: string; thumbnail_url: string }[]>([]);
+  const [watermarkEnabled, setWatermarkEnabled] = useState(true);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedAsset, setGeneratedAsset] = useState<GeneratedAsset | null>(null);
   const [previewPrompt, setPreviewPrompt] = useState("");
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [textEditorOpen, setTextEditorOpen] = useState(false);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+
+  // Pre-fill from template or seasonal suggestion URL params
+  useEffect(() => {
+    if (searchParams.get("channel")) setChannel(searchParams.get("channel")!);
+    if (searchParams.get("style")) setStyle(searchParams.get("style")!);
+    if (searchParams.get("headline")) setHeadline(searchParams.get("headline")!);
+    if (searchParams.get("subheadline")) setSubheadline(searchParams.get("subheadline")!);
+    if (searchParams.get("cta")) setCta(searchParams.get("cta")!);
+    if (searchParams.get("eventName")) setEventName(searchParams.get("eventName")!);
+    if (searchParams.get("eventDates")) setEventDates(searchParams.get("eventDates")!);
+    if (searchParams.get("offerDetails")) setOfferDetails(searchParams.get("offerDetails")!);
+    if (searchParams.get("serviceOffer")) setServiceOffer(searchParams.get("serviceOffer")!);
+    if (searchParams.get("serviceDetails")) setServiceDetails(searchParams.get("serviceDetails")!);
+    if (searchParams.get("customPrompt")) setCustomPrompt(searchParams.get("customPrompt")!);
+    if (searchParams.get("campaign")) setCampaign(searchParams.get("campaign")!);
+  }, [searchParams]);
 
   useEffect(() => {
     if (isDemoMode()) {
@@ -134,10 +163,17 @@ export default function GenerateTypePage() {
         const aspectRatio = getAspectRatioForChannel(channel);
         const resolution = getResolutionForChannel(channel);
 
+        const imageInput = referencePhotos.map((p) => p.url);
+
         const res = await fetch("/api/demo-generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt, aspect_ratio: aspectRatio, resolution }),
+          body: JSON.stringify({
+            prompt,
+            aspect_ratio: aspectRatio,
+            resolution,
+            image_input: imageInput.length > 0 ? imageInput : undefined,
+          }),
         });
 
         if (!res.ok) {
@@ -171,6 +207,8 @@ export default function GenerateTypePage() {
         return;
       }
 
+      const prodImageInput = referencePhotos.map((p) => p.url);
+
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -182,6 +220,8 @@ export default function GenerateTypePage() {
           service_details: serviceDetails, testimonial_text: testimonialText,
           testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
           campaign,
+          image_input: prodImageInput.length > 0 ? prodImageInput : undefined,
+          watermark: watermarkEnabled,
         }),
       });
 
@@ -219,6 +259,7 @@ export default function GenerateTypePage() {
           updateAsset(asset.id, updated);
           setIsGenerating(false);
           toast.success("Visual generated successfully!");
+          fireWebhook(updated);
           return;
         }
 
@@ -260,6 +301,7 @@ export default function GenerateTypePage() {
           updateAsset(assetId, data);
           setIsGenerating(false);
           toast.success("Visual generated successfully!");
+          fireWebhook(data);
           return;
         }
 
@@ -287,8 +329,86 @@ export default function GenerateTypePage() {
     setTimeout(poll, 3000);
   }
 
-  function handleDownload() {
-    if (generatedAsset?.image_url) {
+  async function handleDownload() {
+    if (!generatedAsset?.image_url) return;
+
+    try {
+      // Proxy through server to avoid CORS issues
+      const proxyUrl = `/api/download-proxy?url=${encodeURIComponent(generatedAsset.image_url)}`;
+      const res = await fetch(proxyUrl);
+      if (!res.ok) throw new Error("Download failed");
+      const imageBlob = await res.blob();
+
+      // If watermark enabled and logo exists, overlay it via canvas
+      if (watermarkEnabled && dealership?.logo_url) {
+        try {
+          const blobUrl = URL.createObjectURL(imageBlob);
+          const img = new Image();
+          img.src = blobUrl;
+          await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = () => reject(new Error("Failed to load image"));
+          });
+          URL.revokeObjectURL(blobUrl);
+
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Canvas not supported");
+
+          ctx.drawImage(img, 0, 0);
+
+          // Overlay dealership logo in bottom-right corner
+          const logoProxyUrl = `/api/download-proxy?url=${encodeURIComponent(dealership.logo_url)}`;
+          const logoRes = await fetch(logoProxyUrl);
+          if (logoRes.ok) {
+            const logoBlob = await logoRes.blob();
+            const logoBlobUrl = URL.createObjectURL(logoBlob);
+            const logo = new Image();
+            logo.src = logoBlobUrl;
+            await new Promise<void>((resolve) => {
+              logo.onload = () => resolve();
+              logo.onerror = () => resolve();
+            });
+            URL.revokeObjectURL(logoBlobUrl);
+
+            if (logo.width > 0) {
+              const logoHeight = Math.max(30, Math.floor(img.height / 12));
+              const logoWidth = (logo.width / logo.height) * logoHeight;
+              const padding = Math.floor(img.width / 40);
+              const logoX = canvas.width - padding - logoWidth;
+              const logoY = canvas.height - padding - logoHeight;
+              ctx.globalAlpha = 0.5;
+              ctx.drawImage(logo, logoX, logoY, logoWidth, logoHeight);
+              ctx.globalAlpha = 1;
+            }
+          }
+
+          canvas.toBlob((blob) => {
+            if (!blob) return;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${contentType}-${channel}-${Date.now()}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }, "image/png");
+          return;
+        } catch {
+          // Fallback to direct blob download
+        }
+      }
+
+      // Direct download (no logo overlay needed)
+      const url = URL.createObjectURL(imageBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${contentType}-${channel}-${Date.now()}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // Last resort: open in new tab
       window.open(generatedAsset.image_url, "_blank");
     }
   }
@@ -492,6 +612,35 @@ export default function GenerateTypePage() {
                   onChange={(e) => setCampaign(e.target.value)}
                 />
               </div>
+
+              <Separator />
+
+              {/* Reference Photo Upload */}
+              <ImageUploader
+                value={referencePhotos}
+                onChange={setReferencePhotos}
+                maxFiles={3}
+                label="Reference Photos (Optional)"
+              />
+              <p className="text-xs text-muted-foreground -mt-2">
+                Upload actual vehicle photos as reference for AI generation
+              </p>
+
+              <Separator />
+
+              {/* Watermark Toggle */}
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Logo Watermark</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Overlay your dealership logo on downloaded images
+                  </p>
+                </div>
+                <Switch
+                  checked={watermarkEnabled}
+                  onCheckedChange={setWatermarkEnabled}
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -513,24 +662,34 @@ export default function GenerateTypePage() {
             )}
           </Card>
 
-          <Button
-            size="lg"
-            className="w-full gradient-primary text-white text-base"
-            onClick={handleGenerate}
-            disabled={isGenerating}
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Wand2 className="h-5 w-5 mr-2" />
-                Generate Visual
-              </>
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="lg"
+              className="flex-1 gradient-primary text-white text-base"
+              onClick={handleGenerate}
+              disabled={isGenerating}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Wand2 className="h-5 w-5 mr-2" />
+                  Generate Visual
+                </>
+              )}
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => setSaveTemplateOpen(true)}
+              title="Save as template"
+            >
+              <BookmarkPlus className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
 
         {/* Preview Sidebar */}
@@ -542,6 +701,8 @@ export default function GenerateTypePage() {
               isGenerating={isGenerating}
               onRegenerate={handleGenerate}
               onDownload={handleDownload}
+              onEdit={() => setEditDialogOpen(true)}
+              onAddText={() => setTextEditorOpen(true)}
             />
           )}
 
@@ -577,6 +738,58 @@ export default function GenerateTypePage() {
           </Card>
         </div>
       </div>
+
+      {/* Edit Image Dialog */}
+      {generatedAsset?.image_url && (
+        <EditImageDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          imageUrl={generatedAsset.image_url}
+          aspectRatio={generatedAsset.aspect_ratio || "1:1"}
+          onEditComplete={(newUrl) => {
+            const updated = { ...generatedAsset, image_url: newUrl };
+            setGeneratedAsset(updated);
+            updateAsset(generatedAsset.id, updated);
+            toast.success("Image updated with edits!");
+            fireWebhook(updated, "image.edited");
+          }}
+        />
+      )}
+
+      {/* Text Overlay Editor */}
+      {generatedAsset?.image_url && (
+        <TextOverlayEditor
+          open={textEditorOpen}
+          onOpenChange={setTextEditorOpen}
+          imageUrl={generatedAsset.image_url}
+          onSave={(dataUrl) => {
+            const updated = { ...generatedAsset, image_url: dataUrl };
+            setGeneratedAsset(updated);
+            updateAsset(generatedAsset.id, updated);
+            toast.success("Text overlay applied!");
+          }}
+        />
+      )}
+
+      <SaveTemplateDialog
+        open={saveTemplateOpen}
+        onOpenChange={setSaveTemplateOpen}
+        defaults={{
+          contentType,
+          channel,
+          style,
+          headline: headline || undefined,
+          subheadline: subheadline || undefined,
+          cta: cta || undefined,
+          eventName: eventName || undefined,
+          eventDates: eventDates || undefined,
+          offerDetails: offerDetails || undefined,
+          serviceOffer: serviceOffer || undefined,
+          serviceDetails: serviceDetails || undefined,
+          customPrompt: customPrompt || undefined,
+          campaign: campaign || undefined,
+        }}
+      />
     </div>
   );
 }

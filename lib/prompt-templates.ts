@@ -37,9 +37,103 @@ function getVehicleDescription(vehicle: Vehicle): string {
   return parts.join(" ");
 }
 
+function getVehicleAccuracyPrompt(vehicle: Vehicle): string {
+  if (!vehicle.make || !vehicle.model) return "";
+  const key = `${vehicle.make.toLowerCase()}-${vehicle.model.toLowerCase()}`;
+  const y = vehicle.year || 2025;
+
+  const cues: Record<string, string> = {
+    "volkswagen-taos": y >= 2025
+      ? "redesigned front grille with horizontal light bar, updated LED headlights, wider stance, refreshed bumper"
+      : "compact crossover SUV, VW emblem grille, LED headlights, angular lines",
+    "volkswagen-atlas": "three-row midsize SUV, bold VW grille, LED headlights, muscular fenders",
+    "volkswagen-jetta": "compact sedan, VW front grille, LED headlights, clean profile",
+    "volkswagen-tiguan": "compact SUV, VW grille, LED headlights, athletic proportions",
+    "volkswagen-id.4": "electric SUV, closed-off grille, LED light strip, aerodynamic EV design",
+    "volkswagen-golf gti": "hot hatch, honeycomb grille, red accents, dual exhaust",
+    "toyota-camry": "midsize sedan, bold grille, swept-back headlights",
+    "toyota-corolla": "compact sedan, sleek design, modern Toyota grille",
+    "toyota-rav4": "compact SUV, angular design, rugged lower cladding",
+    "toyota-highlander": "three-row midsize SUV, bold grille, floating roofline",
+    "toyota-tacoma": "midsize pickup truck, bold front end",
+    "toyota-tundra": "full-size pickup, wide grille, muscular stance",
+    "honda-civic": "compact sedan, low hood, horizontal grille, clean lines",
+    "honda-accord": "midsize sedan, fastback roofline, chrome accent",
+    "honda-cr-v": "compact SUV, bold grille, upright stance",
+    "honda-pilot": "three-row SUV, boxy design, rugged look",
+    "ford-f-150": "full-size pickup, bold grille, C-clamp headlights",
+    "ford-mustang": "sports car, long hood, short deck, tri-bar taillights",
+    "ford-bronco": "off-road SUV, round headlights, retro-modern design",
+    "ford-explorer": "three-row SUV, athletic design",
+    "chevrolet-silverado": "full-size pickup, bowtie grille",
+    "chevrolet-equinox": "compact SUV, split headlights, modern design",
+    "chevrolet-corvette": "mid-engine sports car, aggressive low stance",
+    "bmw-3 series": "sport sedan, kidney grille, angel eye headlights",
+    "bmw-x5": "midsize luxury SUV, bold kidney grille",
+    "mercedes-benz-c-class": "luxury sedan, star emblem, sweeping lines",
+    "mercedes-benz-gle": "midsize luxury SUV, bold grille",
+    "hyundai-tucson": "compact SUV, parametric hidden lights, angular panels",
+    "hyundai-santa fe": "midsize SUV, H-shaped DRLs, boxy modern design",
+    "kia-telluride": "three-row SUV, tiger nose grille, boxy premium",
+    "kia-sportage": "compact SUV, boomerang DRLs, bold design",
+    "nissan-rogue": "compact SUV, V-motion grille, floating roofline",
+    "subaru-outback": "lifted wagon/SUV, rugged cladding",
+    "jeep-wrangler": "off-road SUV, seven-slot grille, round headlights",
+    "jeep-grand cherokee": "midsize luxury SUV, seven-slot grille",
+    "tesla-model 3": "electric sedan, no grille, minimalist glass roof",
+    "tesla-model y": "electric SUV, no grille, crossover proportions",
+    "ram-1500": "full-size pickup, split headlights, RAM lettering grille",
+    "audi-q5": "luxury compact SUV, singleframe grille, LED matrix headlights",
+    "lexus-rx": "luxury midsize SUV, spindle grille, L-shaped DRLs",
+  };
+
+  const designCue = cues[key];
+  if (designCue) {
+    return `IMPORTANT: This is a ${getVehicleDescription(vehicle)} — accurately depict this exact model with its real-world design: ${designCue}. Match the correct body style, proportions, and distinctive features of this specific vehicle.`;
+  }
+  return `IMPORTANT: Accurately depict the real-world ${getVehicleDescription(vehicle)} with correct body style, proportions, and design details for this exact make, model, and year.`;
+}
+
 function getBrandContext(dealership: Dealership): string {
   const colors = dealership.brand_colors;
-  return `Dealership: ${dealership.name}${dealership.tagline ? `. Tagline: "${dealership.tagline}"` : ""}. Brand colors: primary ${colors.primary}, secondary ${colors.secondary}, accent ${colors.accent}.`;
+  const c = dealership.contact ?? {};
+
+  const colorStr = `Brand colors: primary ${colors.primary}, secondary ${colors.secondary}, accent ${colors.accent}.`;
+  const taglineStr = dealership.tagline ? ` Tagline: "${dealership.tagline}".` : "";
+
+  // Build the contact footer overlay text
+  const footerParts: string[] = [dealership.name];
+  if (c.phone) footerParts.push(c.phone);
+  if (c.website) footerParts.push(c.website.replace(/^https?:\/\//, ""));
+  if (c.address) footerParts.push(c.address);
+
+  const footerText = footerParts.join("  |  ");
+
+  // Also collect any social handles for optional display
+  const socialParts: string[] = [];
+  if (c.social?.instagram) socialParts.push(`IG: ${c.social.instagram}`);
+  if (c.social?.facebook) socialParts.push(`FB: ${c.social.facebook}`);
+  const socialStr =
+    socialParts.length > 0
+      ? ` Social handles to display if space allows: ${socialParts.join(", ")}.`
+      : "";
+
+  const contactStr =
+    footerParts.length > 1
+      ? ` IMPORTANT: Include a clean professional footer bar at the bottom of the image with this text displayed clearly and legibly: "${footerText}".${socialStr}`
+      : "";
+
+  return `Dealership: ${dealership.name}.${taglineStr} ${colorStr}${contactStr} Use primary color ${colors.primary} as the dominant brand color in overlays, banners, and accents.`;
+}
+
+/** Builds a concise "contact footer" string for use inside individual templates */
+function getContactLine(dealership: Dealership): string {
+  const c = dealership.contact ?? {};
+  const parts: string[] = [];
+  if (c.phone) parts.push(c.phone);
+  if (c.website) parts.push(c.website.replace(/^https?:\/\//, ""));
+  if (c.address) parts.push(c.address);
+  return parts.length > 0 ? parts.join("  |  ") : "";
 }
 
 const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
@@ -47,51 +141,67 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
     const vehicle = ctx.vehicle;
     const vehicleDesc = vehicle ? getVehicleDescription(vehicle) : "featured vehicle";
     const price = vehicle?.price ? `$${vehicle.price.toLocaleString()}` : "";
-    return `Professional automotive photography, ${getChannelFormatting(ctx.channel)}. Stunning hero shot of a ${vehicleDesc}. ${ctx.headline ? `Headline text: "${ctx.headline}".` : ""} ${price ? `Price displayed: ${price}.` : ""} ${ctx.subheadline ? `Subtext: "${ctx.subheadline}".` : ""} Style: ${ctx.style}. ${getBrandContext(ctx.dealership)} Clean background, dramatic automotive lighting, showroom quality. Sharp legible text overlay with vehicle details. Professional composition, modern automotive advertising.`;
+    const accuracy = vehicle ? getVehicleAccuracyPrompt(vehicle) : "";
+    const contactLine = getContactLine(ctx.dealership);
+    return `Professional automotive photography, ${getChannelFormatting(ctx.channel)}. Stunning hero shot of a ${vehicleDesc}. ${accuracy} ${ctx.headline ? `Bold headline text overlay: "${ctx.headline}".` : ""} ${price ? `Display price prominently: "${price}".` : ""} ${ctx.subheadline ? `Subtext overlay: "${ctx.subheadline}".` : ""} ${ctx.cta ? `Call to action button: "${ctx.cta}".` : ""} ${contactLine ? `Footer bar at the bottom displaying dealership contact info: "${contactLine}".` : ""} Style: ${ctx.style}. ${getBrandContext(ctx.dealership)} Clean background, dramatic automotive lighting, showroom quality. All text must be sharp and fully legible. Professional composition, modern automotive advertising.`;
   },
 
   "sales-event": (ctx) => {
-    return `Eye-catching automotive sales event promotional graphic, ${getChannelFormatting(ctx.channel)}. Bold headline: "${ctx.event_name || ctx.headline || "SPECIAL SALES EVENT"}" at ${ctx.dealership.name}. ${ctx.offer_details ? `Subheadline: "${ctx.offer_details}".` : ""} ${ctx.event_dates ? `Dates: ${ctx.event_dates}.` : ""} ${ctx.vehicle ? `Feature a ${getVehicleDescription(ctx.vehicle)}.` : "Feature an exciting lineup of vehicles."} Style: ${ctx.style}, high-energy, attention-grabbing. ${getBrandContext(ctx.dealership)} Professional advertising design, crisp legible text. ${ctx.cta ? `Call to action: "${ctx.cta}".` : ""}`;
+    const accuracy = ctx.vehicle ? getVehicleAccuracyPrompt(ctx.vehicle) : "";
+    const contactLine = getContactLine(ctx.dealership);
+    return `Eye-catching automotive sales event promotional graphic, ${getChannelFormatting(ctx.channel)}. Bold headline overlay: "${ctx.event_name || ctx.headline || "SPECIAL SALES EVENT"}" at ${ctx.dealership.name}. ${ctx.offer_details ? `Subheadline: "${ctx.offer_details}".` : ""} ${ctx.event_dates ? `Display event dates prominently: "${ctx.event_dates}".` : ""} ${ctx.vehicle ? `Feature a ${getVehicleDescription(ctx.vehicle)}. ${accuracy}` : "Feature an exciting lineup of vehicles."} ${ctx.cta ? `Call to action: "${ctx.cta}".` : ""} ${contactLine ? `Footer bar at the bottom with dealership contact: "${contactLine}".` : ""} Style: ${ctx.style}, high-energy, attention-grabbing. ${getBrandContext(ctx.dealership)} Professional advertising design, all text crisp and legible.`;
   },
 
   "new-arrival": (ctx) => {
     const vehicle = ctx.vehicle;
     const vehicleDesc = vehicle ? getVehicleDescription(vehicle) : "new vehicle";
-    return `Professional automotive "Just Arrived" announcement graphic, ${getChannelFormatting(ctx.channel)}. Exciting new arrival post featuring a ${vehicleDesc}. ${ctx.headline ? `Headline: "${ctx.headline}".` : 'Bold "JUST ARRIVED" text.'} ${vehicle?.price ? `Price: $${vehicle.price.toLocaleString()}.` : ""} Style: ${ctx.style}, fresh and exciting. ${getBrandContext(ctx.dealership)} Modern, clean layout with premium feel. Sharp, legible text. Professional automotive photography.`;
+    const accuracy = vehicle ? getVehicleAccuracyPrompt(vehicle) : "";
+    const contactLine = getContactLine(ctx.dealership);
+    return `Professional automotive "Just Arrived" announcement graphic, ${getChannelFormatting(ctx.channel)}. Exciting new arrival post featuring a ${vehicleDesc}. ${accuracy} ${ctx.headline ? `Headline overlay: "${ctx.headline}".` : 'Bold "JUST ARRIVED" text overlay.'} ${vehicle?.price ? `Price overlay: "$${vehicle.price.toLocaleString()}".` : ""} ${ctx.subheadline ? `Subtext: "${ctx.subheadline}".` : ""} ${ctx.cta ? `CTA: "${ctx.cta}".` : ""} ${contactLine ? `Footer contact bar: "${contactLine}".` : ""} Style: ${ctx.style}, fresh and exciting. ${getBrandContext(ctx.dealership)} Modern, clean layout with premium feel. All text sharp and legible.`;
   },
 
   "price-drop": (ctx) => {
     const vehicle = ctx.vehicle;
     const vehicleDesc = vehicle ? getVehicleDescription(vehicle) : "select vehicle";
-    return `Urgent "PRICE REDUCED" automotive promotional graphic, ${getChannelFormatting(ctx.channel)}. Eye-catching price drop alert for a ${vehicleDesc}. ${ctx.headline ? `Headline: "${ctx.headline}".` : 'Bold "PRICE REDUCED!" text.'} ${ctx.offer_details ? `New price details: "${ctx.offer_details}".` : ""} Style: ${ctx.style}, urgent, attention-grabbing with bold typography. ${getBrandContext(ctx.dealership)} Include visual price comparison element. Professional design, crisp legible text.`;
+    const accuracy = vehicle ? getVehicleAccuracyPrompt(vehicle) : "";
+    const contactLine = getContactLine(ctx.dealership);
+    return `Urgent "PRICE REDUCED" automotive promotional graphic, ${getChannelFormatting(ctx.channel)}. Eye-catching price drop alert for a ${vehicleDesc}. ${accuracy} ${ctx.headline ? `Bold headline: "${ctx.headline}".` : 'Bold "PRICE REDUCED!" text overlay.'} ${ctx.offer_details ? `New price displayed prominently: "${ctx.offer_details}".` : ""} ${ctx.cta ? `CTA: "${ctx.cta}".` : ""} ${contactLine ? `Footer contact bar: "${contactLine}".` : ""} Style: ${ctx.style}, urgent, attention-grabbing with bold typography. ${getBrandContext(ctx.dealership)} Include visual price comparison element. All text crisp and legible.`;
   },
 
   "inventory-showcase": (ctx) => {
-    return `Professional automotive inventory showcase graphic, ${getChannelFormatting(ctx.channel)}. ${ctx.headline ? `Headline: "${ctx.headline}".` : `"Browse Our Inventory" at ${ctx.dealership.name}.`} Multi-vehicle display showing a variety of quality vehicles. Style: ${ctx.style}, organized, visually appealing grid or collage layout. ${getBrandContext(ctx.dealership)} Clean, modern design. Each vehicle clearly visible. Professional automotive photography, well-lit, showroom quality.`;
+    const contactLine = getContactLine(ctx.dealership);
+    return `Professional automotive inventory showcase graphic, ${getChannelFormatting(ctx.channel)}. ${ctx.headline ? `Headline: "${ctx.headline}".` : `"Browse Our Inventory" headline at ${ctx.dealership.name}.`} Multi-vehicle display showing a variety of quality vehicles. ${ctx.cta ? `CTA: "${ctx.cta}".` : ""} ${contactLine ? `Footer contact bar: "${contactLine}".` : ""} Style: ${ctx.style}, organized, visually appealing grid or collage layout. ${getBrandContext(ctx.dealership)} Clean, modern design. Each vehicle clearly visible. All text legible.`;
   },
 
   "brand-post": (ctx) => {
-    return `Professional dealership brand awareness post, ${getChannelFormatting(ctx.channel)}. ${ctx.headline ? `Message: "${ctx.headline}".` : `Showcase ${ctx.dealership.name} as a trusted automotive destination.`} ${ctx.subheadline ? `Subtext: "${ctx.subheadline}".` : ""} Style: ${ctx.style}, warm, professional, trustworthy. ${getBrandContext(ctx.dealership)} Show a welcoming dealership environment. Community-focused, people-oriented feel. Professional photography, premium quality.`;
+    const contactLine = getContactLine(ctx.dealership);
+    return `Professional dealership brand awareness post, ${getChannelFormatting(ctx.channel)}. ${ctx.headline ? `Message overlay: "${ctx.headline}".` : `Showcase ${ctx.dealership.name} as a trusted automotive destination.`} ${ctx.subheadline ? `Subtext: "${ctx.subheadline}".` : ""} ${contactLine ? `Include dealership contact info: "${contactLine}".` : ""} Style: ${ctx.style}, warm, professional, trustworthy. ${getBrandContext(ctx.dealership)} Show a welcoming dealership environment. Community-focused, people-oriented feel. All text sharp and legible.`;
   },
 
   testimonial: (ctx) => {
-    return `Customer testimonial spotlight graphic, ${getChannelFormatting(ctx.channel)}. ${ctx.testimonial_text ? `Customer quote: "${ctx.testimonial_text}"` : "Positive customer review highlight"}${ctx.testimonial_author ? ` — ${ctx.testimonial_author}` : ""}. ${ctx.rating ? `${ctx.rating} out of 5 stars rating display.` : "5-star rating display."} Style: ${ctx.style}, trustworthy, authentic. ${getBrandContext(ctx.dealership)} Clean design with quote styling. Include star rating visual element. Professional, credible layout.`;
+    const contactLine = getContactLine(ctx.dealership);
+    return `Customer testimonial spotlight graphic, ${getChannelFormatting(ctx.channel)}. ${ctx.testimonial_text ? `Customer quote overlay: "${ctx.testimonial_text}"` : "Positive customer review highlight"}${ctx.testimonial_author ? ` — ${ctx.testimonial_author}` : ""}. ${ctx.rating ? `${ctx.rating}-star rating display.` : "5-star rating display."} ${contactLine ? `Footer with dealership info: "${contactLine}".` : ""} Style: ${ctx.style}, trustworthy, authentic. ${getBrandContext(ctx.dealership)} Clean design with styled quote layout. Include star rating visual. All text sharp and legible.`;
   },
 
   "service-promo": (ctx) => {
-    return `Professional automotive service department promotional graphic, ${getChannelFormatting(ctx.channel)}. ${ctx.dealership.name} Service Center special offer. ${ctx.service_offer ? `Headline: "${ctx.service_offer}".` : ctx.headline ? `Headline: "${ctx.headline}".` : "Service special offer."} ${ctx.service_details ? `Details: "${ctx.service_details}".` : ""} Style: ${ctx.style}, clean, trustworthy design. ${getBrandContext(ctx.dealership)} Include automotive service imagery (tools, professional technician, vehicle on lift). Modern, clean layout with clear call-to-action. Legible text.`;
+    const contactLine = getContactLine(ctx.dealership);
+    return `Professional automotive service department promotional graphic, ${getChannelFormatting(ctx.channel)}. ${ctx.dealership.name} Service Centre. ${ctx.service_offer ? `Bold headline: "${ctx.service_offer}".` : ctx.headline ? `Bold headline: "${ctx.headline}".` : "Service special offer."} ${ctx.service_details ? `Details overlay: "${ctx.service_details}".` : ""} ${ctx.cta ? `CTA: "${ctx.cta}".` : ""} ${contactLine ? `Footer contact bar: "${contactLine}".` : ""} Style: ${ctx.style}, clean, trustworthy design. ${getBrandContext(ctx.dealership)} Include automotive service imagery (tools, professional technician, vehicle on lift). All text crisp and fully legible.`;
   },
 
   financing: (ctx) => {
-    return `Automotive financing and offer highlight graphic, ${getChannelFormatting(ctx.channel)}. ${ctx.headline ? `Bold headline: "${ctx.headline}".` : '"Special Financing Available".'} ${ctx.offer_details ? `Offer details: "${ctx.offer_details}".` : ""} ${ctx.vehicle ? `Featured vehicle: ${getVehicleDescription(ctx.vehicle)}.` : ""} Style: ${ctx.style}, bold, clear, trustworthy. ${getBrandContext(ctx.dealership)} Professional financial services feel. Large, legible numbers and text. Clear call-to-action. ${ctx.cta ? `CTA: "${ctx.cta}".` : ""}`;
+    const accuracy = ctx.vehicle ? getVehicleAccuracyPrompt(ctx.vehicle) : "";
+    const contactLine = getContactLine(ctx.dealership);
+    return `Automotive financing and offer highlight graphic, ${getChannelFormatting(ctx.channel)}. ${ctx.headline ? `Bold headline: "${ctx.headline}".` : '"Special Financing Available".'} ${ctx.offer_details ? `Offer details overlay: "${ctx.offer_details}".` : ""} ${ctx.vehicle ? `Featured vehicle: ${getVehicleDescription(ctx.vehicle)}. ${accuracy}` : ""} ${ctx.cta ? `CTA: "${ctx.cta}".` : ""} ${contactLine ? `Footer contact bar: "${contactLine}".` : ""} Style: ${ctx.style}, bold, clear, trustworthy. ${getBrandContext(ctx.dealership)} Large, legible numbers and text. All text crisp and fully legible.`;
   },
 
   holiday: (ctx) => {
-    return `Branded holiday greeting post for automotive dealership, ${getChannelFormatting(ctx.channel)}. ${ctx.headline ? `Message: "${ctx.headline}".` : "Warm holiday greeting."} ${ctx.subheadline ? `Subtext: "${ctx.subheadline}".` : ""} Style: ${ctx.style}, festive, warm, on-brand. ${getBrandContext(ctx.dealership)} Tasteful holiday themed design that incorporates dealership branding. Professional, polished, celebratory mood. Elegant typography.`;
+    const contactLine = getContactLine(ctx.dealership);
+    return `Branded holiday greeting post for automotive dealership, ${getChannelFormatting(ctx.channel)}. ${ctx.headline ? `Message overlay: "${ctx.headline}".` : "Warm holiday greeting."} ${ctx.subheadline ? `Subtext: "${ctx.subheadline}".` : ""} ${contactLine ? `Include dealership contact info: "${contactLine}".` : ""} Style: ${ctx.style}, festive, warm, on-brand. ${getBrandContext(ctx.dealership)} Tasteful holiday themed design with dealership branding. Professional, polished, celebratory mood. All text elegant and legible.`;
   },
 
   custom: (ctx) => {
-    return `${ctx.custom_prompt || ctx.headline || "Professional automotive marketing visual"}. ${getChannelFormatting(ctx.channel)}. Style: ${ctx.style}. ${getBrandContext(ctx.dealership)} Professional quality, crisp legible text, modern design.`;
+    const contactLine = getContactLine(ctx.dealership);
+    return `${ctx.custom_prompt || ctx.headline || "Professional automotive marketing visual"}. ${getChannelFormatting(ctx.channel)}. ${contactLine ? `Include dealership contact info in the image: "${contactLine}".` : ""} Style: ${ctx.style}. ${getBrandContext(ctx.dealership)} Professional quality, all text crisp and legible, modern design.`;
   },
 };
 

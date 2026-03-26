@@ -25,6 +25,15 @@ export interface Dealership {
     default_style?: string;
     font_preference?: string;
   };
+  webhook_config?: {
+    url: string;
+    enabled: boolean;
+    include_prompt: boolean;
+    include_vehicle: boolean;
+    include_dealership: boolean;
+    include_user_email: boolean;
+    secret?: string;
+  };
   created_at: string;
   updated_at: string;
 }

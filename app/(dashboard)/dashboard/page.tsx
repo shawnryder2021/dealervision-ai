@@ -6,6 +6,7 @@ import { Image, Car, TrendingUp, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { QuickActions } from "@/components/dashboard/QuickActions";
+import { SeasonalSuggestions } from "@/components/dashboard/SeasonalSuggestions";
 import { RecentGenerations } from "@/components/dashboard/RecentGenerations";
 import { useAppStore } from "@/lib/store";
 import { createClient } from "@/lib/supabase/client";
@@ -136,6 +137,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Seasonal Suggestions */}
+      <SeasonalSuggestions />
 
       {/* Quick Actions */}
       <div>

@@ -4,7 +4,7 @@ import { uploadToImgBB } from "@/lib/imgbb";
 
 export async function POST(request: Request) {
   try {
-    const { prompt, aspect_ratio, resolution } = await request.json();
+    const { prompt, aspect_ratio, resolution, image_input } = await request.json();
 
     if (!prompt) {
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
@@ -15,6 +15,7 @@ export async function POST(request: Request) {
       aspect_ratio: aspect_ratio || "1:1",
       resolution: resolution || "1K",
       output_format: "png",
+      image_input: image_input || [],
     });
 
     return NextResponse.json({
@@ -38,14 +39,11 @@ export async function GET(request: Request) {
 
     const result = await getTaskStatus(taskId);
 
-    // Upload completed images to ImgBB for permanent storage
+    // Return image immediately — upload to ImgBB in background (don't block)
     if (result.status === "completed" && result.output?.image_url) {
-      try {
-        const imgbb = await uploadToImgBB(result.output.image_url);
-        result.output.image_url = imgbb.url;
-      } catch (e) {
-        console.error("ImgBB upload failed, using original URL:", e);
-      }
+      uploadToImgBB(result.output.image_url).catch((e) =>
+        console.error("Background ImgBB upload failed:", e)
+      );
     }
 
     return NextResponse.json(result);

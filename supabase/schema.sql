@@ -1,4 +1,4 @@
--- DealerVision AI Database Schema
+-- DealerAdGen AI Database Schema
 -- Run this in your Supabase SQL Editor to set up the database
 
 -- Dealerships

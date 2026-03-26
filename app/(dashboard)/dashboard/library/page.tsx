@@ -17,7 +17,10 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, RefreshCw, Heart, Trash2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Download, Pencil, Heart, Trash2, Type, CheckSquare, X, Package } from "lucide-react";
+import { EditImageDialog } from "@/components/create/EditImageDialog";
+import { TextOverlayEditor } from "@/components/create/TextOverlayEditor";
 
 export default function LibraryPage() {
   const { dealership, recentAssets } = useAppStore();
@@ -27,6 +30,12 @@ export default function LibraryPage() {
   const [channel, setChannel] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
   const [selectedAsset, setSelectedAsset] = useState<GeneratedAsset | null>(null);
+  const [editAsset, setEditAsset] = useState<GeneratedAsset | null>(null);
+  const [textOverlayAsset, setTextOverlayAsset] = useState<GeneratedAsset | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isZipping, setIsZipping] = useState(false);
+  const [zipProgress, setZipProgress] = useState({ current: 0, total: 0 });
 
   useEffect(() => {
     async function loadAssets() {
@@ -107,8 +116,22 @@ export default function LibraryPage() {
     }
   }
 
-  function handleDownload(asset: GeneratedAsset) {
-    if (asset.image_url) {
+  async function handleDownload(asset: GeneratedAsset) {
+    if (!asset.image_url) return;
+    try {
+      const proxyUrl = `/api/download-proxy?url=${encodeURIComponent(asset.image_url)}`;
+      const res = await fetch(proxyUrl);
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${asset.content_type}-${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
       window.open(asset.image_url, "_blank");
     }
   }
@@ -134,17 +157,123 @@ export default function LibraryPage() {
     }
   }
 
+  function handleToggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function handleSelectAll() {
+    setSelectedIds(new Set(filteredAssets.map((a) => a.id)));
+  }
+
+  function handleClearSelection() {
+    setSelectedIds(new Set());
+  }
+
+  async function handleDownloadZip() {
+    const selected = assets.filter((a) => selectedIds.has(a.id) && a.image_url);
+    if (selected.length === 0) return;
+
+    setIsZipping(true);
+    setZipProgress({ current: 0, total: selected.length });
+
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+
+      for (let i = 0; i < selected.length; i++) {
+        const asset = selected[i];
+        try {
+          const res = await fetch(`/api/download-proxy?url=${encodeURIComponent(asset.image_url!)}`);
+          if (!res.ok) continue;
+          const blob = await res.blob();
+          const ext = blob.type.includes("png") ? "png" : "jpg";
+          zip.file(`${asset.content_type}-${asset.channel}-${i + 1}.${ext}`, blob);
+        } catch {
+          // skip failed downloads
+        }
+        setZipProgress({ current: i + 1, total: selected.length });
+      }
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `dealeradgen-assets-${Date.now()}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`Downloaded ${selected.length} assets as ZIP`);
+    } catch {
+      toast.error("Failed to create ZIP file");
+    } finally {
+      setIsZipping(false);
+      setZipProgress({ current: 0, total: 0 });
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-heading text-2xl font-bold flex items-center gap-2">
-          <ImageIcon className="h-6 w-6 text-primary" />
-          Asset Library
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {assets.length} generated visual{assets.length !== 1 ? "s" : ""}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="font-heading text-2xl font-bold flex items-center gap-2">
+            <ImageIcon className="h-6 w-6 text-primary" />
+            Asset Library
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {assets.length} generated visual{assets.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        <Button
+          variant={selectMode ? "default" : "outline"}
+          size="sm"
+          onClick={() => {
+            setSelectMode(!selectMode);
+            if (selectMode) setSelectedIds(new Set());
+          }}
+        >
+          <CheckSquare className="h-4 w-4 mr-1.5" />
+          {selectMode ? "Done" : "Select"}
+        </Button>
       </div>
+
+      {selectMode && (
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+          <span className="text-sm font-medium">
+            {selectedIds.size} selected
+          </span>
+          <div className="flex gap-2">
+            <Button size="sm" variant="ghost" onClick={handleSelectAll}>
+              Select All
+            </Button>
+            <Button size="sm" variant="ghost" onClick={handleClearSelection}>
+              Clear
+            </Button>
+          </div>
+          <div className="flex-1" />
+          {isZipping && (
+            <div className="flex items-center gap-2 min-w-[200px]">
+              <Progress value={(zipProgress.current / zipProgress.total) * 100} className="h-2" />
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {zipProgress.current}/{zipProgress.total}
+              </span>
+            </div>
+          )}
+          <Button
+            size="sm"
+            disabled={selectedIds.size === 0 || isZipping}
+            onClick={handleDownloadZip}
+          >
+            <Package className="h-4 w-4 mr-1.5" />
+            {isZipping ? "Zipping..." : `Download ZIP (${selectedIds.size})`}
+          </Button>
+        </div>
+      )}
 
       <AssetFilters
         search={search}
@@ -163,6 +292,10 @@ export default function LibraryPage() {
         onDownload={handleDownload}
         onDelete={handleDelete}
         onView={setSelectedAsset}
+        onEdit={setEditAsset}
+        selectMode={selectMode}
+        selectedIds={selectedIds}
+        onToggleSelect={handleToggleSelect}
       />
 
       <Dialog
@@ -214,6 +347,32 @@ export default function LibraryPage() {
                   <Download className="h-4 w-4 mr-1" />
                   Download
                 </Button>
+                {selectedAsset.image_url && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditAsset(selectedAsset);
+                        setSelectedAsset(null);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setTextOverlayAsset(selectedAsset);
+                        setSelectedAsset(null);
+                      }}
+                    >
+                      <Type className="h-4 w-4 mr-1" />
+                      Add Text
+                    </Button>
+                  </>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
@@ -229,6 +388,41 @@ export default function LibraryPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Edit Image Dialog */}
+      {editAsset?.image_url && (
+        <EditImageDialog
+          open={!!editAsset}
+          onOpenChange={(open) => !open && setEditAsset(null)}
+          imageUrl={editAsset.image_url}
+          aspectRatio={editAsset.aspect_ratio || "1:1"}
+          onEditComplete={(newUrl) => {
+            setAssets((prev) =>
+              prev.map((a) =>
+                a.id === editAsset.id ? { ...a, image_url: newUrl } : a
+              )
+            );
+            toast.success("Image updated with edits!");
+          }}
+        />
+      )}
+
+      {/* Text Overlay Editor */}
+      {textOverlayAsset?.image_url && (
+        <TextOverlayEditor
+          open={!!textOverlayAsset}
+          onOpenChange={(open) => !open && setTextOverlayAsset(null)}
+          imageUrl={textOverlayAsset.image_url}
+          onSave={(dataUrl) => {
+            setAssets((prev) =>
+              prev.map((a) =>
+                a.id === textOverlayAsset.id ? { ...a, image_url: dataUrl } : a
+              )
+            );
+            toast.success("Text overlay applied!");
+          }}
+        />
+      )}
     </div>
   );
 }

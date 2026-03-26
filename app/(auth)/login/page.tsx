@@ -28,7 +28,7 @@ export default function LoginPage() {
       if (isMagicLink) {
         const { error } = await supabase.auth.signInWithOtp({
           email,
-          options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard` },
         });
         if (error) throw error;
         toast.success("Check your email for the login link!");
@@ -57,7 +57,7 @@ export default function LoginPage() {
           </div>
           <h1 className="font-heading text-2xl font-bold">Welcome Back</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Sign in to DealerVision AI
+            Sign in to DealerAdGen AI
           </p>
         </div>
 

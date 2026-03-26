@@ -50,7 +50,44 @@
   --color-amber: oklch(0.702 0.183 70.08);
 }
 
+/* Light mode (default) */
 :root {
+  --background: oklch(0.98 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.55 0.22 259.815);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.94 0.005 285);
+  --secondary-foreground: oklch(0.2 0 0);
+  --muted: oklch(0.94 0.005 285);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.702 0.183 70.08);
+  --accent-foreground: oklch(0.145 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0 0 0 / 10%);
+  --input: oklch(0 0 0 / 8%);
+  --ring: oklch(0.55 0.22 259.815);
+  --chart-1: oklch(0.55 0.22 259.815);
+  --chart-2: oklch(0.702 0.183 70.08);
+  --chart-3: oklch(0.7 0.2 150);
+  --chart-4: oklch(0.6 0.2 330);
+  --chart-5: oklch(0.8 0.15 90);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.97 0.003 285);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.55 0.22 259.815);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.93 0.005 285);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
+  --sidebar-border: oklch(0 0 0 / 8%);
+  --sidebar-ring: oklch(0.55 0.22 259.815);
+}
+
+/* Dark mode */
+.dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.178 0.005 285);
@@ -99,12 +136,22 @@
 
 @layer utilities {
   .glass {
-    background: oklch(0.178 0.005 285 / 60%);
+    background: oklch(1 0 0 / 60%);
     backdrop-filter: blur(16px);
-    border: 1px solid oklch(1 0 0 / 8%);
+    border: 1px solid oklch(0 0 0 / 6%);
   }
 
   .glass-hover:hover {
+    background: oklch(1 0 0 / 80%);
+    border-color: oklch(0 0 0 / 10%);
+  }
+
+  .dark .glass {
+    background: oklch(0.178 0.005 285 / 60%);
+    border-color: oklch(1 0 0 / 8%);
+  }
+
+  .dark .glass-hover:hover {
     background: oklch(0.2 0.005 285 / 70%);
     border-color: oklch(1 0 0 / 12%);
   }

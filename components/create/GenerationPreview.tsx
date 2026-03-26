@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, RefreshCw, Heart, Share2, Edit3 } from "lucide-react";
+import { Download, RefreshCw, Heart, Pencil, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,8 @@ interface GenerationPreviewProps {
   asset: GeneratedAsset | null;
   isGenerating: boolean;
   onRegenerate?: () => void;
-  onRefine?: () => void;
+  onEdit?: () => void;
+  onAddText?: () => void;
   onDownload?: () => void;
   onFavorite?: () => void;
 }
@@ -20,7 +21,8 @@ export function GenerationPreview({
   asset,
   isGenerating,
   onRegenerate,
-  onRefine,
+  onEdit,
+  onAddText,
   onDownload,
   onFavorite,
 }: GenerationPreviewProps) {
@@ -77,16 +79,22 @@ export function GenerationPreview({
               Download
             </Button>
           )}
+          {onEdit && asset.image_url && (
+            <Button size="sm" variant="outline" onClick={onEdit}>
+              <Pencil className="h-4 w-4 mr-1" />
+              Edit
+            </Button>
+          )}
+          {onAddText && asset.image_url && (
+            <Button size="sm" variant="outline" onClick={onAddText}>
+              <Type className="h-4 w-4 mr-1" />
+              Add Text
+            </Button>
+          )}
           {onRegenerate && (
             <Button size="sm" variant="outline" onClick={onRegenerate}>
               <RefreshCw className="h-4 w-4 mr-1" />
               Regenerate
-            </Button>
-          )}
-          {onRefine && asset.image_url && (
-            <Button size="sm" variant="outline" onClick={onRefine}>
-              <Edit3 className="h-4 w-4 mr-1" />
-              Refine
             </Button>
           )}
           {onFavorite && (

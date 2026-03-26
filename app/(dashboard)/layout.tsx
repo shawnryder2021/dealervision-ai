@@ -13,6 +13,7 @@ import {
   DEMO_VEHICLES,
   DEMO_ASSETS,
 } from "@/lib/demo-data";
+import { loadDemoSettings } from "@/lib/demo-settings";
 
 export default function DashboardLayout({
   children,
@@ -33,7 +34,9 @@ export default function DashboardLayout({
   useEffect(() => {
     async function init() {
       if (isDemoMode()) {
-        setDealership(DEMO_DEALERSHIP);
+        // Use saved demo settings if available, otherwise fall back to defaults
+        const savedDealership = loadDemoSettings();
+        setDealership(savedDealership ?? DEMO_DEALERSHIP);
         setProfile(DEMO_PROFILE);
         setVehicles(DEMO_VEHICLES);
         setRecentAssets(DEMO_ASSETS);
@@ -63,15 +66,29 @@ export default function DashboardLayout({
         setProfile(profile);
 
         if (profile.dealership_id) {
-          const { data: dealership } = await supabase
-            .from("dealerships")
-            .select("*")
-            .eq("id", profile.dealership_id)
-            .single();
+          const [dealershipRes, vehiclesRes, assetsRes] = await Promise.all([
+            supabase
+              .from("dealerships")
+              .select("*")
+              .eq("id", profile.dealership_id)
+              .single(),
+            supabase
+              .from("vehicles")
+              .select("*")
+              .eq("dealership_id", profile.dealership_id)
+              .order("created_at", { ascending: false }),
+            supabase
+              .from("generated_assets")
+              .select("*")
+              .eq("dealership_id", profile.dealership_id)
+              .eq("status", "completed")
+              .order("created_at", { ascending: false })
+              .limit(50),
+          ]);
 
-          if (dealership) {
-            setDealership(dealership);
-          }
+          if (dealershipRes.data) setDealership(dealershipRes.data);
+          if (vehiclesRes.data) setVehicles(vehiclesRes.data);
+          if (assetsRes.data) setRecentAssets(assetsRes.data);
         }
       }
 
@@ -93,7 +110,7 @@ export default function DashboardLayout({
   return (
     <div className="flex h-screen">
       <Sidebar />
-      <main className="flex-1 ml-64 overflow-auto">
+      <main className="flex-1 ml-56 overflow-auto">
         <div className="p-6 lg:p-8 max-w-7xl mx-auto">{children}</div>
       </main>
     </div>

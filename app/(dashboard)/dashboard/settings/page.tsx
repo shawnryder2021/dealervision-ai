@@ -1,21 +1,38 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Settings, Save, Building2, Globe, Phone, Mail, Palette } from "lucide-react";
+import {
+  Settings,
+  Save,
+  Building2,
+  Globe,
+  Phone,
+  Upload,
+  Loader2,
+  X,
+  Webhook,
+  Send,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { BrandColorPicker } from "@/components/shared/BrandColorPicker";
 import { useAppStore } from "@/lib/store";
 import { createClient } from "@/lib/supabase/client";
 import { isDemoMode } from "@/lib/demo-data";
+import { updateProfile } from "@/lib/db/profiles";
+import { logActivity } from "@/lib/db/activity";
+import { saveDemoSettings } from "@/lib/demo-settings";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
-  const { dealership, setDealership } = useAppStore();
+  const { dealership, setDealership, profile, setProfile } = useAppStore();
 
   const [name, setName] = useState("");
   const [tagline, setTagline] = useState("");
@@ -36,12 +53,40 @@ export default function SettingsPage() {
       youtube: "",
     },
   });
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [webhookConfig, setWebhookConfig] = useState({
+    url: "",
+    enabled: false,
+    include_prompt: true,
+    include_vehicle: true,
+    include_dealership: true,
+    include_user_email: true,
+    secret: "",
+  });
+  const [webhookTestStatus, setWebhookTestStatus] = useState<
+    "idle" | "testing" | "success" | "failed"
+  >("idle");
+  const [webhookTestError, setWebhookTestError] = useState("");
+
+  // Profile state
+  const [fullName, setFullName] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      setFullName(profile.full_name ?? "");
+    }
+  }, [profile]);
 
   useEffect(() => {
     if (dealership) {
       setName(dealership.name);
       setTagline(dealership.tagline || "");
+      setLogoUrl(dealership.logo_url || null);
       setBrandColors(dealership.brand_colors);
       setContact({
         address: dealership.contact.address || "",
@@ -55,23 +100,76 @@ export default function SettingsPage() {
           youtube: dealership.contact.social?.youtube || "",
         },
       });
+      if (dealership.webhook_config) {
+        setWebhookConfig({
+          url: dealership.webhook_config.url || "",
+          enabled: dealership.webhook_config.enabled || false,
+          include_prompt: dealership.webhook_config.include_prompt ?? true,
+          include_vehicle: dealership.webhook_config.include_vehicle ?? true,
+          include_dealership: dealership.webhook_config.include_dealership ?? true,
+          include_user_email: dealership.webhook_config.include_user_email ?? true,
+          secret: dealership.webhook_config.secret || "",
+        });
+      }
     }
   }, [dealership]);
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Upload failed");
+      }
+      const data = await res.json();
+      setLogoUrl(data.url);
+      toast.success("Logo uploaded");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      toast.error(msg);
+    }
+    setIsUploadingLogo(false);
+    e.target.value = "";
+  }
 
   async function handleSave() {
     if (!dealership) return;
     setIsSaving(true);
 
+    const webhookToSave = {
+      url: webhookConfig.url.trim(),
+      enabled: webhookConfig.enabled,
+      include_prompt: webhookConfig.include_prompt,
+      include_vehicle: webhookConfig.include_vehicle,
+      include_dealership: webhookConfig.include_dealership,
+      include_user_email: webhookConfig.include_user_email,
+      secret: webhookConfig.secret.trim() || undefined,
+    };
+
     if (isDemoMode()) {
-      setDealership({
+      const updated = {
         ...dealership,
         name,
         tagline,
+        logo_url: logoUrl,
         brand_colors: brandColors,
         contact,
+        webhook_config: webhookToSave,
         updated_at: new Date().toISOString(),
-      });
-      toast.success("Settings saved (demo)");
+      };
+      setDealership(updated);
+      saveDemoSettings(updated);
+      toast.success("Settings saved");
       setIsSaving(false);
       return;
     }
@@ -82,8 +180,10 @@ export default function SettingsPage() {
       .update({
         name,
         tagline,
+        logo_url: logoUrl,
         brand_colors: brandColors,
         contact,
+        webhook_config: webhookToSave,
         updated_at: new Date().toISOString(),
       })
       .eq("id", dealership.id)
@@ -94,10 +194,91 @@ export default function SettingsPage() {
       toast.error("Failed to save settings");
     } else if (data) {
       setDealership(data);
+      logActivity({
+        dealership_id: dealership.id,
+        user_id: profile?.id ?? "",
+        user_name: profile?.full_name ?? "User",
+        action: "updated_settings",
+        entity_type: "settings",
+        details: { section: "Dealership settings" },
+      });
       toast.success("Settings saved");
     }
 
     setIsSaving(false);
+  }
+
+  async function handleTestWebhook() {
+    if (!webhookConfig.url.trim()) {
+      toast.error("Enter a webhook URL first");
+      return;
+    }
+    setWebhookTestStatus("testing");
+    setWebhookTestError("");
+    try {
+      const res = await fetch("/api/webhook-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          webhook_config: webhookConfig,
+          dealership_name: name,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setWebhookTestStatus("success");
+        toast.success(`Webhook delivered! (HTTP ${data.status})`);
+      } else {
+        setWebhookTestStatus("failed");
+        setWebhookTestError(data.error || `HTTP ${data.status}`);
+        toast.error(`Webhook failed: ${data.error || `HTTP ${data.status}`}`);
+      }
+    } catch {
+      setWebhookTestStatus("failed");
+      setWebhookTestError("Network error");
+      toast.error("Failed to send test webhook");
+    }
+  }
+
+  async function handleSaveProfile() {
+    if (!profile) return;
+    setIsSavingProfile(true);
+    try {
+      if (newPassword) {
+        if (newPassword !== confirmPassword) {
+          toast.error("Passwords do not match");
+          setIsSavingProfile(false);
+          return;
+        }
+        if (newPassword.length < 8) {
+          toast.error("Password must be at least 8 characters");
+          setIsSavingProfile(false);
+          return;
+        }
+        if (!isDemoMode()) {
+          const supabase = createClient();
+          const { error } = await supabase.auth.updateUser({ password: newPassword });
+          if (error) throw error;
+        }
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+      const updated = await updateProfile(profile.id, { full_name: fullName });
+      setProfile(updated);
+      logActivity({
+        dealership_id: dealership?.id ?? "",
+        user_id: profile.id,
+        user_name: fullName || profile.full_name || "User",
+        action: "updated_settings",
+        entity_type: "settings",
+        details: { section: "Your Profile" },
+      });
+      toast.success("Profile saved");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to save profile";
+      toast.error(msg);
+    }
+    setIsSavingProfile(false);
   }
 
   return (
@@ -111,6 +292,70 @@ export default function SettingsPage() {
           Manage your brand profile and contact information
         </p>
       </div>
+
+      {/* Your Profile */}
+      <Card className="glass">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <span className="h-4 w-4 text-lg">👤</span>
+            Your Profile
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Full Name</Label>
+            <Input
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Your name"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>New Password</Label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Leave blank to keep current"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Confirm Password</Label>
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <div className="flex-1">
+              {profile && (
+                <p className="text-xs text-muted-foreground">
+                  Role: <span className="capitalize font-medium">{profile.role}</span>
+                </p>
+              )}
+            </div>
+            <Button
+              onClick={handleSaveProfile}
+              disabled={isSavingProfile}
+              size="sm"
+              className="gradient-primary text-white"
+            >
+              {isSavingProfile ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save Profile
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Separator />
 
       {/* Brand Profile */}
       <Card className="glass">
@@ -137,6 +382,59 @@ export default function SettingsPage() {
               onChange={(e) => setTagline(e.target.value)}
               placeholder="Your dealership tagline..."
             />
+          </div>
+
+          <Separator />
+
+          {/* Logo Upload */}
+          <div className="space-y-2">
+            <Label>Dealership Logo</Label>
+            <p className="text-xs text-muted-foreground">
+              Used as a watermark overlay on generated images
+            </p>
+            {logoUrl ? (
+              <div className="flex items-center gap-3">
+                <div className="relative h-16 w-32 rounded-lg border border-border overflow-hidden bg-muted/30">
+                  <img
+                    src={logoUrl}
+                    alt="Dealership logo"
+                    className="h-full w-full object-contain p-1"
+                  />
+                </div>
+                <button
+                  onClick={() => setLogoUrl(null)}
+                  className="h-8 w-8 rounded-full border border-border flex items-center justify-center hover:bg-destructive/10 transition-colors"
+                >
+                  <X className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                  id="logo-upload"
+                  disabled={isUploadingLogo}
+                />
+                <label htmlFor="logo-upload">
+                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-border bg-muted/30 text-sm cursor-pointer hover:bg-muted/50 transition-colors">
+                    {isUploadingLogo ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4" />
+                        Upload Logo
+                      </>
+                    )}
+                  </span>
+                </label>
+              </div>
+            )}
           </div>
 
           <Separator />
@@ -264,6 +562,201 @@ export default function SettingsPage() {
               />
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Webhooks & Integrations */}
+      <Card className="glass">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Webhook className="h-4 w-4" />
+            Webhooks & Integrations
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Send generated images and details to an external URL for email
+            delivery, CRM integration, or custom workflows.
+          </p>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Enable Webhook</Label>
+              <p className="text-xs text-muted-foreground">
+                Automatically send data when images are generated
+              </p>
+            </div>
+            <Switch
+              checked={webhookConfig.enabled}
+              onCheckedChange={(checked: boolean) =>
+                setWebhookConfig({ ...webhookConfig, enabled: checked })
+              }
+            />
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label>Webhook URL</Label>
+            <Input
+              value={webhookConfig.url}
+              onChange={(e) =>
+                setWebhookConfig({ ...webhookConfig, url: e.target.value })
+              }
+              placeholder="https://your-server.com/api/webhook"
+              type="url"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Signing Secret (optional)</Label>
+            <Input
+              value={webhookConfig.secret}
+              onChange={(e) =>
+                setWebhookConfig({ ...webhookConfig, secret: e.target.value })
+              }
+              placeholder="Enter a secret for HMAC-SHA256 signature verification"
+              type="password"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              If set, each webhook includes an X-Webhook-Signature header for
+              verification
+            </p>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <Label>Payload Options</Label>
+            <p className="text-xs text-muted-foreground">
+              Image URL is always included. Choose additional data to send:
+            </p>
+
+            <div className="space-y-2">
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-sm">Prompt used</span>
+                <Switch
+                  checked={webhookConfig.include_prompt}
+                  onCheckedChange={(checked: boolean) =>
+                    setWebhookConfig({
+                      ...webhookConfig,
+                      include_prompt: checked,
+                    })
+                  }
+                />
+              </label>
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-sm">Vehicle details</span>
+                <Switch
+                  checked={webhookConfig.include_vehicle}
+                  onCheckedChange={(checked: boolean) =>
+                    setWebhookConfig({
+                      ...webhookConfig,
+                      include_vehicle: checked,
+                    })
+                  }
+                />
+              </label>
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-sm">Dealership info</span>
+                <Switch
+                  checked={webhookConfig.include_dealership}
+                  onCheckedChange={(checked: boolean) =>
+                    setWebhookConfig({
+                      ...webhookConfig,
+                      include_dealership: checked,
+                    })
+                  }
+                />
+              </label>
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-sm">User email</span>
+                <Switch
+                  checked={webhookConfig.include_user_email}
+                  onCheckedChange={(checked: boolean) =>
+                    setWebhookConfig({
+                      ...webhookConfig,
+                      include_user_email: checked,
+                    })
+                  }
+                />
+              </label>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Test & Status */}
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleTestWebhook}
+              disabled={
+                webhookTestStatus === "testing" || !webhookConfig.url.trim()
+              }
+            >
+              {webhookTestStatus === "testing" ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="h-3.5 w-3.5 mr-1.5" />
+                  Test Webhook
+                </>
+              )}
+            </Button>
+
+            {webhookTestStatus === "success" && (
+              <span className="flex items-center gap-1.5 text-xs text-green-600">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Delivered successfully
+              </span>
+            )}
+            {webhookTestStatus === "failed" && (
+              <span className="flex items-center gap-1.5 text-xs text-destructive">
+                <XCircle className="h-3.5 w-3.5" />
+                Failed: {webhookTestError}
+              </span>
+            )}
+          </div>
+
+          {/* Payload Preview */}
+          {webhookConfig.url && (
+            <div className="rounded-lg bg-muted/30 border border-border p-3 space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Sample Payload
+              </p>
+              <pre className="text-[10px] text-muted-foreground overflow-x-auto whitespace-pre-wrap">
+{JSON.stringify(
+  {
+    event: "image.generated",
+    timestamp: "2026-03-21T12:00:00Z",
+    image_url: "https://i.ibb.co/example.png",
+    content_type: "vehicle-spotlight",
+    channel: "instagram-post",
+    aspect_ratio: "1:1",
+    ...(webhookConfig.include_prompt && {
+      prompt: "Professional automotive photography...",
+    }),
+    ...(webhookConfig.include_vehicle && {
+      vehicle: { year: 2025, make: "VW", model: "Atlas" },
+    }),
+    ...(webhookConfig.include_dealership && {
+      dealership: { name, phone: contact.phone },
+    }),
+    ...(webhookConfig.include_user_email && {
+      user_email: "user@dealership.com",
+    }),
+  },
+  null,
+  2
+)}
+              </pre>
+            </div>
+          )}
         </CardContent>
       </Card>
 

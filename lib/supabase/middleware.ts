@@ -40,13 +40,11 @@ export async function updateSession(request: NextRequest) {
   const isDemo = request.nextUrl.searchParams.has("demo");
 
   // Redirect unauthenticated users to login (except public routes)
-  const publicPaths = ["/", "/login", "/signup", "/api/webhooks", "/api/demo-generate", "/api/vin-decode"];
-  const isPublicPath = publicPaths.some(
-    (path) => request.nextUrl.pathname === path ||
-      request.nextUrl.pathname.startsWith("/api/webhooks") ||
-      request.nextUrl.pathname.startsWith("/api/demo-generate") ||
-      request.nextUrl.pathname.startsWith("/api/vin-decode")
-  );
+  const publicPaths = ["/", "/login", "/signup", "/auth/callback"];
+  const publicPrefixes = ["/api/webhooks", "/api/demo-generate", "/api/vin-decode", "/api/onboard", "/api/auth/", "/p/", "/resources"];
+  const isPublicPath =
+    publicPaths.includes(request.nextUrl.pathname) ||
+    publicPrefixes.some((prefix) => request.nextUrl.pathname.startsWith(prefix));
 
   if (!user && !isPublicPath && !isDemo) {
     const url = request.nextUrl.clone();

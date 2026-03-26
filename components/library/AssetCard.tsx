@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, Download, MoreHorizontal, Trash2, RefreshCw, Eye } from "lucide-react";
+import { Heart, Download, MoreHorizontal, Trash2, Pencil, Eye, Check } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,10 @@ interface AssetCardProps {
   onDownload?: (asset: GeneratedAsset) => void;
   onDelete?: (id: string) => void;
   onView?: (asset: GeneratedAsset) => void;
+  onEdit?: (asset: GeneratedAsset) => void;
+  selectMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
 export function AssetCard({
@@ -26,13 +30,36 @@ export function AssetCard({
   onDownload,
   onDelete,
   onView,
+  onEdit,
+  selectMode,
+  isSelected,
+  onToggleSelect,
 }: AssetCardProps) {
   return (
-    <Card className="group overflow-hidden transition-all hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5">
+    <Card className={`group overflow-hidden transition-all hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 ${isSelected ? "ring-2 ring-primary" : ""}`}>
       <div
         className="relative aspect-square bg-muted cursor-pointer"
-        onClick={() => onView?.(asset)}
+        onClick={() => {
+          if (selectMode) {
+            onToggleSelect?.(asset.id);
+          } else {
+            onView?.(asset);
+          }
+        }}
       >
+        {selectMode && (
+          <div className="absolute top-2 left-2 z-10">
+            <div
+              className={`h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${
+                isSelected
+                  ? "bg-primary border-primary"
+                  : "bg-black/40 border-white/70"
+              }`}
+            >
+              {isSelected && <Check className="h-3 w-3 text-white" />}
+            </div>
+          </div>
+        )}
         {asset.image_url ? (
           <img
             src={asset.image_url}
@@ -79,6 +106,19 @@ export function AssetCard({
                 }}
               >
                 <Download className="h-3.5 w-3.5 text-white" />
+              </Button>
+            )}
+            {onEdit && asset.image_url && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 bg-black/50 hover:bg-black/70"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(asset);
+                }}
+              >
+                <Pencil className="h-3.5 w-3.5 text-white" />
               </Button>
             )}
           </div>

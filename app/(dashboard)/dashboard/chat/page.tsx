@@ -12,10 +12,16 @@ import {
   Bot,
   User,
   ImageIcon,
+  Download,
+  RefreshCw,
+  Pencil,
+  Type,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import { EditImageDialog } from "@/components/create/EditImageDialog";
+import { TextOverlayEditor } from "@/components/create/TextOverlayEditor";
 import { useAppStore } from "@/lib/store";
 import { isDemoMode } from "@/lib/demo-data";
 import { getAspectRatioForChannel, getResolutionForChannel } from "@/lib/prompt-templates";
@@ -27,14 +33,26 @@ interface Message {
   content: string;
 }
 
-// Detect if the assistant message contains a finalized prompt block
+/** Extract a prompt from the assistant's message — tries multiple formats */
 function extractPrompt(content: string): string | null {
-  // Look for a prompt wrapped in backticks or after "Generate Image" cue
-  const blockMatch = content.match(/```(?:prompt)?\n?([\s\S]+?)```/);
-  if (blockMatch) return blockMatch[1].trim();
+  // 1. ```prompt ... ``` code block (preferred)
+  const promptBlock = content.match(/```prompt\n?([\s\S]+?)```/);
+  if (promptBlock) return promptBlock[1].trim();
 
-  // Or look for lines starting with "Prompt:"
-  const promptLine = content.match(/^Prompt:\s*(.+)$/im);
+  // 2. Generic code block
+  const codeBlock = content.match(/```\n?([\s\S]+?)```/);
+  if (codeBlock) return codeBlock[1].trim();
+
+  // 3. **Prompt:** "..." or **Prompt:** ... (markdown bold with quotes)
+  const boldPromptQuoted = content.match(/\*\*Prompt:?\*\*\s*"([\s\S]+?)"/);
+  if (boldPromptQuoted) return boldPromptQuoted[1].trim();
+
+  // 4. **Prompt:** followed by text until a double newline or end
+  const boldPrompt = content.match(/\*\*Prompt:?\*\*\s*([\s\S]+?)(?:\n\n|\n\*\*|$)/);
+  if (boldPrompt) return boldPrompt[1].trim().replace(/^["']|["']$/g, "");
+
+  // 5. Prompt: at line start
+  const promptLine = content.match(/^Prompt:\s*"?([\s\S]+?)"?\s*$/im);
   if (promptLine) return promptLine[1].trim();
 
   return null;
@@ -49,12 +67,15 @@ export default function ChatPage() {
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [generatedAsset, setGeneratedAsset] = useState<GeneratedAsset | null>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [textEditorOpen, setTextEditorOpen] = useState(false);
+  const [editImageUrl, setEditImageUrl] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
+  }, [messages, isLoading, generatedAsset]);
 
   const sendMessage = useCallback(async () => {
     const text = input.trim();
@@ -83,7 +104,6 @@ export default function ChatPage() {
       const assistantMsg: Message = { role: "assistant", content: data.content };
       setMessages((prev) => [...prev, assistantMsg]);
 
-      // Check if this message contains a finalized prompt
       const extracted = extractPrompt(data.content);
       if (extracted) {
         setGeneratingPrompt(extracted);
@@ -165,6 +185,13 @@ export default function ChatPage() {
 
       setGeneratedAsset(asset);
       addAsset(asset);
+
+      // Add a generating message to chat
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "⏳ Generating your image now..." },
+      ]);
+
       pollForImage(asset, taskId || result.id);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Generation failed";
@@ -185,12 +212,26 @@ export default function ChatPage() {
         if (!res.ok) return;
         const data = await res.json();
 
-        if (data.status === "completed" && (data.output?.image_url || data.image_url)) {
-          const imageUrl = data.output?.image_url || data.image_url;
+        if (data.status === "completed" && (data.output?.image_url || data.output?.url || data.image_url)) {
+          const imageUrl = data.output?.image_url || data.output?.url || data.image_url;
           const updated = { ...asset, status: "completed" as const, image_url: imageUrl };
           setGeneratedAsset(updated);
           updateAsset(asset.id, updated);
           setIsGeneratingImage(false);
+
+          // Replace the "generating" message with success
+          setMessages((prev) => {
+            const copy = [...prev];
+            const genIdx = copy.findIndex((m) => m.content.includes("Generating your image"));
+            if (genIdx >= 0) {
+              copy[genIdx] = {
+                role: "assistant",
+                content: `Your image is ready! You can download it or ask me to refine the prompt for another variation.\n\n[generated-image:${imageUrl}]`,
+              };
+            }
+            return copy;
+          });
+
           toast.success("Image generated!");
           return;
         }
@@ -198,6 +239,17 @@ export default function ChatPage() {
         if (data.status === "failed") {
           setGeneratedAsset({ ...asset, status: "failed" });
           setIsGeneratingImage(false);
+          setMessages((prev) => {
+            const copy = [...prev];
+            const genIdx = copy.findIndex((m) => m.content.includes("Generating your image"));
+            if (genIdx >= 0) {
+              copy[genIdx] = {
+                role: "assistant",
+                content: "Image generation failed. Try refining the prompt or asking me for a different approach.",
+              };
+            }
+            return copy;
+          });
           toast.error("Generation failed. Try again.");
           return;
         }
@@ -247,7 +299,7 @@ export default function ChatPage() {
             AI Marketing Assistant
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Chat with GPT 5.2 to craft the perfect marketing visual prompt
+            Chat to craft and generate marketing visuals
           </p>
         </div>
         {messages.length > 0 && (
@@ -272,7 +324,7 @@ export default function ChatPage() {
                   Your AI Marketing Partner
                 </h2>
                 <p className="text-sm text-muted-foreground max-w-md mb-8">
-                  Describe the vehicle, campaign, or visual you have in mind. I&apos;ll help you craft the perfect prompt to generate a professional marketing image.
+                  Describe the vehicle, campaign, or visual you have in mind. I&apos;ll help you craft the perfect prompt and generate it right here.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
                   {SUGGESTIONS.map((s) => (
@@ -316,7 +368,23 @@ export default function ChatPage() {
                       : "bg-card border border-border/50 rounded-tl-sm"
                   }`}
                 >
-                  <MessageContent content={msg.content} />
+                  <MessageContent
+                    content={msg.content}
+                    onGenerate={
+                      msg.role === "assistant" && !isGeneratingImage
+                        ? handleGenerateImage
+                        : undefined
+                    }
+                    isGenerating={isGeneratingImage}
+                    onEdit={msg.role === "assistant" ? (url) => {
+                      setEditImageUrl(url);
+                      setEditDialogOpen(true);
+                    } : undefined}
+                    onAddText={msg.role === "assistant" ? (url) => {
+                      setEditImageUrl(url);
+                      setTextEditorOpen(true);
+                    } : undefined}
+                  />
 
                   {msg.role === "assistant" && (
                     <button
@@ -380,7 +448,7 @@ export default function ChatPage() {
         </div>
 
         {/* Right Panel — Generate from Prompt */}
-        <div className="w-72 shrink-0 space-y-4">
+        <div className="w-72 shrink-0 space-y-4 hidden lg:block">
           <Card className="glass">
             <CardContent className="p-4 space-y-3">
               <div className="flex items-center gap-2">
@@ -390,7 +458,7 @@ export default function ChatPage() {
 
               {generatingPrompt ? (
                 <>
-                  <p className="text-xs text-muted-foreground leading-relaxed bg-muted/50 rounded-lg p-2.5 font-mono">
+                  <p className="text-xs text-muted-foreground leading-relaxed bg-muted/50 rounded-lg p-2.5 font-mono max-h-40 overflow-y-auto">
                     {generatingPrompt}
                   </p>
                   <Button
@@ -409,7 +477,7 @@ export default function ChatPage() {
                 </>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Chat with the AI to refine your idea. When a prompt is ready, it will appear here for you to generate.
+                  Chat with the AI to craft your prompt. When ready, a Generate button will appear here and in the chat.
                 </p>
               )}
             </CardContent>
@@ -426,23 +494,54 @@ export default function ChatPage() {
                       alt="Generated marketing visual"
                       className="w-full h-auto"
                     />
-                    <div className="p-3 flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 text-xs"
-                        onClick={() => window.open(generatedAsset.image_url!, "_blank")}
-                      >
-                        Download
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 text-xs"
-                        onClick={() => generatingPrompt && handleGenerateImage(generatingPrompt)}
-                      >
-                        Regenerate
-                      </Button>
+                    <div className="p-3 space-y-2">
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-xs"
+                          onClick={() => window.open(generatedAsset.image_url!, "_blank")}
+                        >
+                          <Download className="h-3 w-3 mr-1" />
+                          Download
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-xs"
+                          onClick={() => generatingPrompt && handleGenerateImage(generatingPrompt)}
+                          disabled={isGeneratingImage}
+                        >
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          Regenerate
+                        </Button>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-xs"
+                          onClick={() => {
+                            setEditImageUrl(generatedAsset.image_url!);
+                            setEditDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3 mr-1" />
+                          AI Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-xs"
+                          onClick={() => {
+                            setEditImageUrl(generatedAsset.image_url!);
+                            setTextEditorOpen(true);
+                          }}
+                        >
+                          <Type className="h-3 w-3 mr-1" />
+                          Add Text
+                        </Button>
+                      </div>
                     </div>
                   </>
                 ) : (
@@ -471,34 +570,221 @@ export default function ChatPage() {
           )}
         </div>
       </div>
+
+      {/* Edit Image Dialog */}
+      {editImageUrl && (
+        <EditImageDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          imageUrl={editImageUrl}
+          aspectRatio={generatedAsset?.aspect_ratio || "1:1"}
+          onEditComplete={(newUrl) => {
+            if (generatedAsset) {
+              const updated = { ...generatedAsset, image_url: newUrl };
+              setGeneratedAsset(updated);
+              updateAsset(generatedAsset.id, updated);
+            }
+            // Update the image in chat messages
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.content.includes("[generated-image:")
+                  ? { ...m, content: m.content.replace(/\[generated-image:.*?\]/, `[generated-image:${newUrl}]`) }
+                  : m
+              )
+            );
+            setEditImageUrl(newUrl);
+            toast.success("Image updated with edits!");
+          }}
+        />
+      )}
+
+      {/* Text Overlay Editor */}
+      {editImageUrl && (
+        <TextOverlayEditor
+          open={textEditorOpen}
+          onOpenChange={setTextEditorOpen}
+          imageUrl={editImageUrl}
+          onSave={(dataUrl) => {
+            if (generatedAsset) {
+              const updated = { ...generatedAsset, image_url: dataUrl };
+              setGeneratedAsset(updated);
+              updateAsset(generatedAsset.id, updated);
+            }
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.content.includes("[generated-image:")
+                  ? { ...m, content: m.content.replace(/\[generated-image:.*?\]/, `[generated-image:${dataUrl}]`) }
+                  : m
+              )
+            );
+            setEditImageUrl(dataUrl);
+            toast.success("Text overlay applied!");
+          }}
+        />
+      )}
     </div>
   );
 }
 
-// Renders message content with code blocks styled differently
-function MessageContent({ content }: { content: string }) {
-  const parts = content.split(/(```[\s\S]*?```)/g);
+/** Renders message content with prompt blocks, inline images, and Generate buttons */
+function MessageContent({
+  content,
+  onGenerate,
+  isGenerating,
+  onEdit,
+  onAddText,
+}: {
+  content: string;
+  onGenerate?: (prompt: string) => void;
+  isGenerating?: boolean;
+  onEdit?: (imageUrl: string) => void;
+  onAddText?: (imageUrl: string) => void;
+}) {
+  // Check for inline generated image tag: [generated-image:URL]
+  const imageMatch = content.match(/\[generated-image:(.*?)\]/);
+  const textWithoutImage = content.replace(/\[generated-image:.*?\]/, "").trim();
+
+  // Split on code blocks
+  const parts = textWithoutImage.split(/(```[\s\S]*?```)/g);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {parts.map((part, i) => {
         if (part.startsWith("```")) {
-          const code = part.replace(/^```(?:prompt)?\n?/, "").replace(/```$/, "").trim();
+          const isPromptBlock = part.startsWith("```prompt");
+          const code = part
+            .replace(/^```(?:prompt)?\n?/, "")
+            .replace(/```$/, "")
+            .trim();
+
           return (
-            <pre
-              key={i}
-              className="bg-muted/70 rounded-lg p-2.5 text-xs font-mono whitespace-pre-wrap overflow-x-auto"
-            >
-              {code}
-            </pre>
+            <div key={i}>
+              {isPromptBlock && (
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 font-medium">
+                  Generated Prompt
+                </p>
+              )}
+              <pre className="bg-muted/70 rounded-lg p-2.5 text-xs font-mono whitespace-pre-wrap overflow-x-auto">
+                {code}
+              </pre>
+              {/* Inline Generate button for prompt blocks */}
+              {isPromptBlock && onGenerate && (
+                <Button
+                  size="sm"
+                  className="mt-2 gradient-primary text-white"
+                  onClick={() => onGenerate(code)}
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  ) : (
+                    <Wand2 className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  {isGenerating ? "Generating..." : "Generate This Image"}
+                </Button>
+              )}
+            </div>
           );
         }
+
+        if (!part.trim()) return null;
+
+        // Render markdown-like bold and line breaks
         return (
           <span key={i} className="whitespace-pre-wrap">
-            {part}
+            {renderMarkdown(part)}
           </span>
         );
       })}
+
+      {/* Non-prompt-block generate button — if a prompt was detected via bold format */}
+      {!parts.some((p) => p.startsWith("```prompt")) && onGenerate && !imageMatch && (() => {
+        const extracted = extractBoldPrompt(textWithoutImage);
+        if (!extracted) return null;
+        return (
+          <Button
+            size="sm"
+            className="mt-1 gradient-primary text-white"
+            onClick={() => onGenerate(extracted)}
+            disabled={isGenerating}
+          >
+            {isGenerating ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+            ) : (
+              <Wand2 className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            {isGenerating ? "Generating..." : "Generate This Image"}
+          </Button>
+        );
+      })()}
+
+      {/* Inline image display */}
+      {imageMatch && (
+        <div className="mt-2 rounded-lg overflow-hidden border border-border">
+          <img
+            src={imageMatch[1]}
+            alt="Generated visual"
+            className="w-full h-auto"
+          />
+          <div className="flex flex-wrap gap-1.5 p-2 bg-muted/30">
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs flex-1"
+              onClick={() => window.open(imageMatch[1], "_blank")}
+            >
+              <Download className="h-3 w-3 mr-1" />
+              Download
+            </Button>
+            {onEdit && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs flex-1"
+                onClick={() => onEdit(imageMatch[1])}
+              >
+                <Pencil className="h-3 w-3 mr-1" />
+                AI Edit
+              </Button>
+            )}
+            {onAddText && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs flex-1"
+                onClick={() => onAddText(imageMatch[1])}
+              >
+                <Type className="h-3 w-3 mr-1" />
+                Add Text
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+/** Extract a prompt from **Prompt:** style formatting */
+function extractBoldPrompt(content: string): string | null {
+  const boldQuoted = content.match(/\*\*Prompt:?\*\*\s*"([\s\S]+?)"/);
+  if (boldQuoted) return boldQuoted[1].trim();
+  const bold = content.match(/\*\*Prompt:?\*\*\s*([\s\S]+?)(?:\n\n|\n\*\*|$)/);
+  if (bold) return bold[1].trim().replace(/^["']|["']$/g, "");
+  return null;
+}
+
+/** Simple markdown renderer for bold text */
+function renderMarkdown(text: string): React.ReactNode[] {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={i} className="font-semibold">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
 }

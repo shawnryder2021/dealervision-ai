@@ -13,6 +13,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // Verify service role key is configured
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error("[onboard] SUPABASE_SERVICE_ROLE_KEY is not set");
+      return NextResponse.json(
+        { error: "Server configuration error" },
+        { status: 500 }
+      );
+    }
+
     const supabase = await createServiceClient();
 
     // Create dealership
@@ -36,8 +45,9 @@ export async function POST(request: Request) {
       .single();
 
     if (dealerError || !dealership) {
+      console.error("[onboard] Dealership insert failed:", dealerError);
       return NextResponse.json(
-        { error: "Failed to create dealership" },
+        { error: dealerError?.message || "Failed to create dealership" },
         { status: 500 }
       );
     }
@@ -51,10 +61,11 @@ export async function POST(request: Request) {
     });
 
     if (profileError) {
+      console.error("[onboard] Profile insert failed:", profileError);
       // Cleanup dealership if profile creation fails
       await supabase.from("dealerships").delete().eq("id", dealership.id);
       return NextResponse.json(
-        { error: "Failed to create profile" },
+        { error: profileError.message || "Failed to create profile" },
         { status: 500 }
       );
     }

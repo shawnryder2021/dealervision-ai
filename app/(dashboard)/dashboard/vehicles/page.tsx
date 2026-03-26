@@ -31,6 +31,7 @@ import { useAppStore } from "@/lib/store";
 import { createClient } from "@/lib/supabase/client";
 import { isDemoMode } from "@/lib/demo-data";
 import { VEHICLE_STATUSES } from "@/lib/constants";
+import { VEHICLE_MAKES_MODELS, getModelsForMake, COMMON_TRIMS, getYearRange } from "@/lib/vehicle-data";
 import type { Vehicle } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -189,43 +190,76 @@ export default function VehiclesPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Year</Label>
-                <Input
-                  placeholder="2025"
+                <Select
                   value={form.year}
-                  onChange={(e) =>
-                    setForm({ ...form, year: e.target.value })
-                  }
-                />
+                  onValueChange={(v) => setForm({ ...form, year: v ?? "" })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getYearRange().map((y) => (
+                      <SelectItem key={y} value={String(y)}>
+                        {y}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Make</Label>
-                <Input
-                  placeholder="Volkswagen"
+                <Select
                   value={form.make}
-                  onChange={(e) =>
-                    setForm({ ...form, make: e.target.value })
-                  }
-                />
+                  onValueChange={(v) => setForm({ ...form, make: v ?? "", model: "", trim: "" })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select make" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VEHICLE_MAKES_MODELS.map((m) => (
+                      <SelectItem key={m.make} value={m.make}>
+                        {m.make}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Model</Label>
-                <Input
-                  placeholder="Atlas"
+                <Select
                   value={form.model}
-                  onChange={(e) =>
-                    setForm({ ...form, model: e.target.value })
-                  }
-                />
+                  onValueChange={(v) => setForm({ ...form, model: v ?? "" })}
+                  disabled={!form.make}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={form.make ? "Select model" : "Choose make first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getModelsForMake(form.make).map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Trim</Label>
-                <Input
-                  placeholder="SEL Premium"
+                <Select
                   value={form.trim}
-                  onChange={(e) =>
-                    setForm({ ...form, trim: e.target.value })
-                  }
-                />
+                  onValueChange={(v) => setForm({ ...form, trim: v ?? "" })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select trim" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COMMON_TRIMS.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Price ($)</Label>
