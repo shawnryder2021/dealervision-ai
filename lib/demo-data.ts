@@ -26,6 +26,17 @@ export const DEMO_DEALERSHIP: Dealership = {
   style_preferences: {
     default_style: "photorealistic",
   },
+  local_context: {
+    inventory_type: "both",
+    years_established: "serving PEI since 1985",
+    communities_served: "Charlottetown, Summerside, Montague, Souris, and all of Prince Edward Island",
+    landmarks: "near Confederation Bridge, Victoria Park, and downtown Charlottetown waterfront",
+    personality: "family-owned, community-driven, trusted local dealership",
+    specialties: "VW Certified Pre-Owned, EV and hybrid vehicles, bilingual English/French service",
+    seasonal_notes: "Maritime winters with heavy snow and salt roads; busy summer tourist season on PEI",
+    community_involvement: "proud sponsor of Charlottetown Islanders hockey and local PEI events",
+    unique_selling_points: "Island's largest VW selection, free winter tire storage, loaner vehicles available",
+  },
   webhook_config: {
     url: "",
     enabled: false,

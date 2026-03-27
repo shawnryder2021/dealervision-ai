@@ -123,7 +123,33 @@ function getBrandContext(dealership: Dealership): string {
       ? ` IMPORTANT: Include a clean professional footer bar at the bottom of the image with this text displayed clearly and legibly: "${footerText}".${socialStr}`
       : "";
 
-  return `Dealership: ${dealership.name}.${taglineStr} ${colorStr}${contactStr} Use primary color ${colors.primary} as the dominant brand color in overlays, banners, and accents.`;
+  return `Dealership: ${dealership.name}.${taglineStr} ${colorStr}${contactStr}${getLocalContext(dealership)} Use primary color ${colors.primary} as the dominant brand color in overlays, banners, and accents.`;
+}
+
+/** Builds a local market context string injected into every prompt */
+function getLocalContext(dealership: Dealership): string {
+  const lc = dealership.local_context;
+  if (!lc) return "";
+
+  const parts: string[] = [];
+
+  if (lc.inventory_type) {
+    const inv = lc.inventory_type === "new" ? "new vehicles only"
+      : lc.inventory_type === "used" ? "pre-owned/used vehicles only"
+      : "both new and pre-owned vehicles";
+    parts.push(`Dealership sells ${inv}`);
+  }
+  if (lc.years_established) parts.push(lc.years_established);
+  if (lc.communities_served) parts.push(`serving ${lc.communities_served}`);
+  if (lc.landmarks) parts.push(`located near ${lc.landmarks}`);
+  if (lc.personality) parts.push(lc.personality);
+  if (lc.specialties) parts.push(`specialties: ${lc.specialties}`);
+  if (lc.seasonal_notes) parts.push(`local climate/season context: ${lc.seasonal_notes}`);
+  if (lc.community_involvement) parts.push(lc.community_involvement);
+  if (lc.unique_selling_points) parts.push(`key selling points: ${lc.unique_selling_points}`);
+
+  if (parts.length === 0) return "";
+  return ` Local market context: ${parts.join("; ")}.`;
 }
 
 /** Builds a concise "contact footer" string for use inside individual templates */

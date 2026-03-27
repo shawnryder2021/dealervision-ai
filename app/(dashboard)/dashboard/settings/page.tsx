@@ -14,6 +14,7 @@ import {
   Send,
   CheckCircle2,
   XCircle,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +57,17 @@ export default function SettingsPage() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [localContext, setLocalContext] = useState({
+    inventory_type: "both" as "new" | "used" | "both",
+    years_established: "",
+    communities_served: "",
+    landmarks: "",
+    personality: "",
+    specialties: "",
+    seasonal_notes: "",
+    community_involvement: "",
+    unique_selling_points: "",
+  });
   const [webhookConfig, setWebhookConfig] = useState({
     url: "",
     enabled: false,
@@ -111,6 +123,20 @@ export default function SettingsPage() {
           secret: dealership.webhook_config.secret || "",
         });
       }
+      if (dealership.local_context) {
+        const lc = dealership.local_context;
+        setLocalContext({
+          inventory_type: lc.inventory_type ?? "both",
+          years_established: lc.years_established || "",
+          communities_served: lc.communities_served || "",
+          landmarks: lc.landmarks || "",
+          personality: lc.personality || "",
+          specialties: lc.specialties || "",
+          seasonal_notes: lc.seasonal_notes || "",
+          community_involvement: lc.community_involvement || "",
+          unique_selling_points: lc.unique_selling_points || "",
+        });
+      }
     }
   }, [dealership]);
 
@@ -156,6 +182,18 @@ export default function SettingsPage() {
       secret: webhookConfig.secret.trim() || undefined,
     };
 
+    const localContextToSave = {
+      inventory_type: localContext.inventory_type,
+      years_established: localContext.years_established.trim() || undefined,
+      communities_served: localContext.communities_served.trim() || undefined,
+      landmarks: localContext.landmarks.trim() || undefined,
+      personality: localContext.personality.trim() || undefined,
+      specialties: localContext.specialties.trim() || undefined,
+      seasonal_notes: localContext.seasonal_notes.trim() || undefined,
+      community_involvement: localContext.community_involvement.trim() || undefined,
+      unique_selling_points: localContext.unique_selling_points.trim() || undefined,
+    };
+
     if (isDemoMode()) {
       const updated = {
         ...dealership,
@@ -164,6 +202,7 @@ export default function SettingsPage() {
         logo_url: logoUrl,
         brand_colors: brandColors,
         contact,
+        local_context: localContextToSave,
         webhook_config: webhookToSave,
         updated_at: new Date().toISOString(),
       };
@@ -183,6 +222,7 @@ export default function SettingsPage() {
         logo_url: logoUrl,
         brand_colors: brandColors,
         contact,
+        local_context: localContextToSave,
         webhook_config: webhookToSave,
         updated_at: new Date().toISOString(),
       })
@@ -561,6 +601,121 @@ export default function SettingsPage() {
                 placeholder="yourdealership"
               />
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Local Market & Personalization */}
+      <Card className="glass">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            Local Market & Personalization
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            These details are injected into every AI prompt to make generated images and content specific to your dealership and local market.
+          </p>
+
+          {/* Inventory Type */}
+          <div className="space-y-2">
+            <Label>Inventory Type</Label>
+            <div className="flex gap-2">
+              {(["new", "used", "both"] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setLocalContext({ ...localContext, inventory_type: v })}
+                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all capitalize ${
+                    localContext.inventory_type === v
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/40"
+                  }`}
+                >
+                  {v === "both" ? "New & Used" : v === "new" ? "New Only" : "Used/Pre-Owned Only"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Years / History</Label>
+              <Input
+                value={localContext.years_established}
+                onChange={(e) => setLocalContext({ ...localContext, years_established: e.target.value })}
+                placeholder='e.g., "serving PEI since 1985"'
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Dealership Personality</Label>
+              <Input
+                value={localContext.personality}
+                onChange={(e) => setLocalContext({ ...localContext, personality: e.target.value })}
+                placeholder='e.g., "family-owned, community-driven"'
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Communities Served</Label>
+            <Input
+              value={localContext.communities_served}
+              onChange={(e) => setLocalContext({ ...localContext, communities_served: e.target.value })}
+              placeholder='e.g., "Charlottetown, Summerside, Montague and all of PEI"'
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Local Landmarks & Location Context</Label>
+            <Input
+              value={localContext.landmarks}
+              onChange={(e) => setLocalContext({ ...localContext, landmarks: e.target.value })}
+              placeholder='e.g., "near Confederation Bridge, Victoria Park, downtown waterfront"'
+            />
+            <p className="text-[11px] text-muted-foreground">Used to add recognizable local scenery and references to generated images</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Specialties & Certifications</Label>
+            <Input
+              value={localContext.specialties}
+              onChange={(e) => setLocalContext({ ...localContext, specialties: e.target.value })}
+              placeholder='e.g., "Certified Pre-Owned specialist, EV charging, bilingual service"'
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Local Climate & Seasonal Context</Label>
+            <Input
+              value={localContext.seasonal_notes}
+              onChange={(e) => setLocalContext({ ...localContext, seasonal_notes: e.target.value })}
+              placeholder='e.g., "harsh Maritime winters, busy summer tourist season"'
+            />
+            <p className="text-[11px] text-muted-foreground">Helps the AI generate seasonally relevant backgrounds and messaging</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Community Involvement</Label>
+            <Input
+              value={localContext.community_involvement}
+              onChange={(e) => setLocalContext({ ...localContext, community_involvement: e.target.value })}
+              placeholder='e.g., "proud sponsor of local hockey team and community events"'
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Unique Selling Points</Label>
+            <Textarea
+              value={localContext.unique_selling_points}
+              onChange={(e) => setLocalContext({ ...localContext, unique_selling_points: e.target.value })}
+              placeholder='e.g., "largest selection in the region, free winter tire storage, same-day service, price match guarantee"'
+              rows={2}
+            />
+            <p className="text-[11px] text-muted-foreground">What makes your dealership stand out — used in sales event and brand post content</p>
           </div>
         </CardContent>
       </Card>

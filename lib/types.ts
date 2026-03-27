@@ -25,6 +25,17 @@ export interface Dealership {
     default_style?: string;
     font_preference?: string;
   };
+  local_context?: {
+    inventory_type?: "new" | "used" | "both";
+    years_established?: string;
+    communities_served?: string;
+    landmarks?: string;
+    personality?: string;
+    specialties?: string;
+    seasonal_notes?: string;
+    community_involvement?: string;
+    unique_selling_points?: string;
+  };
   webhook_config?: {
     url: string;
     enabled: boolean;
