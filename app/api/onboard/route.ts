@@ -4,7 +4,15 @@ import { createServiceClient } from "@/lib/supabase/server";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { user_id, full_name, dealership_name } = body;
+    const {
+      user_id,
+      full_name,
+      dealership_name,
+      primary_color = "#003366",
+      secondary_color = "#FFFFFF",
+      brand_voice = "professional",
+      inventory_type = "both",
+    } = body;
 
     if (!user_id || !dealership_name) {
       return NextResponse.json(
@@ -36,9 +44,13 @@ export async function POST(request: Request) {
         name: dealership_name,
         slug: `${slug}-${Date.now().toString(36)}`,
         brand_colors: {
-          primary: "#003366",
-          secondary: "#FFFFFF",
-          accent: "#FF8C00",
+          primary: primary_color,
+          secondary: secondary_color,
+          accent: primary_color,
+        },
+        local_context: {
+          inventory_type,
+          personality: brand_voice,
         },
       })
       .select()
