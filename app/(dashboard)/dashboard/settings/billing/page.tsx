@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAppStore } from "@/lib/store";
-import { PLANS } from "@/lib/stripe/client";
+import { PLANS } from "@/lib/stripe/plans";
 import { toast } from "sonner";
 
 interface SubscriptionData {

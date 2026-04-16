@@ -6,7 +6,7 @@ import { Check, Zap, Building2, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PLANS, type PlanConfig } from "@/lib/stripe/client";
+import { PLANS, type PlanConfig } from "@/lib/stripe/plans";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 

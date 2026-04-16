@@ -4,7 +4,7 @@
  * for webhook / server-only paths, and respected via anon key for UI reads.
  */
 import { createClient } from "@/lib/supabase/server";
-import { getPlanByPriceId } from "@/lib/stripe/client";
+import { getPlanByPriceId } from "@/lib/stripe/plans";
 
 export interface Subscription {
   id: string;
