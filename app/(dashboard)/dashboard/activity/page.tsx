@@ -20,6 +20,7 @@ import {
 import { getActivityEvents } from "@/lib/db/activity";
 import { useAppStore } from "@/lib/store";
 import { CONTENT_TYPES, CHANNEL_PRESETS } from "@/lib/constants";
+import { toast } from "sonner";
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -87,7 +88,20 @@ export default function ActivityPage() {
 
   useEffect(() => {
     if (!dealership) return;
-    getActivityEvents(dealership.id).then(setEvents).catch(console.error);
+    let cancelled = false;
+    getActivityEvents(dealership.id)
+      .then((data) => {
+        if (!cancelled) setEvents(data);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : "Unknown error";
+        toast.error(`Couldn't load activity: ${message}`);
+        setEvents([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [dealership]);
 
   // Unique users

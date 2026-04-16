@@ -116,21 +116,29 @@ export default function GenerateTypePage() {
       return;
     }
 
-    const res = await fetch("/api/generate/preview", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        content_type: contentType, channel, vehicle_id: vehicleId,
-        headline, subheadline, cta, style,
-        event_name: eventName, event_dates: eventDates,
-        offer_details: offerDetails, service_offer: serviceOffer,
-        service_details: serviceDetails, testimonial_text: testimonialText,
-        testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
-      }),
-    });
-    if (res.ok) {
+    try {
+      const res = await fetch("/api/generate/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content_type: contentType, channel, vehicle_id: vehicleId,
+          headline, subheadline, cta, style,
+          event_name: eventName, event_dates: eventDates,
+          offer_details: offerDetails, service_offer: serviceOffer,
+          service_details: serviceDetails, testimonial_text: testimonialText,
+          testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        toast.error(`Couldn't build prompt preview: ${body || res.statusText}`);
+        return;
+      }
       const data = await res.json();
       setPreviewPrompt(data.prompt);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Prompt preview failed: ${message}`);
     }
   }, [
     contentType, channel, vehicleId, headline, subheadline, cta, style,

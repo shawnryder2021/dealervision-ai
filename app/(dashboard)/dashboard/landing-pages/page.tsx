@@ -24,21 +24,23 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useAppStore } from "@/lib/store";
 import {
-  getLandingPages,
-  saveLandingPage,
-  deleteLandingPage,
   generateSlug,
   LANDING_PAGE_TEMPLATES,
   type LandingPage,
   type LandingPageTemplate,
 } from "@/lib/landing-pages";
-import { addActivityEvent } from "@/lib/activity";
+import {
+  getLandingPages,
+  saveLandingPage,
+  deleteLandingPage,
+} from "@/lib/db/landing-pages";
+import { logActivity } from "@/lib/db/activity";
 import { toast } from "sonner";
 
 type View = "list" | "create" | "edit" | "preview";
 
 export default function LandingPagesPage() {
-  const { dealership, vehicles } = useAppStore();
+  const { dealership, vehicles, profile } = useAppStore();
   const [pages, setPages] = useState<LandingPage[]>([]);
   const [view, setView] = useState<View>("list");
   const [editingPage, setEditingPage] = useState<LandingPage | null>(null);
@@ -59,8 +61,24 @@ export default function LandingPagesPage() {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
 
   useEffect(() => {
-    setPages(getLandingPages());
-  }, []);
+    if (!dealership?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getLandingPages(dealership.id);
+        if (!cancelled) setPages(data);
+      } catch (err) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : "Unknown error";
+          toast.error(`Couldn't load landing pages: ${message}`);
+          setPages([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dealership?.id]);
 
   function resetForm() {
     setTitle("");
@@ -107,7 +125,7 @@ export default function LandingPagesPage() {
     setView("edit");
   }
 
-  function handleSave(status: "draft" | "published" = "draft") {
+  async function handleSave(status: "draft" | "published" = "draft") {
     if (!dealership || !selectedTemplate) return;
 
     const vehicle = selectedVehicleId
@@ -152,17 +170,27 @@ export default function LandingPagesPage() {
       updated_at: new Date().toISOString(),
     };
 
-    saveLandingPage(page);
-    setPages(getLandingPages());
+    try {
+      await saveLandingPage(dealership.id, page);
+      const refreshed = await getLandingPages(dealership.id);
+      setPages(refreshed);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Couldn't save landing page: ${message}`);
+      return;
+    }
 
-    addActivityEvent({
+    // Activity logging is best-effort; failures shouldn't block the user.
+    void logActivity({
       dealership_id: dealership.id,
-      user_id: "demo-user-001",
-      user_name: "Demo User",
+      user_id: profile?.id ?? "unknown",
+      user_name: profile?.full_name ?? "Unknown user",
       action: status === "published" ? "published_landing_page" : "created_landing_page",
       entity_type: "landing_page",
       entity_id: page.id,
       details: { page_title: title, slug: page.slug, template: selectedTemplate },
+    }).catch(() => {
+      /* swallowed intentionally — logged server-side */
     });
 
     toast.success(
@@ -177,10 +205,17 @@ export default function LandingPagesPage() {
     setView("list");
   }
 
-  function handleDelete(id: string) {
-    deleteLandingPage(id);
-    setPages(getLandingPages());
-    toast.success("Landing page deleted");
+  async function handleDelete(id: string) {
+    if (!dealership) return;
+    try {
+      await deleteLandingPage(dealership.id, id);
+      const refreshed = await getLandingPages(dealership.id);
+      setPages(refreshed);
+      toast.success("Landing page deleted");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Couldn't delete landing page: ${message}`);
+    }
   }
 
   function handleCopyLink(page: LandingPage) {

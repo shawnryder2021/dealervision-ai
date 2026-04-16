@@ -173,11 +173,33 @@ export const DEMO_ASSETS: GeneratedAsset[] = [
   },
 ];
 
+/**
+ * Returns true when the app should serve demo/localStorage data instead of
+ * hitting Supabase. Demo mode is now **opt-in** via an explicit env var or a
+ * `?demo` query param — missing/misconfigured Supabase credentials will throw
+ * at init time rather than silently falling back (which previously hid real
+ * configuration bugs in production).
+ */
 export function isDemoMode(): boolean {
   if (typeof window === "undefined") return false;
-  return (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL === "your_supabase_url" ||
-    new URLSearchParams(window.location.search).has("demo")
-  );
+  if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") return true;
+  if (new URLSearchParams(window.location.search).has("demo")) return true;
+  return false;
+}
+
+/**
+ * Asserts that either Supabase is configured OR demo mode is explicitly
+ * enabled. Call once from the top of client entry points so misconfiguration
+ * surfaces loudly instead of silently falling through to localStorage.
+ */
+export function assertRuntimeConfigured(): void {
+  if (typeof window === "undefined") return;
+  if (isDemoMode()) return;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url || url === "your_supabase_url") {
+    throw new Error(
+      "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL in your environment, " +
+        "or set NEXT_PUBLIC_DEMO_MODE=true to run in demo mode.",
+    );
+  }
 }

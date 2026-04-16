@@ -152,10 +152,18 @@ export default function BatchGeneratePage() {
           setTimeout(poll, 3000);
         } else {
           updateJob(job.vehicleId, { status: "failed" });
+          toast.error(
+            `Batch job timed out after ${maxAttempts * 3}s for one vehicle — try again or regenerate just that vehicle.`,
+          );
         }
-      } catch {
-        if (attempts < maxAttempts) setTimeout(poll, 5000);
-        else updateJob(job.vehicleId, { status: "failed" });
+      } catch (err) {
+        if (attempts < maxAttempts) {
+          setTimeout(poll, 5000);
+        } else {
+          updateJob(job.vehicleId, { status: "failed" });
+          const message = err instanceof Error ? err.message : "Unknown error";
+          toast.error(`Batch job failed: ${message}`);
+        }
       }
     };
 
