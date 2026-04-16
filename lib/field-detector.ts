@@ -107,9 +107,9 @@ function analyzeVehicle(
     make: {
       check: (v: any) =>
         typeof v === "string" &&
-        /^[A-Z][a-z]+$/.test(v) &&
+        /^[A-Z][a-zA-Z\s\-]+$/.test(v) &&
         v.length > 1 &&
-        v.length < 20,
+        v.length < 30,
       confidence: 0.85,
     },
     model: {
