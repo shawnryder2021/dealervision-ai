@@ -136,7 +136,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
 
       const vehicles = scrapeResult.vehicles;
-      const errors: Array<{ message: string; row?: number }> = [];
+      const errors: Array<{ row: number; error: string }> = [];
 
       // Process each vehicle
       for (let i = 0; i < vehicles.length; i++) {
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           // Validate required fields
           if (!vehicle.make || !vehicle.model) {
             errors.push({
-              message: `Row ${i + 1}: Make and Model are required`,
+              error: `Make and Model are required`,
               row: i + 1,
             });
             result.failed++;
@@ -221,7 +221,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         } catch (err) {
           result.failed++;
           errors.push({
-            message: err instanceof Error ? err.message : "Unknown error",
+            error: err instanceof Error ? err.message : "Unknown error",
             row: i + 1,
           });
         }
@@ -233,7 +233,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         totalFound: vehicles.length,
         newAdded: result.success,
         updated: 0,
-        errors: errors.length > 0 ? errors : undefined,
+        errors: errors.length > 0 ? errors.map(e => ({ message: e.error, row: e.row })) : undefined,
       });
 
       // Update source status
