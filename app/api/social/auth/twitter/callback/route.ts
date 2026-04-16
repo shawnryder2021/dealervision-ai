@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   try {
     // Get the code verifier from session
     // In production, retrieve from session/secure storage
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

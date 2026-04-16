@@ -1,8 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
-import type { Database } from "@/lib/supabase/database.types";
 
-export type SocialAccount = Database["public"]["Tables"]["social_accounts"]["Row"];
-export type PublishedPost = Database["public"]["Tables"]["published_posts"]["Row"];
+export type SocialAccount = any;
+export type PublishedPost = any;
 
 /**
  * Get all social accounts for a dealership

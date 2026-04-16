@@ -5,7 +5,7 @@ import { getSocialAccounts, deleteSocialAccount } from "@/lib/db/social";
 // GET /api/social/accounts - List all connected social accounts
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: authError,
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 // DELETE /api/social/accounts/[id] - Disconnect a social account
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: authError,

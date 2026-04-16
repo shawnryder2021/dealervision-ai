@@ -306,7 +306,7 @@ export class TwitterClient {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
-      body: imageBuffer,
+      body: imageBuffer as any,
     });
 
     const data = await response.json();

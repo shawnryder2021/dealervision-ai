@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   try {
     // Verify state from session/cache
     // In production, check against stored state for CSRF protection
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

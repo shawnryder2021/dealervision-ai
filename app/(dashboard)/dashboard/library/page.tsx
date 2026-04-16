@@ -56,9 +56,9 @@ export default function LibraryPage() {
       if (data) {
         // Merge in any store assets not yet in the DB result
         // (e.g. items just saved from BG swap / batch before this query ran)
-        const dbIds = new Set(data.map((a) => a.id));
+        const dbIds = new Set((data as any[]).map((a: any) => a.id));
         const storeOnly = recentAssets.filter((a) => !dbIds.has(a.id));
-        setAssets([...storeOnly, ...data]);
+        setAssets([...storeOnly, ...(data as any[])]);
       }
     }
     loadAssets();
