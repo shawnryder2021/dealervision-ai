@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Upload, Download, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { parseCSV, generateCSVTemplate, detectDelimiter } from "@/lib/csv-parser";
 import { toast } from "sonner";
 
@@ -154,20 +153,20 @@ export default function VehicleImportPage() {
               </div>
 
               {importResult.errors.length > 0 && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    <p className="font-semibold mb-2">Errors:</p>
-                    <ul className="space-y-1 text-sm">
-                      {importResult.errors.slice(0, 5).map((err: any, i: number) => (
-                        <li key={i}>Row {err.row}: {err.error}</li>
-                      ))}
-                      {importResult.errors.length > 5 && (
-                        <li>... and {importResult.errors.length - 5} more</li>
-                      )}
-                    </ul>
-                  </AlertDescription>
-                </Alert>
+                <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-900 dark:bg-red-900/10 dark:border-red-800">
+                  <div className="flex gap-2 mb-2">
+                    <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                    <p className="font-semibold">Errors:</p>
+                  </div>
+                  <ul className="space-y-1 text-sm ml-7">
+                    {importResult.errors.slice(0, 5).map((err: any, i: number) => (
+                      <li key={i}>Row {err.row}: {err.error}</li>
+                    ))}
+                    {importResult.errors.length > 5 && (
+                      <li>... and {importResult.errors.length - 5} more</li>
+                    )}
+                  </ul>
+                </div>
               )}
 
               <div className="flex gap-2">

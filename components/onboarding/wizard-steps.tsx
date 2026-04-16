@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Lock, User, Building2, Palette, FileText, ArrowRight, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
+import { Mail, Lock, User, Building2, Palette, FileText, ArrowRight, ArrowLeft, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export interface WizardFormData {
   // Account & Dealership
@@ -51,9 +50,10 @@ export function Step1AccountDealership({ data, onChange, onNext, isLoading, erro
       </div>
 
       {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-900 dark:bg-red-900/10 dark:border-red-800 flex gap-3">
+          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+          <p className="text-sm">{error}</p>
+        </div>
       )}
 
       <div className="space-y-4">
