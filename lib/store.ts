@@ -7,12 +7,14 @@ interface AppState {
   vehicles: Vehicle[];
   recentAssets: GeneratedAsset[];
   isLoading: boolean;
+  isSuperAdmin: boolean;
 
   setDealership: (dealership: Dealership | null) => void;
   setProfile: (profile: Profile | null) => void;
   setVehicles: (vehicles: Vehicle[]) => void;
   setRecentAssets: (assets: GeneratedAsset[]) => void;
   setIsLoading: (loading: boolean) => void;
+  setIsSuperAdmin: (isSuperAdmin: boolean) => void;
   addAsset: (asset: GeneratedAsset) => void;
   updateAsset: (id: string, updates: Partial<GeneratedAsset>) => void;
 }
@@ -23,12 +25,14 @@ export const useAppStore = create<AppState>((set) => ({
   vehicles: [],
   recentAssets: [],
   isLoading: true,
+  isSuperAdmin: false,
 
   setDealership: (dealership) => set({ dealership }),
   setProfile: (profile) => set({ profile }),
   setVehicles: (vehicles) => set({ vehicles }),
   setRecentAssets: (assets) => set({ recentAssets: assets }),
   setIsLoading: (isLoading) => set({ isLoading }),
+  setIsSuperAdmin: (isSuperAdmin) => set({ isSuperAdmin }),
   addAsset: (asset) =>
     set((state) => ({ recentAssets: [asset, ...state.recentAssets] })),
   updateAsset: (id, updates) =>

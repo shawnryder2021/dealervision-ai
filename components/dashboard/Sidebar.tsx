@@ -23,11 +23,13 @@ import {
   Activity,
   Layers,
   CalendarDays,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
+import { useAppStore } from "@/lib/store";
 
 const navSections = [
   {
@@ -68,6 +70,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { theme, setTheme } = useTheme();
+  const { isSuperAdmin } = useAppStore();
 
   function isActive(href: string) {
     return (
@@ -138,6 +141,12 @@ export function Sidebar() {
 
       {/* Bottom */}
       <div className="border-t border-sidebar-border px-2 py-2 space-y-0.5">
+        {isSuperAdmin && (
+          <>
+            <NavLink href="/dashboard/admin" label="Platform Admin" icon={Shield} />
+            <div className="mx-3 my-1 border-t border-sidebar-border" />
+          </>
+        )}
         {bottomItems.map((item) => (
           <NavLink key={item.href} {...item} />
         ))}

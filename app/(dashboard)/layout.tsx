@@ -27,6 +27,7 @@ export default function DashboardLayout({
     setVehicles,
     setRecentAssets,
     setIsLoading,
+    setIsSuperAdmin,
     isLoading,
   } = useAppStore();
   const [initialized, setInitialized] = useState(false);
@@ -54,6 +55,18 @@ export default function DashboardLayout({
       if (!user) {
         router.push("/login");
         return;
+      }
+
+      // Check if user is a super admin
+      const { data: superAdmin } = await supabase
+        .from("super_admins")
+        .select("id")
+        .eq("email", user.email)
+        .is("revoked_at", null)
+        .single();
+
+      if (superAdmin) {
+        setIsSuperAdmin(true);
       }
 
       const { data: profile } = await supabase

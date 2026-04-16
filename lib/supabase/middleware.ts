@@ -52,5 +52,23 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // ─── Admin route protection ────────────────────────────────────────────────
+  // Verify user is super admin before allowing access to /dashboard/admin/*
+  if (user && request.nextUrl.pathname.startsWith("/dashboard/admin")) {
+    const { data: superAdmin } = await supabase
+      .from("super_admins")
+      .select("id")
+      .eq("email", user.email)
+      .is("revoked_at", null)
+      .single();
+
+    // Not a super admin - deny access
+    if (!superAdmin) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
+  }
+
   return supabaseResponse;
 }
