@@ -3,7 +3,8 @@
  * Fetches and parses dealer inventory pages using Cheerio
  */
 
-import { load, CheerioAPI } from "cheerio";
+import { load } from "cheerio";
+type CheerioAPI = ReturnType<typeof load>;
 import { Vehicle } from "@/lib/types";
 
 export interface ScrapedVehicle {
