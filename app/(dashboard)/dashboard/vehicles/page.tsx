@@ -184,6 +184,13 @@ export default function VehiclesPage() {
             </Button>
           </Link>
 
+          <Link href="/dashboard/vehicles/import-from-url">
+            <Button variant="outline">
+              <Upload className="h-4 w-4 mr-2" />
+              Import from URL
+            </Button>
+          </Link>
+
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger
             render={<Button className="gradient-primary text-white" />}
