@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, CheckCircle, Loader, Upload, Download } from "lucide-react";
+import { AlertCircle, CheckCircle, Loader, Upload, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 interface DetectionResult {
@@ -38,9 +38,11 @@ interface ImportResult {
   syncLogId: string;
 }
 
+type Step = "input" | "preview" | "results";
+
 export default function ImportFromURLPage() {
   const router = useRouter();
-  const [step, setStep] = useState<"input" | "preview" | "results">("input");
+  const [step, setStep] = useState<Step>("input");
   const [sourceUrl, setSourceUrl] = useState("");
   const [sourceName, setSourceName] = useState("");
   const [isDetecting, setIsDetecting] = useState(false);
@@ -49,7 +51,14 @@ export default function ImportFromURLPage() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState("");
 
-  const handleDetect = async () => {
+  const goToStep = (s: Step) => {
+    setError("");
+    setStep(s);
+  };
+
+  const handleDetect = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+
     if (!sourceUrl.trim()) {
       setError("Please enter a URL");
       return;
@@ -69,7 +78,6 @@ export default function ImportFromURLPage() {
 
       if (!data.success) {
         setError(data.error || "Failed to detect fields");
-        setIsDetecting(false);
         return;
       }
 
@@ -82,7 +90,9 @@ export default function ImportFromURLPage() {
     }
   };
 
-  const handleImport = async () => {
+  const handleImport = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+
     if (!sourceName.trim()) {
       setError("Please enter a source name");
       return;
@@ -112,6 +122,14 @@ export default function ImportFromURLPage() {
     }
   };
 
+  const steps: { key: Step; label: string; num: number }[] = [
+    { key: "input", label: "URL & Detection", num: 1 },
+    { key: "preview", label: "Preview & Configure", num: 2 },
+    { key: "results", label: "Results", num: 3 },
+  ];
+
+  const stepIndex = steps.findIndex((s) => s.key === step);
+
   return (
     <div className="space-y-6 p-6">
       <div>
@@ -123,32 +141,43 @@ export default function ImportFromURLPage() {
       </div>
 
       {/* Step Indicator */}
-      <div className="flex gap-2">
-        <div
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-            step === "input" ? "bg-blue-100 text-blue-900" : "bg-gray-100 text-gray-600"
-          }`}
-        >
-          <span className="text-sm font-medium">1. URL & Detection</span>
-        </div>
-        <div
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-            step === "preview"
-              ? "bg-blue-100 text-blue-900"
-              : "bg-gray-100 text-gray-600"
-          }`}
-        >
-          <span className="text-sm font-medium">2. Preview & Configure</span>
-        </div>
-        <div
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-            step === "results"
-              ? "bg-green-100 text-green-900"
-              : "bg-gray-100 text-gray-600"
-          }`}
-        >
-          <span className="text-sm font-medium">3. Results</span>
-        </div>
+      <div className="flex items-center gap-1">
+        {steps.map((s, i) => {
+          const isActive = s.key === step;
+          const isDone = i < stepIndex;
+          const canClick = isDone && !isDetecting && !isImporting;
+
+          return (
+            <div key={s.key} className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={!canClick}
+                onClick={() => canClick && goToStep(s.key)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150
+                  ${isActive
+                    ? s.key === "results"
+                      ? "bg-green-100 text-green-900"
+                      : "bg-blue-100 text-blue-900"
+                    : isDone
+                    ? "bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer"
+                    : "bg-gray-100 text-gray-400 cursor-default"
+                  }`}
+              >
+                <span className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-bold
+                  ${isActive
+                    ? s.key === "results" ? "bg-green-600 text-white" : "bg-blue-600 text-white"
+                    : isDone ? "bg-gray-500 text-white" : "bg-gray-300 text-gray-500"
+                  }`}>
+                  {isDone ? "✓" : s.num}
+                </span>
+                {s.label}
+              </button>
+              {i < steps.length - 1 && (
+                <span className="text-gray-300 text-lg">›</span>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Step 1: URL Input */}
@@ -163,6 +192,7 @@ export default function ImportFromURLPage() {
               placeholder="https://example.com/inventory"
               value={sourceUrl}
               onChange={(e) => setSourceUrl(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !isDetecting && handleDetect(e as any)}
               className="mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <p className="text-sm text-gray-500 mt-2">
@@ -179,9 +209,10 @@ export default function ImportFromURLPage() {
           )}
 
           <button
+            type="button"
             onClick={handleDetect}
-            disabled={isDetecting}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:hover:bg-blue-400 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+            disabled={isDetecting || !sourceUrl.trim()}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-lg transition-colors duration-150 flex items-center justify-center gap-2"
           >
             {isDetecting ? (
               <>
@@ -202,22 +233,20 @@ export default function ImportFromURLPage() {
       {step === "preview" && detectionResult && (
         <div className="space-y-6">
           {/* Source Name */}
-          <div className="bg-white p-6 rounded-lg border border-gray-200 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Source Name
-              </label>
-              <input
-                type="text"
-                placeholder="e.g., Main Website Inventory"
-                value={sourceName}
-                onChange={(e) => setSourceName(e.target.value)}
-                className="mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <p className="text-sm text-gray-500 mt-2">
-                Give this inventory source a name for reference.
-              </p>
-            </div>
+          <div className="bg-white p-6 rounded-lg border border-gray-200">
+            <label className="block text-sm font-medium text-gray-700">
+              Source Name
+            </label>
+            <input
+              type="text"
+              placeholder="e.g., Main Website Inventory"
+              value={sourceName}
+              onChange={(e) => setSourceName(e.target.value)}
+              className="mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <p className="text-sm text-gray-500 mt-2">
+              Give this inventory source a name for reference.
+            </p>
           </div>
 
           {/* Detection Summary */}
@@ -279,21 +308,11 @@ export default function ImportFromURLPage() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">
-                      Year
-                    </th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">
-                      Make
-                    </th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">
-                      Model
-                    </th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">
-                      Trim
-                    </th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">
-                      Price
-                    </th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-700">Year</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-700">Make</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-700">Model</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-700">Trim</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-700">Price</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -320,18 +339,22 @@ export default function ImportFromURLPage() {
             </div>
           )}
 
-          {/* Buttons */}
+          {/* Action Buttons */}
           <div className="flex gap-3">
             <button
-              onClick={() => setStep("input")}
-              className="px-6 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium rounded-lg transition-colors duration-200"
+              type="button"
+              onClick={() => goToStep("input")}
+              disabled={isImporting}
+              className="flex items-center gap-2 px-5 py-2.5 border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 font-medium rounded-lg transition-colors duration-150"
             >
+              <ArrowLeft className="h-4 w-4" />
               Back
             </button>
             <button
+              type="button"
               onClick={handleImport}
               disabled={isImporting || !sourceName.trim()}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:hover:bg-blue-400 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-lg transition-colors duration-150 flex items-center justify-center gap-2"
             >
               {isImporting ? (
                 <>
@@ -368,27 +391,20 @@ export default function ImportFromURLPage() {
               <div>
                 <p
                   className={`font-semibold text-lg ${
-                    importResult.failed === 0
-                      ? "text-green-900"
-                      : "text-yellow-900"
+                    importResult.failed === 0 ? "text-green-900" : "text-yellow-900"
                   }`}
                 >
                   Import Complete
                 </p>
                 <p
                   className={`text-sm mt-2 ${
-                    importResult.failed === 0
-                      ? "text-green-800"
-                      : "text-yellow-800"
+                    importResult.failed === 0 ? "text-green-800" : "text-yellow-800"
                   }`}
                 >
                   Successfully imported{" "}
-                  <span className="font-semibold">{importResult.success}</span>{" "}
-                  vehicles
+                  <span className="font-semibold">{importResult.success}</span> vehicles
                   {importResult.failed > 0 && (
-                    <span>
-                      , {importResult.failed} failed
-                    </span>
+                    <span>, {importResult.failed} failed</span>
                   )}
                 </p>
               </div>
@@ -397,10 +413,15 @@ export default function ImportFromURLPage() {
 
           {importResult.errors.length > 0 && (
             <div className="bg-white p-6 rounded-lg border border-gray-200 space-y-4">
-              <h3 className="font-semibold text-red-600">Errors ({importResult.errors.length})</h3>
+              <h3 className="font-semibold text-red-600">
+                Errors ({importResult.errors.length})
+              </h3>
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {importResult.errors.map((err, i) => (
-                  <div key={i} className="text-sm p-2 bg-red-50 border border-red-200 rounded">
+                  <div
+                    key={i}
+                    className="text-sm p-2 bg-red-50 border border-red-200 rounded"
+                  >
                     <span className="font-medium text-red-600">Row {err.row}:</span>{" "}
                     <span className="text-red-800">{err.error}</span>
                   </div>
@@ -412,11 +433,12 @@ export default function ImportFromURLPage() {
           <div className="flex gap-3">
             <Link
               href="/dashboard/vehicles"
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition text-center"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors duration-150 text-center"
             >
               View Imported Vehicles
             </Link>
             <button
+              type="button"
               onClick={() => {
                 setStep("input");
                 setSourceUrl("");
@@ -425,7 +447,7 @@ export default function ImportFromURLPage() {
                 setImportResult(null);
                 setError("");
               }}
-              className="px-6 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium rounded-lg transition"
+              className="px-5 py-2.5 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium rounded-lg transition-colors duration-150"
             >
               Import Another
             </button>
