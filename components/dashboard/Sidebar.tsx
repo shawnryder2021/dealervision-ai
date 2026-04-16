@@ -8,6 +8,7 @@ import {
   Image,
   Car,
   Settings,
+  CreditCard,
   BarChart3,
   ScanBarcode,
   ChevronLeft,
@@ -59,6 +60,7 @@ const navSections = [
 
 const bottomItems = [
   { href: "/dashboard/usage", label: "Usage", icon: BarChart3 },
+  { href: "/dashboard/settings/billing", label: "Billing", icon: CreditCard },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 

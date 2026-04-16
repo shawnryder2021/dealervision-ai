@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createImageTask, getResolutionCost } from "@/lib/kie";
 import { buildPrompt, getAspectRatioForChannel, getResolutionForChannel } from "@/lib/prompt-templates";
+import { checkQuota, incrementUsage } from "@/lib/db/subscriptions";
 import type { GenerateRequest } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -42,6 +43,12 @@ export async function POST(request: Request) {
         { error: "Dealership not found" },
         { status: 404 }
       );
+    }
+
+    // ── Quota check ──────────────────────────────────────────────────────────
+    const quota = await checkQuota(profile.dealership_id, "assets_generated");
+    if (!quota.allowed) {
+      return NextResponse.json({ error: quota.reason }, { status: 402 });
     }
 
     // Fetch vehicle if specified
@@ -126,6 +133,9 @@ export async function POST(request: Request) {
           status: "processing",
         })
         .eq("id", asset.id);
+
+      // Increment subscription usage counter
+      await incrementUsage(profile.dealership_id, { assets_generated: 1 });
 
       // Log usage
       const cost = getResolutionCost(resolution);

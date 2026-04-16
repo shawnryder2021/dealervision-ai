@@ -15,6 +15,8 @@ import {
   CheckCircle2,
   XCircle,
   MapPin,
+  CreditCard,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -912,6 +914,33 @@ export default function SettingsPage() {
               </pre>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Billing */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Billing & Subscription
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Manage your plan, view usage, update payment method, or cancel your subscription.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-1.5 shrink-0 ml-4"
+              onClick={() => window.location.href = "/dashboard/settings/billing"}
+            >
+              Manage billing <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
