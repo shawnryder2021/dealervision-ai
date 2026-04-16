@@ -113,17 +113,22 @@ function analyzeVehicle(
       confidence: 0.85,
     },
     model: {
+      // Allow names like "ID.4", "e-Golf", "CX-5", "Mach-E", "3 Series" —
+      // basically any non-empty short string that isn't purely whitespace
+      // or punctuation.
       check: (v: any) =>
         typeof v === "string" &&
-        /^[A-Z0-9][a-zA-Z0-9\s-]*$/.test(v) &&
-        v.length > 1,
+        v.trim().length >= 1 &&
+        v.trim().length < 40 &&
+        /[A-Za-z0-9]/.test(v),
       confidence: 0.8,
     },
     trim: {
       check: (v: any) =>
         typeof v === "string" &&
-        /^[A-Z][a-zA-Z0-9\s]*$/.test(v) &&
-        v.length > 2,
+        v.trim().length >= 2 &&
+        v.trim().length < 60 &&
+        /[A-Za-z0-9]/.test(v),
       confidence: 0.7,
     },
     price: {

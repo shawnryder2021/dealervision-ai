@@ -340,6 +340,31 @@ function findJsonLdMatch(
   return undefined;
 }
 
+// ─── Merge helper ────────────────────────────────────────────────────────────
+
+/**
+ * Merge partial vehicle records in priority order (later wins), but only
+ * for values that are actually present — `undefined`, `null`, and empty
+ * strings do NOT overwrite a defined value from a lower-priority source.
+ * Empty `photos` arrays are also skipped so JSON-LD image lists aren't
+ * wiped by a data-attr pass that didn't look at images.
+ */
+function mergeDefined(
+  ...sources: Partial<ScrapedVehicle>[]
+): ScrapedVehicle {
+  const out: Record<string, any> = {};
+  for (const src of sources) {
+    if (!src) continue;
+    for (const [key, value] of Object.entries(src)) {
+      if (value === undefined || value === null) continue;
+      if (typeof value === "string" && value.trim() === "") continue;
+      if (Array.isArray(value) && value.length === 0) continue;
+      out[key] = value;
+    }
+  }
+  return out as ScrapedVehicle;
+}
+
 // ─── Core item extraction (merges all strategies) ────────────────────────────
 
 function extractVehicleFromItem(
@@ -368,13 +393,16 @@ function extractVehicleFromItem(
   // Strategy 4: CSS class + regex heuristics (fallback)
   const heuristicData = extractByHeuristics($, item);
 
-  // Merge: heuristics (lowest) → data attrs → JSON-LD → explicit mapping (highest)
-  const merged: ScrapedVehicle = {
-    ...heuristicData,
-    ...dataAttrData,
-    ...jsonLdData,
-    ...mappingData,
-  };
+  // Merge: heuristics (lowest) → data attrs → JSON-LD → explicit mapping (highest).
+  // IMPORTANT: only non-empty values override lower-priority sources. Object
+  // spread would let `model: undefined` from sparse JSON-LD clobber a real
+  // `model: "Jetta"` from data-attrs.
+  const merged: ScrapedVehicle = mergeDefined(
+    heuristicData,
+    dataAttrData,
+    jsonLdData,
+    mappingData
+  );
 
   // Photos: combine from all sources, deduplicated
   const allPhotos = new Set<string>([
