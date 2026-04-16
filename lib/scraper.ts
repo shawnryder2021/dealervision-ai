@@ -44,11 +44,22 @@ export async function scrapeUrl(
       followRedirects = true,
     } = options;
 
-    const response = await fetch(url, {
-      headers,
-      timeout,
-      redirect: followRedirects ? "follow" : "manual",
-    });
+    const controller = new AbortController();
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    if (timeout > 0) {
+      timeoutId = setTimeout(() => controller.abort(), timeout);
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers,
+        redirect: followRedirects ? "follow" : "manual",
+        signal: controller.signal,
+      });
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
