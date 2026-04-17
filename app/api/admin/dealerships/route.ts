@@ -7,22 +7,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isSuperAdmin } from "@/lib/db/admin";
 
-interface DealershipWithSubscription {
-  id: string;
-  name: string;
-  owner_email: string;
-  created_at: string;
-  subscription_status: string | null;
-  subscription_plan: string | null;
-  current_period_end: string | null;
-  stripe_customer_id: string | null;
-  monthly_usage: {
-    assets_generated: number;
-    landing_pages_created: number;
-    social_posts_published: number;
-  };
-}
-
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -34,15 +18,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // Get all dealerships with their subscription info
+    // Get all dealerships
     const { data: dealerships, error } = await supabase
       .from("dealerships")
-      .select(
-        `
-        id,
-        name,
-        owner_email: profiles(email),
-        created_at,
+      .select(`
+        id, name, created_at,
         subscriptions(
           status,
           stripe_price_id,
@@ -55,44 +35,65 @@ export async function GET(request: NextRequest) {
           landing_pages_created,
           social_posts_published
         )
-      `
-      )
+      `)
       .order("created_at", { ascending: false });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Transform the data for easier consumption
-    const formattedDealerships: DealershipWithSubscription[] = dealerships.map(
-      (d: any) => {
-        const subscription = Array.isArray(d.subscriptions)
-          ? d.subscriptions[0]
-          : d.subscriptions;
-        const ownerProfile = Array.isArray(d.owner_email)
-          ? d.owner_email[0]
-          : d.owner_email;
-        const usageMetrics = Array.isArray(d.usage_metrics)
-          ? d.usage_metrics[0]
-          : d.usage_metrics;
+    // Get owner profiles (id only, no email column in profiles)
+    const dealershipIds = dealerships.map((d: any) => d.id);
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, dealership_id, full_name, role")
+      .in("dealership_id", dealershipIds)
+      .eq("role", "owner");
 
-        return {
-          id: d.id,
-          name: d.name,
-          owner_email: ownerProfile?.email || "Unknown",
-          created_at: d.created_at,
-          subscription_status: subscription?.status || null,
-          subscription_plan: subscription?.subscription_plans?.name || null,
-          current_period_end: subscription?.current_period_end || null,
-          stripe_customer_id: subscription?.stripe_customer_id || null,
-          monthly_usage: {
-            assets_generated: usageMetrics?.assets_generated || 0,
-            landing_pages_created: usageMetrics?.landing_pages_created || 0,
-            social_posts_published: usageMetrics?.social_posts_published || 0,
-          },
-        };
-      }
+    // Get emails from auth.users for each owner profile
+    const ownerIds = (profiles || []).map((p: any) => p.id);
+    const { data: authData } = await supabase.auth.admin.listUsers();
+    const authUsers = (authData?.users || []).filter((u) =>
+      ownerIds.includes(u.id)
     );
+
+    // Build lookup maps
+    const profileByDealership: Record<string, any> = {};
+    (profiles || []).forEach((p: any) => {
+      profileByDealership[p.dealership_id] = p;
+    });
+    const emailById: Record<string, string> = {};
+    authUsers.forEach((u) => {
+      emailById[u.id] = u.email || "";
+    });
+
+    // Transform the data
+    const formattedDealerships = dealerships.map((d: any) => {
+      const subscription = Array.isArray(d.subscriptions)
+        ? d.subscriptions[0]
+        : d.subscriptions;
+      const usageMetrics = Array.isArray(d.usage_metrics)
+        ? d.usage_metrics[0]
+        : d.usage_metrics;
+      const ownerProfile = profileByDealership[d.id];
+      const ownerEmail = ownerProfile ? emailById[ownerProfile.id] : null;
+
+      return {
+        id: d.id,
+        name: d.name,
+        owner_email: ownerEmail || ownerProfile?.full_name || "Unknown",
+        created_at: d.created_at,
+        subscription_status: subscription?.status || null,
+        subscription_plan: subscription?.subscription_plans?.name || null,
+        current_period_end: subscription?.current_period_end || null,
+        stripe_customer_id: subscription?.stripe_customer_id || null,
+        monthly_usage: {
+          assets_generated: usageMetrics?.assets_generated || 0,
+          landing_pages_created: usageMetrics?.landing_pages_created || 0,
+          social_posts_published: usageMetrics?.social_posts_published || 0,
+        },
+      };
+    });
 
     return NextResponse.json({ dealerships: formattedDealerships });
   } catch (error) {
