@@ -100,7 +100,18 @@ export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { theme, setTheme } = useTheme();
-  const { isSuperAdmin } = useAppStore();
+  const {
+    isSuperAdmin,
+    adminActiveDealership,
+    ownDealership,
+    setAdminActiveDealership,
+    setDealership,
+  } = useAppStore();
+
+  const exitClientMode = () => {
+    setAdminActiveDealership(null);
+    if (ownDealership) setDealership(ownDealership);
+  };
 
   function isActive(href: string) {
     return (
@@ -129,6 +140,39 @@ export function Sidebar() {
           )}
         </Link>
       </div>
+
+      {/* Client mode banner */}
+      {isSuperAdmin && adminActiveDealership && (
+        <div className={cn(
+          "mx-2 mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2",
+          collapsed && "mx-1 px-1.5 py-1.5"
+        )}>
+          {!collapsed ? (
+            <>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600/80">
+                Client Mode
+              </p>
+              <p className="text-xs font-medium text-amber-700 mt-0.5 truncate">
+                {adminActiveDealership.name}
+              </p>
+              <button
+                onClick={exitClientMode}
+                className="mt-1 text-[10px] text-amber-600 hover:text-amber-800 transition-colors"
+              >
+                ← Exit client mode
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={exitClientMode}
+              title="Exit client mode"
+              className="flex w-full items-center justify-center text-amber-600 hover:text-amber-800"
+            >
+              <span className="text-[10px] font-bold">✕</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-2 py-3">

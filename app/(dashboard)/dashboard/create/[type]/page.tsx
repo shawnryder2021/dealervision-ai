@@ -33,7 +33,7 @@ export default function GenerateTypePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const contentType = params.type as string;
-  const { dealership, vehicles: storeVehicles, addAsset, updateAsset } = useAppStore();
+  const { dealership, vehicles: storeVehicles, addAsset, updateAsset, adminActiveDealership } = useAppStore();
   const { fireWebhook } = useWebhook();
 
   const typeInfo = CONTENT_TYPES.find((t) => t.id === contentType);
@@ -219,7 +219,10 @@ export default function GenerateTypePage() {
 
       const res = await fetch("/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(adminActiveDealership && { "X-Dealership-Id": adminActiveDealership.id }),
+        },
         body: JSON.stringify({
           content_type: contentType, channel, vehicle_id: vehicleId,
           headline, subheadline, cta, style,

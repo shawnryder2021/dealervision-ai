@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -11,8 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Building2, TrendingUp } from "lucide-react";
+import { Building2, TrendingUp, Wand2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAppStore } from "@/lib/store";
+import { toast } from "sonner";
 
 interface DealershipData {
   id: string;
@@ -41,6 +45,8 @@ const statusColors: Record<string, string> = {
 export default function DealershipsPage() {
   const [dealerships, setDealerships] = useState<DealershipData[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const { dealership: currentDealership, setDealership, setAdminActiveDealership, setOwnDealership } = useAppStore();
 
   useEffect(() => {
     fetchDealerships();
@@ -58,6 +64,28 @@ export default function DealershipsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleWorkAsClient = async (d: DealershipData) => {
+    // Fetch full dealership record
+    const supabase = (await import("@/lib/supabase/client")).createClient();
+    const { data: fullDealership } = await supabase
+      .from("dealerships")
+      .select("*")
+      .eq("id", d.id)
+      .single();
+
+    if (!fullDealership) {
+      toast.error("Could not load dealership data");
+      return;
+    }
+
+    // Stash own dealership, switch to client
+    setOwnDealership(currentDealership);
+    setAdminActiveDealership(fullDealership);
+    setDealership(fullDealership);
+    toast.success(`Now working as: ${fullDealership.name}`);
+    router.push("/dashboard");
   };
 
   return (
@@ -101,6 +129,7 @@ export default function DealershipsPage() {
                     <TableHead className="text-right">Pages</TableHead>
                     <TableHead className="text-right">Posts</TableHead>
                     <TableHead>Created</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -154,6 +183,17 @@ export default function DealershipsPage() {
                       </TableCell>
                       <TableCell className="text-sm">
                         {new Date(dealership.created_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 text-xs"
+                          onClick={() => handleWorkAsClient(dealership)}
+                        >
+                          <Wand2 className="h-3 w-3" />
+                          Work as Client
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}

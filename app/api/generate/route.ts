@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createImageTask, getResolutionCost } from "@/lib/kie";
 import { buildPrompt, getAspectRatioForChannel, getResolutionForChannel } from "@/lib/prompt-templates";
 import { checkQuota, incrementUsage } from "@/lib/db/subscriptions";
+import { isSuperAdmin } from "@/lib/db/admin";
 import type { GenerateRequest } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -32,10 +33,18 @@ export async function POST(request: Request) {
       );
     }
 
+    // ── Super admin: allow dealership override via header ─────────────────────
+    const adminOverrideId = (request as Request & { headers: Headers }).headers
+      ? new Headers((request as any).headers).get("X-Dealership-Id")
+      : null;
+    const isAdmin = user.email ? await isSuperAdmin(user.email) : false;
+    const effectiveDealershipId =
+      isAdmin && adminOverrideId ? adminOverrideId : profile.dealership_id;
+
     const { data: dealership } = await supabase
       .from("dealerships")
       .select("*")
-      .eq("id", profile.dealership_id)
+      .eq("id", effectiveDealershipId)
       .single();
 
     if (!dealership) {
@@ -45,10 +54,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // ── Quota check ──────────────────────────────────────────────────────────
-    const quota = await checkQuota(profile.dealership_id, "assets_generated");
-    if (!quota.allowed) {
-      return NextResponse.json({ error: quota.reason }, { status: 402 });
+    // ── Quota check (skipped for super admins) ───────────────────────────────
+    if (!isAdmin) {
+      const quota = await checkQuota(effectiveDealershipId, "assets_generated");
+      if (!quota.allowed) {
+        return NextResponse.json({ error: quota.reason }, { status: 402 });
+      }
     }
 
     // Fetch vehicle if specified
@@ -90,7 +101,7 @@ export async function POST(request: Request) {
     const { data: asset, error: assetError } = await supabase
       .from("generated_assets")
       .insert({
-        dealership_id: profile.dealership_id,
+        dealership_id: effectiveDealershipId,
         created_by: user.id,
         vehicle_id: body.vehicle_id || null,
         content_type: body.content_type,
@@ -135,12 +146,12 @@ export async function POST(request: Request) {
         .eq("id", asset.id);
 
       // Increment subscription usage counter
-      await incrementUsage(profile.dealership_id, { assets_generated: 1 });
+      if (!isAdmin) await incrementUsage(effectiveDealershipId, { assets_generated: 1 });
 
       // Log usage
       const cost = getResolutionCost(resolution);
       await supabase.from("usage_logs").insert({
-        dealership_id: profile.dealership_id,
+        dealership_id: effectiveDealershipId,
         asset_id: asset.id,
         action: "generate",
         credits_used: cost,
