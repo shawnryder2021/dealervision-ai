@@ -32,6 +32,8 @@ interface DealershipData {
     landing_pages_created: number;
     social_posts_published: number;
   };
+  // Full dealership record returned by the admin API (bypasses RLS)
+  dealership_record: Record<string, any>;
 }
 
 const statusColors: Record<string, string> = {
@@ -66,14 +68,9 @@ export default function DealershipsPage() {
     }
   };
 
-  const handleWorkAsClient = async (d: DealershipData) => {
-    // Fetch full dealership record
-    const supabase = (await import("@/lib/supabase/client")).createClient();
-    const { data: fullDealership } = await supabase
-      .from("dealerships")
-      .select("*")
-      .eq("id", d.id)
-      .single();
+  const handleWorkAsClient = (d: DealershipData) => {
+    // Use the full dealership record already fetched server-side (bypasses RLS)
+    const fullDealership = d.dealership_record;
 
     if (!fullDealership) {
       toast.error("Could not load dealership data");
@@ -82,8 +79,8 @@ export default function DealershipsPage() {
 
     // Stash own dealership, switch to client
     setOwnDealership(currentDealership);
-    setAdminActiveDealership(fullDealership);
-    setDealership(fullDealership);
+    setAdminActiveDealership(fullDealership as any);
+    setDealership(fullDealership as any);
     toast.success(`Now working as: ${fullDealership.name}`);
     router.push("/dashboard");
   };

@@ -21,11 +21,11 @@ export async function GET(request: NextRequest) {
     // Use service role client to bypass RLS for admin queries
     const adminSupabase = await createServiceClient();
 
-    // Get all dealerships
+    // Get all dealerships (select * to include all fields needed for client-mode switching)
     const { data: dealerships, error } = await adminSupabase
       .from("dealerships")
       .select(`
-        id, name, created_at,
+        *,
         subscriptions(
           status,
           stripe_price_id,
@@ -81,6 +81,9 @@ export async function GET(request: NextRequest) {
       const ownerProfile = profileByDealership[d.id];
       const ownerEmail = ownerProfile ? emailById[ownerProfile.id] : null;
 
+      // Build full dealership object (all DB fields, excluding relation keys)
+      const { subscriptions: _s, usage_metrics: _u, ...dealershipFields } = d;
+
       return {
         id: d.id,
         name: d.name,
@@ -95,6 +98,8 @@ export async function GET(request: NextRequest) {
           landing_pages_created: usageMetrics?.landing_pages_created || 0,
           social_posts_published: usageMetrics?.social_posts_published || 0,
         },
+        // Full dealership record for client-mode switching (no second fetch needed)
+        dealership_record: dealershipFields,
       };
     });
 
