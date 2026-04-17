@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { isSuperAdmin } from "@/lib/db/admin";
 
 export async function GET(request: NextRequest) {
@@ -18,8 +18,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
+    // Use service role client to bypass RLS for admin queries
+    const adminSupabase = await createServiceClient();
+
     // Get all dealerships
-    const { data: dealerships, error } = await supabase
+    const { data: dealerships, error } = await adminSupabase
       .from("dealerships")
       .select(`
         id, name, created_at,
@@ -44,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     // Get owner profiles (id only, no email column in profiles)
     const dealershipIds = dealerships.map((d: any) => d.id);
-    const { data: profiles } = await supabase
+    const { data: profiles } = await adminSupabase
       .from("profiles")
       .select("id, dealership_id, full_name, role")
       .in("dealership_id", dealershipIds)
@@ -52,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     // Get emails from auth.users for each owner profile
     const ownerIds = (profiles || []).map((p: any) => p.id);
-    const { data: authData } = await supabase.auth.admin.listUsers();
+    const { data: authData } = await adminSupabase.auth.admin.listUsers();
     const authUsers = (authData?.users || []).filter((u) =>
       ownerIds.includes(u.id)
     );
