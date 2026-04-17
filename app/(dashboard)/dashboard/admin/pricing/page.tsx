@@ -36,6 +36,7 @@ export default function PricingPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingPlan, setEditingPlan] = useState<Partial<Plan> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     fetchPlans();
@@ -57,33 +58,70 @@ export default function PricingPage() {
   };
 
   const startEdit = (plan: Plan) => {
+    setCreating(false);
     setEditingId(plan.id);
     setEditingPlan({ ...plan });
   };
 
+  const startCreate = () => {
+    setCreating(true);
+    setEditingId(null);
+    setEditingPlan({
+      name: "",
+      slug: "",
+      description: "",
+      price_monthly_cents: 0,
+      stripe_price_id: "",
+      monthly_assets_limit: null,
+      monthly_pages_limit: null,
+      monthly_posts_limit: null,
+      max_team_members: null,
+      features: {},
+      is_active: true,
+    });
+  };
+
   const cancelEdit = () => {
+    setCreating(false);
     setEditingId(null);
     setEditingPlan(null);
   };
 
   const handleSavePlan = async () => {
-    if (!editingPlan || !editingId) return;
+    if (!editingPlan) return;
+
+    // Validate required fields for creation
+    if (creating) {
+      if (!editingPlan.name || !editingPlan.slug || !editingPlan.stripe_price_id) {
+        toast.error("Name, slug, and Stripe price ID are required");
+        return;
+      }
+      if (!editingPlan.price_monthly_cents || editingPlan.price_monthly_cents <= 0) {
+        toast.error("Price must be greater than 0");
+        return;
+      }
+    } else if (!editingId) {
+      return;
+    }
 
     setSaving(true);
     try {
-      const res = await fetch(`/api/admin/plans/${editingId}`, {
-        method: "PUT",
+      const url = creating ? "/api/admin/plans" : `/api/admin/plans/${editingId}`;
+      const method = creating ? "POST" : "PUT";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editingPlan),
       });
 
       if (res.ok) {
-        toast.success("Plan updated");
+        toast.success(creating ? "Plan created" : "Plan updated");
         await fetchPlans();
         cancelEdit();
       } else {
         const data = await res.json();
-        toast.error(data.error || "Failed to update plan");
+        toast.error(data.error || `Failed to ${creating ? "create" : "update"} plan`);
       }
     } catch (error) {
       console.error("Error saving plan:", error);
@@ -138,7 +176,7 @@ export default function PricingPage() {
             Manage subscription tiers and limits
           </p>
         </div>
-        <Button>
+        <Button onClick={startCreate} disabled={creating}>
           <Plus className="h-4 w-4 mr-2" />
           New Plan
         </Button>
@@ -146,6 +184,187 @@ export default function PricingPage() {
 
       {/* Plans Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {creating && editingPlan && (
+          <Card className="border-green-500/50">
+            <CardHeader className="pb-3">
+              <div className="text-xs font-semibold text-green-600 mb-2">
+                NEW PLAN
+              </div>
+              <Input
+                type="text"
+                value={editingPlan.name || ""}
+                onChange={(e) =>
+                  setEditingPlan({ ...editingPlan, name: e.target.value })
+                }
+                className="font-bold"
+                placeholder="Plan name (e.g. Pro)"
+              />
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <label className="text-xs font-medium">
+                  Slug (lowercase, no spaces)
+                </label>
+                <Input
+                  type="text"
+                  value={editingPlan.slug || ""}
+                  onChange={(e) =>
+                    setEditingPlan({
+                      ...editingPlan,
+                      slug: e.target.value.toLowerCase().replace(/\s+/g, "-"),
+                    })
+                  }
+                  placeholder="pro"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium">Description</label>
+                <Input
+                  type="text"
+                  value={editingPlan.description || ""}
+                  onChange={(e) =>
+                    setEditingPlan({
+                      ...editingPlan,
+                      description: e.target.value,
+                    })
+                  }
+                  placeholder="Short description"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium">
+                  Stripe Price ID (required)
+                </label>
+                <Input
+                  type="text"
+                  value={editingPlan.stripe_price_id || ""}
+                  onChange={(e) =>
+                    setEditingPlan({
+                      ...editingPlan,
+                      stripe_price_id: e.target.value,
+                    })
+                  }
+                  placeholder="price_... (from Stripe dashboard)"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium">
+                  Price/Month (cents, e.g. 2900 = $29)
+                </label>
+                <Input
+                  type="number"
+                  value={editingPlan.price_monthly_cents || ""}
+                  onChange={(e) =>
+                    setEditingPlan({
+                      ...editingPlan,
+                      price_monthly_cents: parseInt(e.target.value) || 0,
+                    })
+                  }
+                  placeholder="2900"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium">
+                  Assets/Month (blank = unlimited)
+                </label>
+                <Input
+                  type="number"
+                  value={editingPlan.monthly_assets_limit ?? ""}
+                  onChange={(e) =>
+                    setEditingPlan({
+                      ...editingPlan,
+                      monthly_assets_limit: e.target.value
+                        ? parseInt(e.target.value)
+                        : null,
+                    })
+                  }
+                  placeholder="50"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium">
+                  Pages/Month (blank = unlimited)
+                </label>
+                <Input
+                  type="number"
+                  value={editingPlan.monthly_pages_limit ?? ""}
+                  onChange={(e) =>
+                    setEditingPlan({
+                      ...editingPlan,
+                      monthly_pages_limit: e.target.value
+                        ? parseInt(e.target.value)
+                        : null,
+                    })
+                  }
+                  placeholder="5"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium">
+                  Posts/Month (blank = unlimited)
+                </label>
+                <Input
+                  type="number"
+                  value={editingPlan.monthly_posts_limit ?? ""}
+                  onChange={(e) =>
+                    setEditingPlan({
+                      ...editingPlan,
+                      monthly_posts_limit: e.target.value
+                        ? parseInt(e.target.value)
+                        : null,
+                    })
+                  }
+                  placeholder="20"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium">
+                  Team Members (blank = unlimited)
+                </label>
+                <Input
+                  type="number"
+                  value={editingPlan.max_team_members ?? ""}
+                  onChange={(e) =>
+                    setEditingPlan({
+                      ...editingPlan,
+                      max_team_members: e.target.value
+                        ? parseInt(e.target.value)
+                        : null,
+                    })
+                  }
+                  placeholder="2"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={cancelEdit}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleSavePlan}
+                  disabled={saving}
+                >
+                  {saving ? "Creating..." : "Create Plan"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {plans.map((plan) => {
           const Icon = PLAN_ICONS[plan.slug] || Zap;
           const isEditing = editingId === plan.id;
