@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTheme } from "next-themes";
 import { useAppStore } from "@/lib/store";
 
@@ -66,6 +66,36 @@ const bottomItems = [
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
+// NavLink defined OUTSIDE Sidebar so React doesn't remount it on every render
+function NavLink({
+  href,
+  label,
+  icon: Icon,
+  active,
+  collapsed,
+}: {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  active: boolean;
+  collapsed: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium transition-colors",
+        active
+          ? "bg-sidebar-accent text-sidebar-primary"
+          : "text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+      )}
+    >
+      <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
+      {!collapsed && <span>{label}</span>}
+    </Link>
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -76,24 +106,6 @@ export function Sidebar() {
     return (
       pathname === href ||
       (href !== "/dashboard" && pathname.startsWith(href))
-    );
-  }
-
-  function NavLink({ href, label, icon: Icon }: { href: string; label: string; icon: React.ComponentType<{ className?: string }> }) {
-    const active = isActive(href);
-    return (
-      <Link
-        href={href}
-        className={cn(
-          "flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium transition-colors",
-          active
-            ? "bg-sidebar-accent text-sidebar-primary"
-            : "text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-        )}
-      >
-        <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
-        {!collapsed && <span>{label}</span>}
-      </Link>
     );
   }
 
@@ -132,7 +144,12 @@ export function Sidebar() {
             )}
             <div className="space-y-0.5">
               {section.items.map((item) => (
-                <NavLink key={item.href} {...item} />
+                <NavLink
+                  key={item.href}
+                  {...item}
+                  active={isActive(item.href)}
+                  collapsed={collapsed}
+                />
               ))}
             </div>
           </div>
@@ -143,12 +160,23 @@ export function Sidebar() {
       <div className="border-t border-sidebar-border px-2 py-2 space-y-0.5">
         {isSuperAdmin && (
           <>
-            <NavLink href="/dashboard/admin" label="Platform Admin" icon={Shield} />
+            <NavLink
+              href="/dashboard/admin"
+              label="Platform Admin"
+              icon={Shield}
+              active={isActive("/dashboard/admin")}
+              collapsed={collapsed}
+            />
             <div className="mx-3 my-1 border-t border-sidebar-border" />
           </>
         )}
         {bottomItems.map((item) => (
-          <NavLink key={item.href} {...item} />
+          <NavLink
+            key={item.href}
+            {...item}
+            active={isActive(item.href)}
+            collapsed={collapsed}
+          />
         ))}
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
