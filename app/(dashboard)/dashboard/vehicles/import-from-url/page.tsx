@@ -235,7 +235,7 @@ export default function ImportFromURLPage() {
           {/* Source Name */}
           <div className="bg-white p-6 rounded-lg border border-gray-200">
             <label className="block text-sm font-medium text-gray-700">
-              Source Name
+              Source Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -243,9 +243,10 @@ export default function ImportFromURLPage() {
               value={sourceName}
               onChange={(e) => setSourceName(e.target.value)}
               className="mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              autoFocus
             />
             <p className="text-sm text-gray-500 mt-2">
-              Give this inventory source a name for reference.
+              Required — give this inventory source a name so you can identify it later.
             </p>
           </div>
 
@@ -350,24 +351,31 @@ export default function ImportFromURLPage() {
               <ArrowLeft className="h-4 w-4" />
               Back
             </button>
-            <button
-              type="button"
-              onClick={handleImport}
-              disabled={isImporting || !sourceName.trim()}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-lg transition-colors duration-150 flex items-center justify-center gap-2"
-            >
-              {isImporting ? (
-                <>
-                  <Loader className="h-4 w-4 animate-spin" />
-                  Importing...
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4" />
-                  Import Vehicles
-                </>
+            <div className="flex-1 space-y-1">
+              <button
+                type="button"
+                onClick={handleImport}
+                disabled={isImporting || !sourceName.trim()}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-lg transition-colors duration-150 flex items-center justify-center gap-2"
+              >
+                {isImporting ? (
+                  <>
+                    <Loader className="h-4 w-4 animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" />
+                    Import Vehicles
+                  </>
+                )}
+              </button>
+              {!sourceName.trim() && !isImporting && (
+                <p className="text-xs text-center text-amber-600">
+                  ↑ Enter a source name above to enable import
+                </p>
               )}
-            </button>
+            </div>
           </div>
         </div>
       )}
