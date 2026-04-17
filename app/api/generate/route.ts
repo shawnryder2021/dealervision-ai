@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createImageTask, getResolutionCost } from "@/lib/kie";
 import { buildPrompt, getAspectRatioForChannel, getResolutionForChannel } from "@/lib/prompt-templates";
@@ -6,7 +6,7 @@ import { checkQuota, incrementUsage } from "@/lib/db/subscriptions";
 import { isSuperAdmin } from "@/lib/db/admin";
 import type { GenerateRequest } from "@/lib/types";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -34,9 +34,7 @@ export async function POST(request: Request) {
     }
 
     // ── Super admin: allow dealership override via header ─────────────────────
-    const adminOverrideId = (request as Request & { headers: Headers }).headers
-      ? new Headers((request as any).headers).get("X-Dealership-Id")
-      : null;
+    const adminOverrideId = request.headers.get("X-Dealership-Id");
     const isAdmin = user.email ? await isSuperAdmin(user.email) : false;
     const effectiveDealershipId =
       isAdmin && adminOverrideId ? adminOverrideId : profile.dealership_id;
