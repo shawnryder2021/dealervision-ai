@@ -1,6 +1,9 @@
+"use client";
+
 /**
  * PDF Export utility
  * Exports a generated asset image as a print-ready PDF with correct page dimensions.
+ * Marked as client-only to avoid SSR issues with jspdf/fflate Worker dependencies.
  */
 
 const ASPECT_TO_INCHES: Record<string, { w: number; h: number }> = {
