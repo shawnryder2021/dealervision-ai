@@ -24,6 +24,10 @@ import {
   Layers,
   CalendarDays,
   Shield,
+  Sparkles,
+  Users,
+  Mail,
+  QrCode,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -41,6 +45,7 @@ const navSections = [
     label: "Create",
     items: [
       { href: "/dashboard/create", label: "Generate", icon: Wand2 },
+      { href: "/dashboard/campaigns", label: "Campaigns", icon: Sparkles },
       { href: "/dashboard/chat", label: "AI Assistant", icon: MessageSquare },
       { href: "/dashboard/vin-decoder", label: "VIN Decoder", icon: ScanBarcode },
       { href: "/dashboard/background-swap", label: "BG Swap", icon: ImageMinus },
@@ -53,7 +58,9 @@ const navSections = [
     items: [
       { href: "/dashboard/library", label: "Library", icon: Image },
       { href: "/dashboard/vehicles", label: "Vehicles", icon: Car },
+      { href: "/dashboard/leads", label: "Leads", icon: Users },
       { href: "/dashboard/landing-pages", label: "Landing Pages", icon: FileText },
+      { href: "/dashboard/email", label: "Email", icon: Mail },
       { href: "/dashboard/activity", label: "Activity", icon: Activity },
       { href: "/dashboard/calendar", label: "Calendar", icon: CalendarDays },
     ],

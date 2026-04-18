@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Car, Plus, Search, Edit, Trash2, Eye, Upload } from "lucide-react";
+import { Car, Plus, Search, Edit, Trash2, Eye, Upload, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +34,7 @@ import { VEHICLE_STATUSES } from "@/lib/constants";
 import { VEHICLE_MAKES_MODELS, getModelsForMake, COMMON_TRIMS, getYearRange } from "@/lib/vehicle-data";
 import type { Vehicle } from "@/lib/types";
 import { toast } from "sonner";
+import { QRCodeModal } from "@/components/dashboard/QRCodeModal";
 
 const statusColors: Record<string, string> = {
   available: "bg-green-500/10 text-green-500",
@@ -47,6 +48,7 @@ export default function VehiclesPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [search, setSearch] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [qrVehicle, setQrVehicle] = useState<Vehicle | null>(null);
   const [form, setForm] = useState({
     year: "",
     make: "",
@@ -423,6 +425,15 @@ export default function VehiclesPage() {
                     size="icon"
                     variant="ghost"
                     className="h-8 w-8"
+                    title="QR Code"
+                    onClick={() => setQrVehicle(v)}
+                  >
+                    <QrCode className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
                     onClick={() => handleDelete(v.id)}
                   >
                     <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
@@ -432,6 +443,16 @@ export default function VehiclesPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {/* QR Code Modal */}
+      {qrVehicle && (
+        <QRCodeModal
+          open={!!qrVehicle}
+          onClose={() => setQrVehicle(null)}
+          vehicleName={`${qrVehicle.year ?? ""} ${qrVehicle.make ?? ""} ${qrVehicle.model ?? ""}`.trim()}
+          defaultUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/vehicles/${qrVehicle.id}`}
+        />
       )}
     </div>
   );

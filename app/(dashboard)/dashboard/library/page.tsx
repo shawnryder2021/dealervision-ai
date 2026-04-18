@@ -18,9 +18,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Download, Pencil, Heart, Trash2, Type, CheckSquare, X, Package } from "lucide-react";
+import { Download, Pencil, Heart, Trash2, Type, CheckSquare, X, Package, FileText } from "lucide-react";
 import { EditImageDialog } from "@/components/create/EditImageDialog";
 import { TextOverlayEditor } from "@/components/create/TextOverlayEditor";
+import { exportAsPDF } from "@/lib/pdf-export";
 
 export default function LibraryPage() {
   const { dealership, recentAssets } = useAppStore();
@@ -356,6 +357,24 @@ export default function LibraryPage() {
                 </Button>
                 {selectedAsset.image_url && (
                   <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        try {
+                          await exportAsPDF(
+                            selectedAsset.image_url!,
+                            selectedAsset.aspect_ratio,
+                            `${selectedAsset.content_type}-${selectedAsset.channel}`
+                          );
+                        } catch (err) {
+                          toast.error("PDF export failed");
+                        }
+                      }}
+                    >
+                      <FileText className="h-4 w-4 mr-1" />
+                      Export PDF
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
