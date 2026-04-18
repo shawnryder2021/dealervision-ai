@@ -21,7 +21,6 @@ import { Progress } from "@/components/ui/progress";
 import { Download, Pencil, Heart, Trash2, Type, CheckSquare, X, Package, FileText } from "lucide-react";
 import { EditImageDialog } from "@/components/create/EditImageDialog";
 import { TextOverlayEditor } from "@/components/create/TextOverlayEditor";
-import { exportAsPDF } from "@/lib/pdf-export";
 
 export default function LibraryPage() {
   const { dealership, recentAssets } = useAppStore();
@@ -362,6 +361,8 @@ export default function LibraryPage() {
                       variant="outline"
                       onClick={async () => {
                         try {
+                          // Dynamically import pdf-export to avoid SSR Worker resolution errors
+                          const { exportAsPDF } = await import("@/lib/pdf-export");
                           await exportAsPDF(
                             selectedAsset.image_url!,
                             selectedAsset.aspect_ratio,
