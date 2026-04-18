@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { Image as ImageIcon } from "lucide-react";
+
+// Load PDF export button client-side only to avoid jspdf/fflate SSR Worker errors
+const PDFExportButton = dynamic(
+  () => import("@/components/library/PDFExportButton"),
+  { ssr: false }
+);
 import { AssetGrid } from "@/components/library/AssetGrid";
 import { AssetFilters } from "@/components/library/AssetFilters";
 import { useAppStore } from "@/lib/store";
@@ -356,26 +363,7 @@ export default function LibraryPage() {
                 </Button>
                 {selectedAsset.image_url && (
                   <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={async () => {
-                        try {
-                          // Dynamically import pdf-export to avoid SSR Worker resolution errors
-                          const { exportAsPDF } = await import("@/lib/pdf-export");
-                          await exportAsPDF(
-                            selectedAsset.image_url!,
-                            selectedAsset.aspect_ratio,
-                            `${selectedAsset.content_type}-${selectedAsset.channel}`
-                          );
-                        } catch (err) {
-                          toast.error("PDF export failed");
-                        }
-                      }}
-                    >
-                      <FileText className="h-4 w-4 mr-1" />
-                      Export PDF
-                    </Button>
+                    <PDFExportButton asset={selectedAsset} />
                     <Button
                       size="sm"
                       variant="outline"
