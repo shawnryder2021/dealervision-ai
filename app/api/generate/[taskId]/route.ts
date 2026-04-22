@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getTaskStatus } from "@/lib/kie";
+import { getImageProvider } from "@/lib/image-providers";
 import { uploadToImgBB } from "@/lib/imgbb";
 
 export async function GET(
@@ -34,13 +34,19 @@ export async function GET(
       return NextResponse.json(asset);
     }
 
-    // Poll Kie.ai for status
+    // Poll the appropriate image provider for status
     if (asset.kie_task_id) {
       try {
-        const kieResult = await getTaskStatus(asset.kie_task_id);
+        // Determine which provider to use
+        // Prefer the model stored in metadata, fall back to dealership's configured model
+        const metadata = asset.metadata as Record<string, unknown> || {};
+        const modelUsed = (metadata.model as string) || "kie-nano-banana";
+        const provider = getImageProvider(modelUsed as "kie-nano-banana" | "openai-gpt-image-2");
 
-        if (kieResult.status === "completed" && kieResult.output?.image_url) {
-          const originalUrl = kieResult.output.image_url;
+        const providerResult = await provider.getTaskStatus(asset.kie_task_id);
+
+        if (providerResult.status === "completed" && providerResult.output?.image_url) {
+          const originalUrl = providerResult.output.image_url;
 
           // Update asset with original URL immediately so user sees the image fast
           const { data: updated } = await supabase
@@ -69,7 +75,7 @@ export async function GET(
           return NextResponse.json(updated || asset);
         }
 
-        if (kieResult.status === "failed") {
+        if (providerResult.status === "failed") {
           await supabase
             .from("generated_assets")
             .update({ status: "failed" })
@@ -78,7 +84,7 @@ export async function GET(
           return NextResponse.json({ ...asset, status: "failed" });
         }
       } catch {
-        // Kie.ai polling error, return current status
+        // Provider polling error, return current status
       }
     }
 

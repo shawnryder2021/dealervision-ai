@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createImageTask, getResolutionCost } from "@/lib/kie";
+import { getImageProviderForDealership } from "@/lib/image-providers";
+import { getImageModel } from "@/lib/db/image-generation";
 import { buildPrompt, getAspectRatioForChannel, getResolutionForChannel } from "@/lib/prompt-templates";
 import { checkQuota, incrementUsage } from "@/lib/db/subscriptions";
 import { isSuperAdmin } from "@/lib/db/admin";
@@ -95,6 +96,9 @@ export async function POST(request: NextRequest) {
       custom_prompt: body.custom_prompt,
     });
 
+    // Get the image model for this dealership
+    const imageModel = await getImageModel(effectiveDealershipId);
+
     // Create asset record
     const { data: asset, error: assetError } = await supabase
       .from("generated_assets")
@@ -113,6 +117,7 @@ export async function POST(request: NextRequest) {
           style: body.style,
           headline: body.headline,
           subheadline: body.subheadline,
+          model: imageModel,
         },
       })
       .select()
@@ -125,9 +130,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Submit to Kie.ai
+    // Submit to image generation provider
     try {
-      const kieResult = await createImageTask({
+      const provider = await getImageProviderForDealership(effectiveDealershipId);
+
+      const providerResult = await provider.createImageTask({
         prompt,
         aspect_ratio: aspectRatio,
         resolution,
@@ -138,7 +145,7 @@ export async function POST(request: NextRequest) {
       await supabase
         .from("generated_assets")
         .update({
-          kie_task_id: kieResult.taskId,
+          kie_task_id: providerResult.taskId,
           status: "processing",
         })
         .eq("id", asset.id);
@@ -147,21 +154,25 @@ export async function POST(request: NextRequest) {
       if (!isAdmin) await incrementUsage(effectiveDealershipId, { assets_generated: 1 });
 
       // Log usage
-      const cost = getResolutionCost(resolution);
+      const cost = provider.getResolutionCost(resolution);
       await supabase.from("usage_logs").insert({
         dealership_id: effectiveDealershipId,
         asset_id: asset.id,
         action: "generate",
         credits_used: cost,
-        metadata: { resolution, content_type: body.content_type },
+        metadata: {
+          resolution,
+          content_type: body.content_type,
+          model: imageModel,
+        },
       });
 
       return NextResponse.json({
         ...asset,
-        kie_task_id: kieResult.taskId,
+        kie_task_id: providerResult.taskId,
         status: "processing",
       });
-    } catch (kieError) {
+    } catch (providerError) {
       // Update asset as failed
       await supabase
         .from("generated_assets")
@@ -169,7 +180,7 @@ export async function POST(request: NextRequest) {
         .eq("id", asset.id);
 
       const message =
-        kieError instanceof Error ? kieError.message : "Kie.ai API error";
+        providerError instanceof Error ? providerError.message : "Image generation API error";
       return NextResponse.json({ error: message }, { status: 500 });
     }
   } catch (error) {

@@ -45,6 +45,7 @@ export interface Dealership {
     include_user_email: boolean;
     secret?: string;
   };
+  image_model: "kie-nano-banana" | "openai-gpt-image-2";
   created_at: string;
   updated_at: string;
 }

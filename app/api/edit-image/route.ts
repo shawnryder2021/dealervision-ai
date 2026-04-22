@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { createEditTask, getTaskStatus } from "@/lib/kie";
+import { getImageProvider } from "@/lib/image-providers";
 import { uploadToImgBB } from "@/lib/imgbb";
 
 export async function POST(request: Request) {
   try {
-    const { prompt, image_url, image_size } = await request.json();
+    const { prompt, image_url, image_size, model } = await request.json();
 
     if (!prompt) {
       return NextResponse.json({ error: "Edit prompt is required" }, { status: 400 });
@@ -13,8 +13,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Source image is required" }, { status: 400 });
     }
 
-    // Uses google/nano-banana-edit model (4 credits vs 8 for generation)
-    const result = await createEditTask({
+    // Use the specified model or default to KIE.ai
+    const imageModel = (model || "kie-nano-banana") as "kie-nano-banana" | "openai-gpt-image-2";
+    const provider = getImageProvider(imageModel);
+
+    // Uses the provider's edit task (e.g., google/nano-banana-edit for KIE.ai)
+    const result = await provider.createEditTask({
       prompt,
       image_urls: [image_url],
       image_size: image_size || "1:1",
@@ -24,6 +28,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       taskId: result.taskId,
       status: "processing",
+      model: imageModel,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Edit failed";
@@ -35,12 +40,14 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const taskId = searchParams.get("taskId");
+    const model = searchParams.get("model") || "kie-nano-banana";
 
     if (!taskId) {
       return NextResponse.json({ error: "taskId required" }, { status: 400 });
     }
 
-    const result = await getTaskStatus(taskId);
+    const provider = getImageProvider(model as "kie-nano-banana" | "openai-gpt-image-2");
+    const result = await provider.getTaskStatus(taskId);
 
     // Return the image immediately — upload to ImgBB in background (don't block)
     if (result.status === "completed" && result.output?.image_url) {

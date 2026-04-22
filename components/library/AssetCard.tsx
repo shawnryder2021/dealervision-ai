@@ -158,13 +158,18 @@ export function AssetCard({
         <p className="text-xs font-medium truncate capitalize">
           {asset.content_type.replace(/-/g, " ")}
         </p>
-        <div className="flex items-center gap-1.5 mt-1">
+        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
           <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 capitalize">
             {asset.channel.replace(/-/g, " ")}
           </Badge>
           {asset.campaign && (
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
               {asset.campaign}
+            </Badge>
+          )}
+          {(asset.metadata as Record<string, unknown>)?.model && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30">
+              {(asset.metadata as Record<string, unknown>).model === "kie-nano-banana" ? "KIE.ai" : "OpenAI"}
             </Badge>
           )}
         </div>
