@@ -134,7 +134,7 @@ export default function ImageGenerationPage() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               {openaiInfo.displayName}
-              <Badge variant="secondary">Coming Soon</Badge>
+              <Badge variant="outline">Production</Badge>
             </CardTitle>
             <CardDescription>{openaiInfo.description}</CardDescription>
           </CardHeader>
@@ -144,8 +144,8 @@ export default function ImageGenerationPage() {
               <p className="font-mono text-xs">{openaiInfo.pricing}</p>
             </div>
             <div>
-              <p className="text-muted-foreground">Status:</p>
-              <p className="text-xs text-amber-600">Implementation in progress</p>
+              <p className="text-muted-foreground">API Type:</p>
+              <p className="text-xs">Async (Webhook callbacks)</p>
             </div>
           </CardContent>
         </Card>
