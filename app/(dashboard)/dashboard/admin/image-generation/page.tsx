@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client"; // still used for loadData
 import { getModelInfo, getGlobalDefaultModel } from "@/lib/db/image-generation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,13 +62,16 @@ export default function ImageGenerationPage() {
 
   async function saveDealershipModel(dealershipId: string, model: ImageModelOption) {
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("dealerships")
-        .update({ image_model: model })
-        .eq("id", dealershipId);
+      const res = await fetch("/api/admin/image-model", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dealershipId, model }),
+      });
 
-      if (error) throw error;
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update model");
+      }
 
       // Update local state
       setDealerships(
@@ -78,10 +81,10 @@ export default function ImageGenerationPage() {
       );
 
       setEditingDealership(null);
-      toast.success(`Model updated for dealership`);
+      toast.success(`Model updated to ${model === "kie-nano-banana" ? "KIE.ai" : "OpenAI GPT-Image-2"}`);
     } catch (err) {
       console.error("Failed to save model:", err);
-      toast.error("Failed to update dealership model");
+      toast.error(err instanceof Error ? err.message : "Failed to update dealership model");
     }
   }
 
