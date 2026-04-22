@@ -1,54 +1,39 @@
 /**
  * OpenAI Image Generation Provider
  *
- * Provides image generation using OpenAI's gpt-image-2 model
- *
- * NOTE: This is a stub implementation. The actual API integration details
- * (async vs sync, request/response format, parameters) need to be confirmed
- * with OpenAI's gpt-image-2 documentation.
+ * Provides image generation using OpenAI's gpt-image-2 model through KIE.ai's API
+ * Uses the same async task-based API as KIE.ai with webhook callbacks
  */
 
 import { ImageProvider, CreateImageTaskInput, EditImageTaskInput, ImageTaskResponse, ImageTaskResult } from "./base";
 
-const OPENAI_API_BASE = "https://api.openai.com/v1";
+const KIE_API_BASE = "https://api.kie.ai/api/v1/jobs";
 
 export class OpenAIProvider extends ImageProvider {
-  private apiKey: string;
-
-  constructor(apiKey?: string) {
-    super();
-    this.apiKey = apiKey || process.env.OPENAI_API_KEY || "";
-  }
-
   /**
-   * Create an image generation task with OpenAI
+   * Create an image generation task with OpenAI gpt-image-2
    */
   async createImageTask(input: CreateImageTaskInput): Promise<ImageTaskResponse> {
-    if (!this.apiKey) {
-      throw new Error("OpenAI API key not configured. Set OPENAI_API_KEY environment variable.");
+    if (!process.env.KIE_API_KEY) {
+      throw new Error("KIE_API_KEY not configured. OpenAI gpt-image-2 requires KIE API credentials.");
     }
 
-    // TODO: Implement OpenAI API call once gpt-image-2 API details are confirmed
-    // For now, throw a helpful error
-    throw new Error(
-      "OpenAI image generation is not yet fully implemented. " +
-      "API details for gpt-image-2 need to be confirmed with OpenAI documentation."
-    );
+    const callbackUrl = `${process.env.KIE_CALLBACK_BASE_URL}/api/webhooks/image-generation`;
 
-    /*
-    // Placeholder implementation structure:
-    const response = await fetch(`${OPENAI_API_BASE}/images/generations`, {
+    const response = await fetch(`${KIE_API_BASE}/createTask`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${process.env.KIE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-image-2",
-        prompt: input.prompt,
-        size: input.resolution, // May need mapping (e.g., "1024x1024")
-        quality: "hd",
-        n: 1,
+        model: "gpt-image-2-text-to-image",
+        callBackUrl: callbackUrl,
+        input: {
+          prompt: input.prompt,
+          aspect_ratio: input.aspect_ratio || "auto",
+          nsfw_checker: true, // Enable content filtering
+        },
       }),
     });
 
@@ -57,53 +42,113 @@ export class OpenAIProvider extends ImageProvider {
       throw new Error(`OpenAI API error: ${response.status} - ${error}`);
     }
 
+    // Response format: { code: 200, msg: "success", data: { taskId, recordId } }
     const json = await response.json();
-    // Handle response format
-    */
+    if (json.code !== 200 || !json.data?.taskId) {
+      throw new Error(`OpenAI error: ${json.msg || "Unknown error"}`);
+    }
+
+    return { taskId: json.data.taskId, status: "processing" };
   }
 
   /**
    * Create an image editing task with OpenAI
+   * Note: OpenAI gpt-image-2 does not currently support editing
    */
   async createEditTask(input: EditImageTaskInput): Promise<ImageTaskResponse> {
-    // TODO: Implement OpenAI edit endpoint if available
     throw new Error(
-      "OpenAI image editing is not yet implemented. " +
-      "Confirm if gpt-image-2 supports image editing."
+      "OpenAI gpt-image-2 does not support image editing. " +
+      "Use KIE.ai nano-banana-2 for image editing capabilities."
     );
   }
 
   /**
    * Get the status of an OpenAI task
-   * Note: If OpenAI's API is synchronous, this may not be needed
    */
   async getTaskStatus(taskId: string): Promise<ImageTaskResult> {
-    // TODO: Implement status polling if OpenAI uses async tasks
-    // If OpenAI is synchronous, this endpoint may not be needed
-    throw new Error(
-      "OpenAI task polling is not yet implemented. " +
-      "Confirm if gpt-image-2 uses async or sync API."
-    );
+    if (!process.env.KIE_API_KEY) {
+      throw new Error("KIE_API_KEY not configured.");
+    }
+
+    const response = await fetch(`${KIE_API_BASE}/recordInfo?taskId=${taskId}`, {
+      headers: {
+        Authorization: `Bearer ${process.env.KIE_API_KEY}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`OpenAI API error: ${response.status} - ${error}`);
+    }
+
+    // Response format: { code: 200, msg: "success", data: { taskId, state, resultJson, ... } }
+    const json = await response.json();
+    if (json.code !== 200 || !json.data) {
+      throw new Error(`OpenAI error: ${json.msg || "Unknown error"}`);
+    }
+
+    const data = json.data;
+    const state = data.state as string;
+
+    // Parse resultJson to extract image URLs
+    let imageUrl: string | undefined;
+    if (state === "success" && data.resultJson) {
+      try {
+        const result = typeof data.resultJson === "string"
+          ? JSON.parse(data.resultJson)
+          : data.resultJson;
+        if (result.resultUrls && result.resultUrls.length > 0) {
+          imageUrl = result.resultUrls[0];
+        }
+      } catch {
+        // resultJson parse failed
+      }
+    }
+
+    // Map KIE.ai states to our status
+    let status: ImageTaskResult["status"];
+    if (state === "success") {
+      status = "completed";
+    } else if (state === "fail") {
+      status = "failed";
+    } else {
+      // waiting, queuing, generating
+      status = "processing";
+    }
+
+    return {
+      taskId: data.taskId || taskId,
+      status,
+      output: imageUrl ? { image_url: imageUrl } : undefined,
+      error: state === "fail" ? (data.failMsg || "Generation failed") : undefined,
+    };
   }
 
   /**
-   * Handle webhook callback from OpenAI
-   * May not be needed if OpenAI's API is synchronous
+   * Handle webhook callback from OpenAI (via KIE.ai)
    */
   async handleWebhook(
     signature: string,
     payload: Record<string, unknown>
   ): Promise<{ taskId: string; status: string }> {
-    // TODO: Implement if OpenAI provides webhooks
-    throw new Error("OpenAI webhooks are not yet implemented.");
+    const taskId = payload.taskId as string;
+    const state = payload.state as string;
+
+    let status = "processing";
+    if (state === "success") {
+      status = "completed";
+    } else if (state === "fail") {
+      status = "failed";
+    }
+
+    return { taskId, status };
   }
 
   /**
    * Get the cost for a generation at a given resolution
    */
   getResolutionCost(resolution: string): number {
-    // TODO: Update with actual OpenAI pricing once confirmed
-    // These are placeholder estimates
+    // OpenAI gpt-image-2 pricing (per generation)
     const costs: Record<string, number> = {
       "1K": 0.04,
       "2K": 0.06,

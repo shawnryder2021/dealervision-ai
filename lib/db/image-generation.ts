@@ -113,19 +113,24 @@ export function getModelInfo(model: ImageModelOption) {
   const modelInfo = {
     "kie-nano-banana": {
       name: "KIE.ai nano-banana-2",
-      displayName: "KIE.ai",
-      description: "High-quality automotive imagery specialization",
-      pricing: "$0.04-0.09 per generation (resolution-based)",
+      displayName: "KIE.ai nano-banana-2",
+      description: "Optimized for high-quality automotive imagery. Supports image editing with google/nano-banana-edit.",
+      pricing: "$0.04-0.09 per generation",
+      capabilities: ["Text-to-image", "Image editing", "Multiple aspect ratios", "PNG/JPEG output"],
       async: true,
       provider: "KIE.ai",
+      supportedFeatures: ["generation", "editing"],
     },
     "openai-gpt-image-2": {
-      name: "OpenAI GPT Image 2",
-      displayName: "OpenAI",
-      description: "Advanced general-purpose image generation",
-      pricing: "$0.04-0.10 per generation (resolution-based)",
+      name: "OpenAI GPT-Image-2",
+      displayName: "OpenAI GPT-Image-2",
+      description: "Advanced general-purpose image generation with content filtering. Available through KIE.ai marketplace.",
+      pricing: "$0.04-0.10 per generation",
+      capabilities: ["Text-to-image", "Content filtering", "Multiple aspect ratios", "Auto aspect ratio"],
       async: true,
-      provider: "OpenAI",
+      provider: "OpenAI (via KIE.ai)",
+      supportedFeatures: ["generation"],
+      limitations: ["No image editing support"],
     },
   };
 
