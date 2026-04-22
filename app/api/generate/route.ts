@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getImageProviderForDealership } from "@/lib/image-providers";
-import { getImageModel } from "@/lib/db/image-generation";
+import { getImageProvider } from "@/lib/image-providers";
+import type { ImageModelOption } from "@/lib/db/image-generation";
 import { buildPrompt, getAspectRatioForChannel, getResolutionForChannel } from "@/lib/prompt-templates";
 import { checkQuota, incrementUsage } from "@/lib/db/subscriptions";
 import { isSuperAdmin } from "@/lib/db/admin";
@@ -96,8 +96,9 @@ export async function POST(request: NextRequest) {
       custom_prompt: body.custom_prompt,
     });
 
-    // Get the image model for this dealership
-    const imageModel = await getImageModel(effectiveDealershipId);
+    // Read image model directly from the already-fetched dealership object
+    const imageModel: ImageModelOption =
+      (dealership.image_model as ImageModelOption) || "kie-nano-banana";
 
     // Create asset record
     const { data: asset, error: assetError } = await supabase
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
 
     // Submit to image generation provider
     try {
-      const provider = await getImageProviderForDealership(effectiveDealershipId);
+      const provider = getImageProvider(imageModel);
 
       const providerResult = await provider.createImageTask({
         prompt,
