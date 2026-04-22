@@ -167,11 +167,17 @@ export function AssetCard({
               {asset.campaign}
             </Badge>
           )}
-          {(asset.metadata as Record<string, unknown>)?.model && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30">
-              {(asset.metadata as Record<string, unknown>).model === "kie-nano-banana" ? "KIE.ai" : "OpenAI"}
-            </Badge>
-          )}
+          {(() => {
+            const model = (asset.metadata as Record<string, unknown>)?.model;
+            if (typeof model === "string" && model) {
+              return (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30">
+                  {model === "kie-nano-banana" ? "KIE.ai" : "OpenAI"}
+                </Badge>
+              );
+            }
+            return null;
+          })()}
         </div>
         <p className="text-[10px] text-muted-foreground mt-1.5">
           {new Date(asset.created_at).toLocaleDateString()}
