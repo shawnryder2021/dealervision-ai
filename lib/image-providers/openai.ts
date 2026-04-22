@@ -8,10 +8,18 @@
 import { ImageProvider, CreateImageTaskInput, EditImageTaskInput, ImageTaskResponse, ImageTaskResult } from "./base";
 
 const KIE_API_BASE = "https://api.kie.ai/api/v1/jobs";
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 2000;
+
+/** Sleep helper for retry backoff */
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export class OpenAIProvider extends ImageProvider {
   /**
-   * Create an image generation task with OpenAI gpt-image-2
+   * Create an image generation task with OpenAI gpt-image-2.
+   * Retries up to MAX_RETRIES times on upstream timeout errors.
    */
   async createImageTask(input: CreateImageTaskInput): Promise<ImageTaskResponse> {
     if (!process.env.KIE_API_KEY) {
@@ -20,35 +28,65 @@ export class OpenAIProvider extends ImageProvider {
 
     const callbackUrl = `${process.env.KIE_CALLBACK_BASE_URL}/api/webhooks/image-generation`;
 
-    const response = await fetch(`${KIE_API_BASE}/createTask`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.KIE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-image-2-text-to-image",
-        callBackUrl: callbackUrl,
-        input: {
-          prompt: input.prompt,
-          aspect_ratio: input.aspect_ratio || "auto",
-          nsfw_checker: true, // Enable content filtering
-        },
-      }),
-    });
+    let lastError: Error = new Error("Unknown error");
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`OpenAI API error: ${response.status} - ${error}`);
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const response = await fetch(`${KIE_API_BASE}/createTask`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.KIE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-image-2-text-to-image",
+            callBackUrl: callbackUrl,
+            input: {
+              prompt: input.prompt,
+              aspect_ratio: input.aspect_ratio || "auto",
+              nsfw_checker: false,
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.text();
+          throw new Error(`OpenAI API error: ${response.status} - ${error}`);
+        }
+
+        const json = await response.json();
+
+        if (json.code !== 200 || !json.data?.taskId) {
+          const msg: string = json.msg || "Unknown error";
+          // Upstream timeout — worth retrying
+          if (msg.toLowerCase().includes("timed out") || msg.toLowerCase().includes("timeout")) {
+            lastError = new Error(msg);
+            if (attempt < MAX_RETRIES) {
+              console.warn(`OpenAI gpt-image-2 timeout (attempt ${attempt}/${MAX_RETRIES}), retrying in ${RETRY_DELAY_MS}ms...`);
+              await sleep(RETRY_DELAY_MS * attempt);
+              continue;
+            }
+            throw new Error(`OpenAI generation timed out after ${MAX_RETRIES} attempts. Please try again in a moment.`);
+          }
+          throw new Error(msg);
+        }
+
+        return { taskId: json.data.taskId, status: "processing" };
+
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        // Only retry on timeout-related errors
+        if (!lastError.message.toLowerCase().includes("timed out") &&
+            !lastError.message.toLowerCase().includes("timeout")) {
+          throw lastError;
+        }
+        if (attempt < MAX_RETRIES) {
+          await sleep(RETRY_DELAY_MS * attempt);
+        }
+      }
     }
 
-    // Response format: { code: 200, msg: "success", data: { taskId, recordId } }
-    const json = await response.json();
-    if (json.code !== 200 || !json.data?.taskId) {
-      throw new Error(`OpenAI error: ${json.msg || "Unknown error"}`);
-    }
-
-    return { taskId: json.data.taskId, status: "processing" };
+    throw lastError;
   }
 
   /**
