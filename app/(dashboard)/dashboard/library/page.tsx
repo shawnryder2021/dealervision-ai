@@ -9,6 +9,13 @@ const PDFExportButton = dynamic(
   () => import("@/components/library/PDFExportButton"),
   { ssr: false }
 );
+
+// Load social publish dialog client-side only
+const SocialPublishDialog = dynamic(
+  () => import("@/components/social/SocialPublishDialog").then((m) => ({ default: m.SocialPublishDialog })),
+  { ssr: false }
+);
+
 import { AssetGrid } from "@/components/library/AssetGrid";
 import { AssetFilters } from "@/components/library/AssetFilters";
 import { useAppStore } from "@/lib/store";
@@ -39,6 +46,7 @@ export default function LibraryPage() {
   const [selectedAsset, setSelectedAsset] = useState<GeneratedAsset | null>(null);
   const [editAsset, setEditAsset] = useState<GeneratedAsset | null>(null);
   const [textOverlayAsset, setTextOverlayAsset] = useState<GeneratedAsset | null>(null);
+  const [socialPublishAsset, setSocialPublishAsset] = useState<GeneratedAsset | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isZipping, setIsZipping] = useState(false);
@@ -188,6 +196,21 @@ export default function LibraryPage() {
     setSelectedIds(new Set());
   }
 
+  async function handleExportPDF(asset: GeneratedAsset) {
+    if (!asset.image_url) return;
+    try {
+      const { exportAsPDF } = await import("@/lib/pdf-export");
+      await exportAsPDF(
+        asset.image_url,
+        asset.aspect_ratio,
+        `${asset.content_type}-${asset.channel}`
+      );
+      toast.success("PDF exported successfully");
+    } catch (error) {
+      toast.error("Failed to export PDF");
+    }
+  }
+
   async function handleDownloadZip() {
     const selected = assets.filter((a) => selectedIds.has(a.id) && a.image_url);
     if (selected.length === 0) return;
@@ -307,6 +330,8 @@ export default function LibraryPage() {
         onDelete={handleDelete}
         onView={setSelectedAsset}
         onEdit={setEditAsset}
+        onExportPDF={handleExportPDF}
+        onPublishSocial={setSocialPublishAsset}
         selectMode={selectMode}
         selectedIds={selectedIds}
         onToggleSelect={handleToggleSelect}
@@ -436,6 +461,15 @@ export default function LibraryPage() {
             );
             toast.success("Text overlay applied!");
           }}
+        />
+      )}
+
+      {/* Social Publish Dialog */}
+      {socialPublishAsset && (
+        <SocialPublishDialog
+          open={!!socialPublishAsset}
+          onOpenChange={(open) => !open && setSocialPublishAsset(null)}
+          asset={socialPublishAsset}
         />
       )}
     </div>

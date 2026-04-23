@@ -99,3 +99,44 @@ export async function deleteLandingPage(
     .eq("dealership_id", dealershipId);
   if (error) throw error;
 }
+
+/**
+ * Get a published landing page by dealership slug and page slug (public access, no auth required)
+ * Returns null if not found or not published
+ */
+export async function getPublicLandingPage(
+  dealershipSlug: string,
+  pageSlug: string
+): Promise<LandingPage | null> {
+  if (isDemoMode()) {
+    // In demo mode, just return null for public pages
+    return null;
+  }
+  const supabase = createClient();
+
+  // First, find the dealership by slug
+  const { data: dealership, error: dealershipError } = await supabase
+    .from("dealerships")
+    .select("id")
+    .eq("slug", dealershipSlug)
+    .single();
+
+  if (dealershipError || !dealership) {
+    return null;
+  }
+
+  // Then, find the published landing page by dealership_id and slug
+  const { data, error } = await supabase
+    .from("landing_pages")
+    .select("*")
+    .eq("dealership_id", dealership.id)
+    .eq("slug", pageSlug)
+    .eq("status", "published")
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data as LandingPage;
+}

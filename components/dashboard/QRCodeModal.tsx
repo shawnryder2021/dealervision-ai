@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import QRCode from "qrcode";
+import dynamic from "next/dynamic";
 import {
   Dialog,
   DialogContent,
@@ -31,11 +31,21 @@ export function QRCodeModal({ open, onClose, vehicleName, defaultUrl }: QRCodeMo
 
   useEffect(() => {
     if (!open || !canvasRef.current) return;
-    QRCode.toCanvas(canvasRef.current, url || "https://example.com", {
-      width: 280,
-      margin: 2,
-      color: { dark: "#000000", light: "#ffffff" },
-    }).catch(() => {});
+
+    async function renderQR() {
+      try {
+        const QRCodeModule = await import("qrcode");
+        await QRCodeModule.toCanvas(canvasRef.current, url || "https://example.com", {
+          width: 280,
+          margin: 2,
+          color: { dark: "#000000", light: "#ffffff" },
+        });
+      } catch (error) {
+        // Silently fail if QR code generation fails
+      }
+    }
+
+    renderQR();
   }, [open, url]);
 
   function handleDownload() {

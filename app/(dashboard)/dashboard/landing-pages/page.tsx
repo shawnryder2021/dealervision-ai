@@ -35,6 +35,7 @@ import {
   deleteLandingPage,
 } from "@/lib/db/landing-pages";
 import { logActivity } from "@/lib/db/activity";
+import { LandingPagePreview } from "@/components/landing/LandingPagePreview";
 import { toast } from "sonner";
 
 type View = "list" | "create" | "edit" | "preview";
@@ -219,7 +220,11 @@ export default function LandingPagesPage() {
   }
 
   function handleCopyLink(page: LandingPage) {
-    const url = `${window.location.origin}/p/${page.slug}`;
+    if (!dealership?.slug) {
+      toast.error("Dealership slug not available");
+      return;
+    }
+    const url = `${window.location.origin}/landing/${dealership.slug}/${page.slug}`;
     navigator.clipboard.writeText(url);
     toast.success("Link copied to clipboard!");
   }
@@ -319,7 +324,11 @@ export default function LandingPagesPage() {
                         <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Globe className="h-3 w-3" />
-                            /p/{page.slug}
+                            {page.status === "published" && dealership?.slug ? (
+                              <span>/landing/{dealership.slug}/{page.slug}</span>
+                            ) : (
+                              <span className="italic">(draft - not published)</span>
+                            )}
                           </span>
                           <span>
                             {LANDING_PAGE_TEMPLATES.find((t) => t.id === page.template)?.name}
@@ -405,7 +414,7 @@ export default function LandingPagesPage() {
               <div className="h-3 w-3 rounded-full bg-green-400" />
             </div>
             <div className="flex-1 bg-background rounded px-3 py-1 text-xs text-muted-foreground font-mono">
-              {window.location.origin}/p/{previewPage.slug}
+              {dealership?.slug ? `${window.location.origin}/landing/${dealership.slug}/${previewPage.slug}` : "landing-page-url"}
             </div>
           </div>
           <LandingPagePreview page={previewPage} />
@@ -651,7 +660,7 @@ export default function LandingPagesPage() {
                     <div className="h-2 w-2 rounded-full bg-green-400" />
                   </div>
                   <div className="flex-1 bg-background rounded px-2 py-0.5 text-[10px] text-muted-foreground font-mono">
-                    /p/{slug || "your-page"}
+                    /landing/{dealership?.slug || "your-dealership"}/{slug || "your-page"}
                   </div>
                 </div>
                 <div className="max-h-[70vh] overflow-y-auto">
@@ -692,196 +701,6 @@ export default function LandingPagesPage() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-/** Inline preview component that renders the landing page */
-function LandingPagePreview({ page }: { page: LandingPage }) {
-  const { primary, secondary, accent } = page.brand_colors;
-
-  return (
-    <div className="bg-white text-gray-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      {/* Hero */}
-      <div
-        className="relative px-6 py-16 text-center"
-        style={{
-          background: `linear-gradient(135deg, ${primary}, ${primary}dd)`,
-          color: secondary,
-        }}
-      >
-        <p className="text-sm font-medium uppercase tracking-widest opacity-80 mb-3">
-          {page.dealership_name}
-        </p>
-        <h1 className="text-3xl md:text-4xl font-bold mb-3 leading-tight">
-          {page.headline || "Your Headline Here"}
-        </h1>
-        <p className="text-lg opacity-90 max-w-xl mx-auto mb-6">
-          {page.subheadline || "Your subheadline goes here"}
-        </p>
-        {page.cta_text && (
-          <button
-            className="inline-flex items-center gap-2 px-8 py-3 rounded-lg font-semibold text-base transition-transform hover:scale-105"
-            style={{ backgroundColor: accent, color: "#fff" }}
-          >
-            {page.cta_text}
-            <ExternalLink className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-
-      {/* Vehicle (if present) */}
-      {page.vehicle && (
-        <div className="px-6 py-10 bg-gray-50">
-          <div className="max-w-2xl mx-auto text-center">
-            <p className="text-sm font-medium uppercase tracking-wider text-gray-500 mb-1">
-              Featured Vehicle
-            </p>
-            <h2 className="text-2xl font-bold mb-1">
-              {page.vehicle.year} {page.vehicle.make} {page.vehicle.model}
-            </h2>
-            <p className="text-gray-600 mb-4">{page.vehicle.trim}</p>
-            <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
-              <div className="bg-white rounded-lg p-3 shadow-sm">
-                <p className="text-xs text-gray-500">Price</p>
-                <p className="text-lg font-bold" style={{ color: primary }}>
-                  ${page.vehicle.price.toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-white rounded-lg p-3 shadow-sm">
-                <p className="text-xs text-gray-500">Mileage</p>
-                <p className="text-lg font-bold">
-                  {page.vehicle.mileage.toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-white rounded-lg p-3 shadow-sm">
-                <p className="text-xs text-gray-500">Stock #</p>
-                <p className="text-lg font-bold">{page.vehicle.stock_number}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Features */}
-      {page.features.length > 0 && (
-        <div className="px-6 py-10">
-          <div className="max-w-2xl mx-auto">
-            <h2 className="text-xl font-bold text-center mb-6">
-              {page.template === "service-special"
-                ? "What's Included"
-                : page.template === "financing-offer"
-                ? "Financing Highlights"
-                : "Why Choose This Deal"}
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {page.features.map((feature, i) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-3 rounded-lg border p-4"
-                >
-                  <CheckCircle2
-                    className="h-5 w-5 shrink-0 mt-0.5"
-                    style={{ color: accent }}
-                  />
-                  <p className="text-sm">{feature}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Description */}
-      {page.description && (
-        <div className="px-6 py-8 bg-gray-50">
-          <div className="max-w-2xl mx-auto">
-            <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">
-              {page.description}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Contact form */}
-      {page.show_contact_form && (
-        <div className="px-6 py-10">
-          <div className="max-w-md mx-auto">
-            <h2 className="text-xl font-bold text-center mb-6">
-              Interested? Get in Touch
-            </h2>
-            <div className="space-y-3">
-              <input
-                className="w-full rounded-lg border px-4 py-2.5 text-sm bg-gray-50"
-                placeholder="Full Name"
-                readOnly
-              />
-              <input
-                className="w-full rounded-lg border px-4 py-2.5 text-sm bg-gray-50"
-                placeholder="Email Address"
-                readOnly
-              />
-              <input
-                className="w-full rounded-lg border px-4 py-2.5 text-sm bg-gray-50"
-                placeholder="Phone Number"
-                readOnly
-              />
-              <textarea
-                className="w-full rounded-lg border px-4 py-2.5 text-sm bg-gray-50"
-                placeholder="Message (optional)"
-                rows={3}
-                readOnly
-              />
-              <button
-                className="w-full py-3 rounded-lg font-semibold text-white text-sm"
-                style={{ backgroundColor: primary }}
-              >
-                Submit Inquiry
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Map / contact info */}
-      {page.show_map && (
-        <div
-          className="px-6 py-8"
-          style={{ backgroundColor: `${primary}08` }}
-        >
-          <div className="max-w-2xl mx-auto text-center">
-            <h2 className="text-xl font-bold mb-4">Visit Us</h2>
-            <div className="bg-gray-200 rounded-lg h-40 flex items-center justify-center mb-4">
-              <p className="text-gray-500 text-sm">Map loads here</p>
-            </div>
-            <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-600">
-              {page.dealership_address && (
-                <span>{page.dealership_address}</span>
-              )}
-              {page.dealership_phone && (
-                <span>{page.dealership_phone}</span>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Footer */}
-      <div
-        className="px-6 py-6 text-center text-sm"
-        style={{ backgroundColor: primary, color: `${secondary}99` }}
-      >
-        <p className="font-semibold" style={{ color: secondary }}>
-          {page.dealership_name}
-        </p>
-        <p className="mt-1 text-xs opacity-60">
-          {page.dealership_address}
-          {page.dealership_phone ? ` · ${page.dealership_phone}` : ""}
-        </p>
-        <p className="mt-2 text-[10px] opacity-40">
-          Powered by DealerAdGen AI
-        </p>
-      </div>
     </div>
   );
 }

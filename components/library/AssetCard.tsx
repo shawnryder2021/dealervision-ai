@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, Download, MoreHorizontal, Trash2, Pencil, Eye, Check } from "lucide-react";
+import { Heart, Download, MoreHorizontal, Trash2, Pencil, Eye, Check, FileDown, Share2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ interface AssetCardProps {
   onDelete?: (id: string) => void;
   onView?: (asset: GeneratedAsset) => void;
   onEdit?: (asset: GeneratedAsset) => void;
+  onExportPDF?: (asset: GeneratedAsset) => void;
+  onPublishSocial?: (asset: GeneratedAsset) => void;
   selectMode?: boolean;
   isSelected?: boolean;
   onToggleSelect?: (id: string) => void;
@@ -31,6 +33,8 @@ export function AssetCard({
   onDelete,
   onView,
   onEdit,
+  onExportPDF,
+  onPublishSocial,
   selectMode,
   isSelected,
   onToggleSelect,
@@ -141,6 +145,28 @@ export function AssetCard({
                   <Eye className="h-4 w-4 mr-2" />
                   View Details
                 </DropdownMenuItem>
+                {onExportPDF && asset.image_url && (
+                  <DropdownMenuItem onClick={() => onExportPDF(asset)}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Export as PDF
+                  </DropdownMenuItem>
+                )}
+                {onExportPDF && asset.image_url && (
+                  <DropdownMenuItem
+                    onClick={() => onExportPDF(asset)}
+                  >
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Export PDF
+                  </DropdownMenuItem>
+                )}
+                {onPublishSocial && asset.image_url && (
+                  <DropdownMenuItem
+                    onClick={() => onPublishSocial(asset)}
+                  >
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Publish to Social
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={() => onDelete(asset.id)}
                   className="text-destructive"

@@ -28,6 +28,7 @@ import {
   Users,
   Mail,
   QrCode,
+  Share2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,7 @@ const navSections = [
 const bottomItems = [
   { href: "/dashboard/usage", label: "Usage", icon: BarChart3 },
   { href: "/dashboard/settings/billing", label: "Billing", icon: CreditCard },
+  { href: "/dashboard/settings/social-accounts", label: "Social Accounts", icon: Share2 },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
