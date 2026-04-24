@@ -3,6 +3,13 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { isSuperAdmin } from "@/lib/db/admin";
 import { normalizeFeatureFlags } from "@/lib/platform-feature-flags";
 
+function isMissingPlatformSettingsError(errorMessage: string) {
+  return (
+    errorMessage.includes("relation \"platform_settings\"") ||
+    errorMessage.includes("column \"app_nav_flags\"")
+  );
+}
+
 async function requireSuperAdmin() {
   const supabase = await createClient();
   const {
@@ -26,14 +33,17 @@ export async function GET() {
     const auth = await requireSuperAdmin();
     if ("error" in auth) return auth.error;
 
-    const service = await createServiceClient();
-    const { data, error } = await service
+    const supabase = await createClient();
+    const { data, error } = await supabase
       .from("platform_settings")
       .select("app_nav_flags")
       .eq("id", 1)
       .maybeSingle();
 
     if (error) {
+      if (isMissingPlatformSettingsError(error.message)) {
+        return NextResponse.json({ success: true, featureFlags: normalizeFeatureFlags(null) });
+      }
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
@@ -53,6 +63,16 @@ export async function POST(request: Request) {
     const body = await request.json();
     const featureFlags = normalizeFeatureFlags(body?.featureFlags);
 
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json(
+        {
+          error:
+            "Server configuration is missing SUPABASE_SERVICE_ROLE_KEY. Add it to enable saving feature flags.",
+        },
+        { status: 500 }
+      );
+    }
+
     const service = await createServiceClient();
     const payload = {
       app_nav_flags: featureFlags,
@@ -67,6 +87,15 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (loadError) {
+      if (isMissingPlatformSettingsError(loadError.message)) {
+        return NextResponse.json(
+          {
+            error:
+              "The platform_settings table is missing required columns. Run the latest Supabase migrations and try again.",
+          },
+          { status: 500 }
+        );
+      }
       return NextResponse.json({ error: loadError.message }, { status: 500 });
     }
 
@@ -75,6 +104,15 @@ export async function POST(request: Request) {
       : await service.from("platform_settings").insert({ id: 1, ...payload });
 
     if (error) {
+      if (isMissingPlatformSettingsError(error.message)) {
+        return NextResponse.json(
+          {
+            error:
+              "The platform_settings table is missing required columns. Run the latest Supabase migrations and try again.",
+          },
+          { status: 500 }
+        );
+      }
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 

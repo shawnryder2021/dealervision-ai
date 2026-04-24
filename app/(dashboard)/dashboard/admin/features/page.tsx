@@ -21,12 +21,15 @@ export default function AdminFeaturesPage() {
     const fetchFeatureFlags = async () => {
       try {
         const res = await fetch("/api/admin/feature-flags");
-        if (!res.ok) throw new Error("Failed to load feature flags");
+        if (!res.ok) {
+          const payload = await res.json().catch(() => null);
+          throw new Error(payload?.error || "Failed to load feature flags");
+        }
         const data = await res.json();
         setFeatureFlags(data.featureFlags || DEFAULT_FEATURE_FLAGS);
       } catch (error) {
         console.error("Failed to load feature flags:", error);
-        toast.error("Could not load feature toggles");
+        toast.error(error instanceof Error ? error.message : "Could not load feature toggles");
       } finally {
         setLoading(false);
       }
@@ -48,11 +51,14 @@ export default function AdminFeaturesPage() {
         body: JSON.stringify({ featureFlags }),
       });
 
-      if (!res.ok) throw new Error("Failed to save feature flags");
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        throw new Error(payload?.error || "Failed to save feature flags");
+      }
       toast.success("Feature toggles saved");
     } catch (error) {
       console.error("Failed to save feature flags:", error);
-      toast.error("Could not save feature toggles");
+      toast.error(error instanceof Error ? error.message : "Could not save feature toggles");
     } finally {
       setSaving(false);
     }
