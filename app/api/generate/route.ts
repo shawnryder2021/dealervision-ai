@@ -7,6 +7,16 @@ import { checkQuota, incrementUsage } from "@/lib/db/subscriptions";
 import { isSuperAdmin } from "@/lib/db/admin";
 import type { GenerateRequest } from "@/lib/types";
 
+async function getGlobalImageModel(supabase: Awaited<ReturnType<typeof createClient>>): Promise<ImageModelOption> {
+  const { data } = await supabase
+    .from("platform_settings")
+    .select("default_image_model")
+    .eq("id", 1)
+    .maybeSingle();
+
+  return (data?.default_image_model as ImageModelOption) || "kie-nano-banana";
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -97,8 +107,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Read image model directly from the already-fetched dealership object
+    const globalDefaultModel = await getGlobalImageModel(supabase);
     const imageModel: ImageModelOption =
-      (dealership.image_model as ImageModelOption) || "kie-nano-banana";
+      (dealership.image_model as ImageModelOption) || globalDefaultModel;
 
     // Create asset record
     const { data: asset, error: assetError } = await supabase
