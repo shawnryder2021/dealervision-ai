@@ -10,6 +10,12 @@ import type { LandingPage } from "@/lib/landing-pages";
 
 export type { LandingPage };
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
 export async function getLandingPages(dealershipId: string): Promise<LandingPage[]> {
   if (isDemoMode()) {
     return localGetPages();
@@ -52,29 +58,39 @@ export async function saveLandingPage(
   const supabase = createClient();
   const now = new Date().toISOString();
   const payload = { ...page, dealership_id: dealershipId, updated_at: now };
+  const hasValidUuid = isUuid(page.id);
 
-  // Try update first, then insert
-  const { data: existing } = await supabase
+  // Try update first, then insert.
+  // Older client-generated IDs like "lp-123456" are not UUIDs and will fail
+  // against the UUID id column, so we update by slug in that case.
+  const existingQuery = supabase
     .from("landing_pages")
     .select("id")
-    .eq("id", page.id)
-    .eq("dealership_id", dealershipId)
-    .single();
+    .eq("dealership_id", dealershipId);
+
+  const { data: existing } = await (hasValidUuid
+    ? existingQuery.eq("id", page.id)
+    : existingQuery.eq("slug", page.slug))
+    .maybeSingle();
 
   let result;
   if (existing) {
     const { data, error } = await supabase
       .from("landing_pages")
       .update(payload)
-      .eq("id", page.id)
+      .eq("id", existing.id)
       .select()
       .single();
     if (error) throw error;
     result = data;
   } else {
+    const insertPayload = hasValidUuid ? { ...payload, id: page.id } : payload;
+    if (!hasValidUuid) {
+      delete (insertPayload as { id?: string }).id;
+    }
     const { data, error } = await supabase
       .from("landing_pages")
-      .insert({ ...payload, created_at: now })
+      .insert({ ...insertPayload, created_at: now })
       .select()
       .single();
     if (error) throw error;
