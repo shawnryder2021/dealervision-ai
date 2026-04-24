@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { normalizeFeatureFlags } from "@/lib/platform-feature-flags";
 
+function isMissingPlatformSettingsError(errorMessage: string) {
+  return (
+    errorMessage.includes('relation "platform_settings"') ||
+    errorMessage.includes('column "app_nav_flags"')
+  );
+}
+
 export async function GET() {
   try {
     const service = await createServiceClient();
@@ -12,6 +19,9 @@ export async function GET() {
       .maybeSingle();
 
     if (error) {
+      if (isMissingPlatformSettingsError(error.message)) {
+        return NextResponse.json({ success: true, featureFlags: normalizeFeatureFlags(null) });
+      }
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
