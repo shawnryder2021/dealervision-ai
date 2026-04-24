@@ -1,5 +1,7 @@
-import { supabase } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/types";
+
+const supabase = createClient();
 
 export interface CouponDetails {
   id: string;
