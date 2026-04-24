@@ -4,12 +4,22 @@ import { uploadToImgBB } from "@/lib/imgbb";
 
 export async function POST(request: Request) {
   try {
-    const { prompt, image_url, image_size, model } = await request.json();
+    const { prompt, image_url, image_urls, image_size, model } = await request.json();
 
     if (!prompt) {
       return NextResponse.json({ error: "Edit prompt is required" }, { status: 400 });
     }
-    if (!image_url) {
+
+    // Accept either a single image_url or an array of image_urls.
+    // Multiple images are supported for reference-based edits (e.g., using a
+    // custom saved background as a visual reference alongside the vehicle photo).
+    const finalImageUrls: string[] = Array.isArray(image_urls) && image_urls.length > 0
+      ? image_urls.filter((u: unknown): u is string => typeof u === "string" && u.length > 0)
+      : image_url
+        ? [image_url]
+        : [];
+
+    if (finalImageUrls.length === 0) {
       return NextResponse.json({ error: "Source image is required" }, { status: 400 });
     }
 
@@ -20,7 +30,7 @@ export async function POST(request: Request) {
     // Uses the provider's edit task (e.g., google/nano-banana-edit for KIE.ai)
     const result = await provider.createEditTask({
       prompt,
-      image_urls: [image_url],
+      image_urls: finalImageUrls,
       image_size: image_size || "1:1",
       output_format: "png",
     });

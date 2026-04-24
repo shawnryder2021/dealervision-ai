@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   ImageMinus,
   Upload,
@@ -12,17 +12,24 @@ import {
   Check,
   Save,
   ChevronDown,
+  Star,
+  Trash2,
+  Plus,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
 import { createClient } from "@/lib/supabase/client";
 import { isDemoMode } from "@/lib/demo-data";
+import type { CustomBackground } from "@/lib/db/custom-backgrounds";
 
 const BACKGROUND_CATEGORIES = [
+  { id: "custom", label: "My Backgrounds" },
   { id: "studio", label: "Studio & Clean" },
   { id: "locations", label: "Locations" },
   { id: "seasonal", label: "Seasons" },
@@ -375,17 +382,54 @@ const ASPECT_RATIOS = [
 ];
 
 export default function BackgroundSwapPage() {
-  const { addAsset, dealership } = useAppStore();
+  const { addAsset, dealership, adminActiveDealership } = useAppStore();
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  const [selectedCustomBgId, setSelectedCustomBgId] = useState<string | null>(null);
   const [customPrompt, setCustomPrompt] = useState("");
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [isProcessing, setIsProcessing] = useState(false);
   const [resultImageUrl, setResultImageUrl] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [openCategory, setOpenCategory] = useState<string | null>("studio");
+  const [openCategory, setOpenCategory] = useState<string | null>("custom");
+
+  // Custom background library
+  const [customBackgrounds, setCustomBackgrounds] = useState<CustomBackground[]>([]);
+  const [isLoadingCustom, setIsLoadingCustom] = useState(false);
+  const [showUploadCustom, setShowUploadCustom] = useState(false);
+  const [isUploadingCustom, setIsUploadingCustom] = useState(false);
+  const [newCustomName, setNewCustomName] = useState("");
+  const [newCustomDescription, setNewCustomDescription] = useState("");
+  const [newCustomImageUrl, setNewCustomImageUrl] = useState<string | null>(null);
+
+  const dealershipHeaders: Record<string, string> = adminActiveDealership
+    ? { "X-Dealership-Id": adminActiveDealership.id }
+    : {};
+
+  // Load custom backgrounds on mount and when dealership changes
+  useEffect(() => {
+    async function loadCustomBackgrounds() {
+      if (!dealership || isDemoMode()) return;
+      setIsLoadingCustom(true);
+      try {
+        const res = await fetch("/api/custom-backgrounds", {
+          headers: dealershipHeaders,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setCustomBackgrounds(data);
+        }
+      } catch (err) {
+        console.error("Failed to load custom backgrounds:", err);
+      } finally {
+        setIsLoadingCustom(false);
+      }
+    }
+    loadCustomBackgrounds();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dealership?.id, adminActiveDealership?.id]);
 
   const uploadFile = async (file: File): Promise<string | null> => {
     const formData = new FormData();
@@ -450,8 +494,23 @@ export default function BackgroundSwapPage() {
 
   const getPrompt = (): string => {
     if (customPrompt.trim()) return customPrompt.trim();
+
+    // Custom background from library
+    if (selectedCustomBgId) {
+      const bg = customBackgrounds.find((b) => b.id === selectedCustomBgId);
+      if (bg) {
+        const extra = bg.description ? ` ${bg.description.trim()}` : "";
+        return `Remove the background from the vehicle image and composite the vehicle into the scene shown in the reference background image. Match the lighting, perspective, shadows, and color grading of the reference background so the vehicle looks naturally placed in that environment.${extra}`;
+      }
+    }
+
     const preset = BACKGROUND_PRESETS.find((p) => p.id === selectedPreset);
     return preset?.prompt || "";
+  };
+
+  const getSelectedCustomBg = (): CustomBackground | null => {
+    if (!selectedCustomBgId) return null;
+    return customBackgrounds.find((b) => b.id === selectedCustomBgId) || null;
   };
 
   async function handleSwap() {
@@ -469,12 +528,20 @@ export default function BackgroundSwapPage() {
     setResultImageUrl(null);
 
     try {
+      // If a custom uploaded background is selected, send both images to
+      // the edit endpoint so the AI uses the custom background as reference.
+      const customBg = getSelectedCustomBg();
+      const imageUrls = customBg
+        ? [uploadedImageUrl, customBg.image_url]
+        : [uploadedImageUrl];
+
       const res = await fetch("/api/edit-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt,
           image_url: uploadedImageUrl,
+          image_urls: imageUrls,
           image_size: aspectRatio,
         }),
       });
@@ -601,8 +668,124 @@ export default function BackgroundSwapPage() {
     setUploadedImageUrl(null);
     setResultImageUrl(null);
     setSelectedPreset(null);
+    setSelectedCustomBgId(null);
     setCustomPrompt("");
     setIsProcessing(false);
+  }
+
+  // === Custom Background Management ===
+
+  async function handleCustomBgFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file");
+      return;
+    }
+    setIsUploadingCustom(true);
+    try {
+      const url = await uploadFile(file);
+      if (url) {
+        setNewCustomImageUrl(url);
+        if (!newCustomName) {
+          setNewCustomName(file.name.replace(/\.[^.]+$/, ""));
+        }
+        toast.success("Background uploaded — give it a name and save");
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      toast.error(msg);
+    } finally {
+      setIsUploadingCustom(false);
+    }
+  }
+
+  async function handleSaveCustomBackground() {
+    if (!newCustomImageUrl) {
+      toast.error("Upload a background image first");
+      return;
+    }
+    if (!newCustomName.trim()) {
+      toast.error("Give this background a name");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/custom-backgrounds", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...dealershipHeaders,
+        },
+        body: JSON.stringify({
+          name: newCustomName.trim(),
+          image_url: newCustomImageUrl,
+          description: newCustomDescription.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to save background");
+      }
+
+      const saved: CustomBackground = await res.json();
+      setCustomBackgrounds((prev) => [saved, ...prev]);
+      setNewCustomName("");
+      setNewCustomDescription("");
+      setNewCustomImageUrl(null);
+      setShowUploadCustom(false);
+      toast.success("Background saved to your library!");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to save";
+      toast.error(msg);
+    }
+  }
+
+  async function handleDeleteCustomBackground(id: string, name: string) {
+    if (!confirm(`Delete "${name}"?`)) return;
+    try {
+      const res = await fetch(`/api/custom-backgrounds/${id}`, {
+        method: "DELETE",
+        headers: dealershipHeaders,
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to delete");
+      }
+      setCustomBackgrounds((prev) => prev.filter((b) => b.id !== id));
+      if (selectedCustomBgId === id) setSelectedCustomBgId(null);
+      toast.success("Background deleted");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to delete";
+      toast.error(msg);
+    }
+  }
+
+  async function handleToggleFavorite(bg: CustomBackground) {
+    const newFav = !bg.is_favorite;
+    // Optimistic update
+    setCustomBackgrounds((prev) =>
+      prev.map((b) => (b.id === bg.id ? { ...b, is_favorite: newFav } : b))
+    );
+    try {
+      const res = await fetch(`/api/custom-backgrounds/${bg.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...dealershipHeaders,
+        },
+        body: JSON.stringify({ is_favorite: newFav }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+    } catch {
+      // Revert on failure
+      setCustomBackgrounds((prev) =>
+        prev.map((b) => (b.id === bg.id ? { ...b, is_favorite: !newFav } : b))
+      );
+      toast.error("Failed to update favorite");
+    }
   }
 
   return (
@@ -724,7 +907,10 @@ export default function BackgroundSwapPage() {
                 value={customPrompt}
                 onChange={(e) => {
                   setCustomPrompt(e.target.value);
-                  if (e.target.value.trim()) setSelectedPreset(null);
+                  if (e.target.value.trim()) {
+                    setSelectedPreset(null);
+                    setSelectedCustomBgId(null);
+                  }
                 }}
                 rows={3}
                 disabled={isProcessing}
@@ -740,7 +926,8 @@ export default function BackgroundSwapPage() {
             <Button
               onClick={handleSwap}
               disabled={
-                isProcessing || (!selectedPreset && !customPrompt.trim())
+                isProcessing ||
+                (!selectedPreset && !customPrompt.trim() && !selectedCustomBgId)
               }
               className="w-full gradient-primary text-white h-11"
               size="lg"
@@ -784,7 +971,272 @@ export default function BackgroundSwapPage() {
                 </div>
               )}
 
+              {/* Selected custom background chip */}
+              {selectedCustomBgId && (
+                <div className="flex items-center gap-2 mb-2 px-1">
+                  <span className="text-xs text-muted-foreground">Using my background:</span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent/10 border border-accent/30 text-xs font-medium text-accent">
+                    <ImageIcon className="h-3 w-3" />
+                    {getSelectedCustomBg()?.name}
+                    <button
+                      onClick={() => setSelectedCustomBgId(null)}
+                      className="ml-0.5 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                </div>
+              )}
+
               {BACKGROUND_CATEGORIES.map((cat) => {
+                // Special "My Backgrounds" custom category
+                if (cat.id === "custom") {
+                  const isOpen = openCategory === "custom";
+                  const hasSelected = !!selectedCustomBgId;
+                  return (
+                    <div
+                      key={cat.id}
+                      className={cn(
+                        "rounded-lg border transition-colors",
+                        isOpen
+                          ? "border-border bg-muted/20"
+                          : "border-transparent hover:bg-muted/10",
+                        hasSelected && !isOpen && "border-accent/30 bg-accent/5"
+                      )}
+                    >
+                      <button
+                        onClick={() => setOpenCategory(isOpen ? null : "custom")}
+                        className="flex items-center justify-between w-full px-3 py-2.5 text-left"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold flex items-center gap-1.5">
+                            <ImageIcon className="h-3.5 w-3.5 text-accent" />
+                            {cat.label}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {customBackgrounds.length} saved
+                          </span>
+                          {hasSelected && !isOpen && (
+                            <span className="text-[10px] text-accent font-medium">
+                              • selected
+                            </span>
+                          )}
+                        </div>
+                        <ChevronDown
+                          className={cn(
+                            "h-3.5 w-3.5 text-muted-foreground transition-transform",
+                            isOpen && "rotate-180"
+                          )}
+                        />
+                      </button>
+                      {isOpen && (
+                        <div className="px-2.5 pb-2.5 space-y-2.5">
+                          {/* Upload new custom background */}
+                          {showUploadCustom ? (
+                            <div className="rounded-lg border border-border bg-background p-3 space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <p className="text-xs font-semibold">Add a new background</p>
+                                <button
+                                  onClick={() => {
+                                    setShowUploadCustom(false);
+                                    setNewCustomName("");
+                                    setNewCustomDescription("");
+                                    setNewCustomImageUrl(null);
+                                  }}
+                                  className="text-muted-foreground hover:text-foreground"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+
+                              {newCustomImageUrl ? (
+                                <div className="relative rounded-lg overflow-hidden border border-border">
+                                  <img
+                                    src={newCustomImageUrl}
+                                    alt="New background"
+                                    className="w-full h-32 object-cover"
+                                  />
+                                  <button
+                                    onClick={() => setNewCustomImageUrl(null)}
+                                    className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-black/70 flex items-center justify-center"
+                                  >
+                                    <X className="h-3 w-3 text-white" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <label className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border hover:border-accent/50 p-5 cursor-pointer transition-colors">
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleCustomBgFileSelect}
+                                    className="hidden"
+                                    disabled={isUploadingCustom}
+                                  />
+                                  {isUploadingCustom ? (
+                                    <>
+                                      <Loader2 className="h-6 w-6 text-accent animate-spin mb-1.5" />
+                                      <p className="text-[11px]">Uploading...</p>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Upload className="h-6 w-6 text-muted-foreground mb-1.5" />
+                                      <p className="text-[11px] font-medium">
+                                        Click to upload background
+                                      </p>
+                                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                                        JPG or PNG, up to 10MB
+                                      </p>
+                                    </>
+                                  )}
+                                </label>
+                              )}
+
+                              <div className="space-y-1.5">
+                                <Label className="text-[11px]">Name</Label>
+                                <Input
+                                  placeholder="e.g., Main Showroom, Downtown Lot"
+                                  value={newCustomName}
+                                  onChange={(e) => setNewCustomName(e.target.value)}
+                                  className="h-8 text-xs"
+                                />
+                              </div>
+
+                              <div className="space-y-1.5">
+                                <Label className="text-[11px]">
+                                  Extra prompt detail (optional)
+                                </Label>
+                                <Textarea
+                                  placeholder="e.g., 'Ensure the vehicle appears at ground level with bright natural lighting'"
+                                  value={newCustomDescription}
+                                  onChange={(e) => setNewCustomDescription(e.target.value)}
+                                  rows={2}
+                                  className="text-xs"
+                                />
+                              </div>
+
+                              <Button
+                                onClick={handleSaveCustomBackground}
+                                disabled={!newCustomImageUrl || !newCustomName.trim()}
+                                size="sm"
+                                className="w-full gradient-primary text-white h-8 text-xs"
+                              >
+                                <Save className="h-3.5 w-3.5 mr-1.5" />
+                                Save to My Backgrounds
+                              </Button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setShowUploadCustom(true)}
+                              className="w-full flex items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-border hover:border-accent/50 py-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              Upload a background
+                            </button>
+                          )}
+
+                          {/* Custom backgrounds grid */}
+                          {isLoadingCustom ? (
+                            <div className="flex items-center justify-center py-4">
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            </div>
+                          ) : customBackgrounds.length === 0 && !showUploadCustom ? (
+                            <div className="text-center py-3">
+                              <p className="text-[11px] text-muted-foreground">
+                                No saved backgrounds yet. Upload your showroom,
+                                lot, or brand photos to reuse them across vehicles.
+                              </p>
+                            </div>
+                          ) : (
+                            customBackgrounds.length > 0 && (
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                {customBackgrounds.map((bg) => (
+                                  <div
+                                    key={bg.id}
+                                    className={cn(
+                                      "group relative rounded-lg border overflow-hidden transition-all",
+                                      selectedCustomBgId === bg.id
+                                        ? "border-accent ring-2 ring-accent/30"
+                                        : "border-border hover:border-accent/50"
+                                    )}
+                                  >
+                                    <button
+                                      onClick={() => {
+                                        setSelectedCustomBgId(bg.id);
+                                        setSelectedPreset(null);
+                                        setCustomPrompt("");
+                                      }}
+                                      disabled={isProcessing}
+                                      className="block w-full text-left disabled:opacity-50"
+                                    >
+                                      <div className="aspect-video bg-muted">
+                                        <img
+                                          src={bg.thumbnail_url || bg.image_url}
+                                          alt={bg.name}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                      <div className="px-2 py-1.5 bg-card">
+                                        <p className="text-[11px] font-medium truncate">
+                                          {bg.name}
+                                        </p>
+                                      </div>
+                                    </button>
+
+                                    {/* Selected checkmark */}
+                                    {selectedCustomBgId === bg.id && (
+                                      <div className="absolute top-1.5 left-1.5 h-5 w-5 rounded-full bg-accent flex items-center justify-center">
+                                        <Check className="h-3 w-3 text-white" />
+                                      </div>
+                                    )}
+
+                                    {/* Favorite toggle + delete */}
+                                    <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleToggleFavorite(bg);
+                                        }}
+                                        title={bg.is_favorite ? "Unfavorite" : "Favorite"}
+                                        className="h-6 w-6 rounded-full bg-black/70 flex items-center justify-center hover:bg-black"
+                                      >
+                                        <Star
+                                          className={cn(
+                                            "h-3 w-3",
+                                            bg.is_favorite
+                                              ? "fill-amber-400 text-amber-400"
+                                              : "text-white"
+                                          )}
+                                        />
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteCustomBackground(bg.id, bg.name);
+                                        }}
+                                        title="Delete"
+                                        className="h-6 w-6 rounded-full bg-black/70 flex items-center justify-center hover:bg-destructive"
+                                      >
+                                        <Trash2 className="h-3 w-3 text-white" />
+                                      </button>
+                                    </div>
+
+                                    {/* Favorite badge (always visible when favorited) */}
+                                    {bg.is_favorite && selectedCustomBgId !== bg.id && (
+                                      <div className="absolute top-1.5 left-1.5 h-5 w-5 rounded-full bg-amber-500 flex items-center justify-center">
+                                        <Star className="h-2.5 w-2.5 fill-white text-white" />
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
                 const presets = BACKGROUND_PRESETS.filter(
                   (p) => p.category === cat.id
                 );
@@ -834,6 +1286,7 @@ export default function BackgroundSwapPage() {
                               onClick={() => {
                                 setSelectedPreset(preset.id);
                                 setCustomPrompt("");
+                                setSelectedCustomBgId(null);
                               }}
                               disabled={isProcessing}
                               className={cn(
