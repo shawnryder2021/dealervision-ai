@@ -54,17 +54,25 @@ export async function POST(request: Request) {
     const featureFlags = normalizeFeatureFlags(body?.featureFlags);
 
     const service = await createServiceClient();
-    const { error } = await service
+    const payload = {
+      app_nav_flags: featureFlags,
+      updated_at: new Date().toISOString(),
+      updated_by: user.email,
+    };
+
+    const { data: existingSettings, error: loadError } = await service
       .from("platform_settings")
-      .upsert(
-        {
-          id: 1,
-          app_nav_flags: featureFlags,
-          updated_at: new Date().toISOString(),
-          updated_by: user.email,
-        },
-        { onConflict: "id" }
-      );
+      .select("id")
+      .eq("id", 1)
+      .maybeSingle();
+
+    if (loadError) {
+      return NextResponse.json({ error: loadError.message }, { status: 500 });
+    }
+
+    const { error } = existingSettings
+      ? await service.from("platform_settings").update(payload).eq("id", 1)
+      : await service.from("platform_settings").insert({ id: 1, ...payload });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
