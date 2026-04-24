@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/client";
-import type { Database } from "@/lib/supabase/types";
 
 const supabase = createClient();
 
@@ -80,6 +79,7 @@ export async function validateCoupon(
     const couponDetails: CouponDetails = {
       id: data.id,
       code: data.code,
+      description: data.description || null,
       discount_type: data.discount_type,
       discount_value: data.discount_value,
       applicable_plans: data.applicable_plans,
@@ -159,6 +159,7 @@ export async function getCouponByCode(code: string): Promise<CouponDetails | nul
     return {
       id: data.id,
       code: data.code,
+      description: data.description || null,
       discount_type: data.discount_type,
       discount_value: data.discount_value,
       applicable_plans: data.applicable_plans,
@@ -211,6 +212,7 @@ export async function createCoupon(params: {
       coupon: {
         id: data.id,
         code: data.code,
+        description: data.description || null,
         discount_type: data.discount_type,
         discount_value: data.discount_value,
         applicable_plans: data.applicable_plans,
