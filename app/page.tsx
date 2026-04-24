@@ -132,7 +132,7 @@ export default function LandingPage() {
               </Button>
             </Link>
             <Link href="/dashboard?demo">
-              <Button size="lg" variant="outline" className="text-base gradient-accent text-black font-semibold">
+              <Button size="lg" variant="outline" className="text-base font-semibold border-accent text-accent hover:bg-accent/10">
                 Try Demo
                 <Sparkles className="h-4 w-4 ml-2" />
               </Button>
@@ -141,7 +141,7 @@ export default function LandingPage() {
 
           <div className="flex items-center justify-center gap-6 mt-8 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+              <Star className="h-3.5 w-3.5 text-accent fill-accent" />
               No design skills needed
             </span>
             <span className="flex items-center gap-1.5">

@@ -87,7 +87,7 @@ function PricingContent() {
             Cancel anytime, no lock-in.
           </p>
           {canceled && (
-            <div className="inline-flex items-center gap-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 px-4 py-2 rounded-lg text-sm">
+            <div className="inline-flex items-center gap-2 bg-accent/10 text-accent px-4 py-2 rounded-lg text-sm">
               Checkout was canceled. No charge was made.
             </div>
           )}
