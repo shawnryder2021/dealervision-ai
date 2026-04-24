@@ -29,7 +29,7 @@ async function getGlobalModel(service: Awaited<ReturnType<typeof createServiceCl
     .eq("id", 1)
     .maybeSingle();
 
-  return (data?.default_image_model || "kie-nano-banana") as (typeof VALID_MODELS)[number];
+  return (data?.default_image_model || "openai-gpt-image-2") as (typeof VALID_MODELS)[number];
 }
 
 export async function GET() {

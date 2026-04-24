@@ -40,7 +40,7 @@ export async function GET(
         // Determine which provider to use
         // Prefer the model stored in metadata, fall back to dealership's configured model
         const metadata = asset.metadata as Record<string, unknown> || {};
-        const modelUsed = (metadata.model as string) || "kie-nano-banana";
+        const modelUsed = (metadata.model as string) || "openai-gpt-image-2";
         const provider = getImageProvider(modelUsed as "kie-nano-banana" | "openai-gpt-image-2");
 
         const providerResult = await provider.getTaskStatus(asset.kie_task_id);

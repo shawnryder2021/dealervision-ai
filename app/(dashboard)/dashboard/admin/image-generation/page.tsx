@@ -12,12 +12,12 @@ import type { ImageModelOption } from "@/lib/db/image-generation";
 import { Settings, Save } from "lucide-react";
 
 export default function ImageGenerationPage() {
-  const [globalModel, setGlobalModel] = useState<ImageModelOption>("kie-nano-banana");
+  const [globalModel, setGlobalModel] = useState<ImageModelOption>("openai-gpt-image-2");
   const [dealerships, setDealerships] = useState<Dealership[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingGlobal, setSavingGlobal] = useState(false);
   const [editingDealership, setEditingDealership] = useState<string | null>(null);
-  const [editModel, setEditModel] = useState<ImageModelOption>("kie-nano-banana");
+  const [editModel, setEditModel] = useState<ImageModelOption>("openai-gpt-image-2");
 
   useEffect(() => {
     loadData();
@@ -45,7 +45,7 @@ export default function ImageGenerationPage() {
       }
 
       const globalData = await globalRes.json();
-      setGlobalModel(globalData.globalModel || "kie-nano-banana");
+      setGlobalModel(globalData.globalModel || "openai-gpt-image-2");
     } catch (err) {
       console.error("Failed to load data:", err);
       toast.error("Failed to load image generation settings");
@@ -299,7 +299,7 @@ export default function ImageGenerationPage() {
                             onClick={() => {
                               setEditingDealership(dealership.id);
                               setEditModel(
-                                dealership.image_model || "kie-nano-banana"
+                                dealership.image_model || "openai-gpt-image-2"
                               );
                             }}
                           >
@@ -310,7 +310,7 @@ export default function ImageGenerationPage() {
                               size="sm"
                               variant="ghost"
                               onClick={() =>
-                                saveDealershipModel(dealership.id, "kie-nano-banana")
+                                saveDealershipModel(dealership.id, "openai-gpt-image-2")
                               }
                             >
                               Reset

@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 
 export type ImageModelOption = "kie-nano-banana" | "openai-gpt-image-2";
 
-const GLOBAL_DEFAULT_MODEL: ImageModelOption = "kie-nano-banana";
+const GLOBAL_DEFAULT_MODEL: ImageModelOption = "openai-gpt-image-2";
 
 /**
  * Get the image model to use for a dealership
@@ -134,5 +134,5 @@ export function getModelInfo(model: ImageModelOption) {
     },
   };
 
-  return modelInfo[model] || modelInfo["kie-nano-banana"];
+  return modelInfo[model] || modelInfo["openai-gpt-image-2"];
 }
