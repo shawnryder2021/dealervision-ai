@@ -26,7 +26,7 @@ export const DEMO_DEALERSHIP: Dealership = {
   style_preferences: {
     default_style: "photorealistic",
   },
-  image_model: "kie-nano-banana",
+  image_model: "openai-gpt-image-2",
   local_context: {
     inventory_type: "both",
     years_established: "serving PEI since 1985",

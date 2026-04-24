@@ -14,7 +14,7 @@ async function getGlobalImageModel(supabase: Awaited<ReturnType<typeof createCli
     .eq("id", 1)
     .maybeSingle();
 
-  return (data?.default_image_model as ImageModelOption) || "kie-nano-banana";
+  return (data?.default_image_model as ImageModelOption) || "openai-gpt-image-2";
 }
 
 export async function POST(request: NextRequest) {

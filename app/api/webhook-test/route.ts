@@ -28,7 +28,7 @@ export async function POST(request: Request) {
         address: "123 Auto Mall Dr",
       },
       style_preferences: {},
-      image_model: "kie-nano-banana",
+      image_model: "openai-gpt-image-2",
       webhook_config: {
         ...webhook_config,
         enabled: true, // Force enabled for test
