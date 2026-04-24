@@ -30,7 +30,11 @@ export type ActivityAction =
   | "saved_template"
   | "swapped_background"
   | "ran_ab_test"
-  | "tested_webhook";
+  | "tested_webhook"
+  | "queued_publish"
+  | "published_asset"
+  | "failed_publish"
+  | "retrying_publish";
 
 const STORAGE_KEY = "dealeradgen_activity";
 const MAX_EVENTS = 200;
@@ -81,6 +85,10 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
   swapped_background: "Swapped a background",
   ran_ab_test: "Ran an A/B test",
   tested_webhook: "Tested webhook",
+  queued_publish: "Queued a publish",
+  published_asset: "Published an asset",
+  failed_publish: "Publish failed",
+  retrying_publish: "Retried publishing",
 };
 
 /** Emoji per action for the timeline */
@@ -100,6 +108,10 @@ export const ACTION_ICONS: Record<ActivityAction, string> = {
   swapped_background: "🖼️",
   ran_ab_test: "🧪",
   tested_webhook: "🔔",
+  queued_publish: "🕒",
+  published_asset: "📣",
+  failed_publish: "⚠️",
+  retrying_publish: "🔁",
 };
 
 /** Generate realistic demo activity events spread over the past 7 days */
