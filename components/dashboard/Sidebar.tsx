@@ -153,20 +153,20 @@ export function Sidebar() {
       {/* Client mode banner */}
       {isSuperAdmin && adminActiveDealership && (
         <div className={cn(
-          "mx-2 mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2",
+          "mx-2 mt-2 rounded-md border border-accent/30 bg-accent/10 px-3 py-2",
           collapsed && "mx-1 px-1.5 py-1.5"
         )}>
           {!collapsed ? (
             <>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600/80">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-accent/80">
                 Client Mode
               </p>
-              <p className="text-xs font-medium text-amber-700 mt-0.5 truncate">
+              <p className="text-xs font-medium text-accent mt-0.5 truncate">
                 {adminActiveDealership.name}
               </p>
               <button
                 onClick={exitClientMode}
-                className="mt-1 text-[10px] text-amber-600 hover:text-amber-800 transition-colors"
+                className="mt-1 text-[10px] text-accent hover:text-accent/80 transition-colors"
               >
                 ← Exit client mode
               </button>
@@ -175,7 +175,7 @@ export function Sidebar() {
             <button
               onClick={exitClientMode}
               title="Exit client mode"
-              className="flex w-full items-center justify-center text-amber-600 hover:text-amber-800"
+              className="flex w-full items-center justify-center text-accent hover:text-accent/80"
             >
               <span className="text-[10px] font-bold">✕</span>
             </button>
