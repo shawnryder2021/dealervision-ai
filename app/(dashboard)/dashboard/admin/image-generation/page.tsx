@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client"; // still used for loadData
-import { getModelInfo, getGlobalDefaultModel } from "@/lib/db/image-generation";
+import { getModelInfo } from "@/lib/db/image-generation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +37,15 @@ export default function ImageGenerationPage() {
       if (error) throw error;
 
       setDealerships((data || []) as Dealership[]);
-      setGlobalModel(getGlobalDefaultModel());
+
+      const globalRes = await fetch("/api/admin/image-model", { method: "GET" });
+      if (!globalRes.ok) {
+        const globalData = await globalRes.json();
+        throw new Error(globalData.error || "Failed to load global image model");
+      }
+
+      const globalData = await globalRes.json();
+      setGlobalModel(globalData.globalModel || "kie-nano-banana");
     } catch (err) {
       console.error("Failed to load data:", err);
       toast.error("Failed to load image generation settings");
@@ -49,12 +57,22 @@ export default function ImageGenerationPage() {
   async function saveGlobalModel() {
     try {
       setSavingGlobal(true);
-      // TODO: Implement global model setting storage (e.g., in a config table)
-      // For now, this would be stored in environment or a settings table
+
+      const res = await fetch("/api/admin/image-model", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: globalModel }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to save global model");
+      }
+
       toast.success("Global default model updated");
     } catch (err) {
       console.error("Failed to save global model:", err);
-      toast.error("Failed to update global model");
+      toast.error(err instanceof Error ? err.message : "Failed to update global model");
     } finally {
       setSavingGlobal(false);
     }
@@ -159,7 +177,7 @@ export default function ImageGenerationPage() {
         <CardHeader>
           <CardTitle>Global Default Model</CardTitle>
           <CardDescription>
-            Fallback model when dealerships don't have a specific override configured
+            Fallback model when dealerships don&apos;t have a specific override configured
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
