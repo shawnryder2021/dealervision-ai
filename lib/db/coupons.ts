@@ -6,6 +6,7 @@ const supabase = createClient();
 export interface CouponDetails {
   id: string;
   code: string;
+  description: string | null;
   discount_type: "percentage" | "fixed" | "free_trial_days";
   discount_value: number;
   applicable_plans: string[] | null;
