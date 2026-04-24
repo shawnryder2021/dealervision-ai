@@ -229,6 +229,15 @@ export default function LandingPagesPage() {
     toast.success("Link copied to clipboard!");
   }
 
+  function handleOpenPublicPage(page: LandingPage) {
+    if (!dealership?.slug) {
+      toast.error("Dealership slug not available");
+      return;
+    }
+    const url = `${window.location.origin}/landing/${dealership.slug}/${page.slug}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   function handlePreview(page: LandingPage) {
     setPreviewPage(page);
     setView("preview");
@@ -358,6 +367,17 @@ export default function LandingPagesPage() {
                       >
                         <Copy className="h-3.5 w-3.5" />
                       </Button>
+                      {page.status === "published" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={() => handleOpenPublicPage(page)}
+                          title="Open public page"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
