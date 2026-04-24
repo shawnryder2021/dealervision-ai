@@ -12,7 +12,8 @@ import {
   Step1AccountDealership,
   Step2BrandIdentity,
   Step3Inventory,
-  Step4Complete,
+  Step4Coupon,
+  Step5Complete,
 } from "@/components/onboarding/wizard-steps";
 
 export default function SignupPage() {
@@ -32,14 +33,15 @@ export default function SignupPage() {
     primaryColor: "#0066FF",
     secondaryColor: "#FF6600",
     inventoryType: "",
+    appliedCoupon: null,
   });
 
   const handleNext = async () => {
-    if (currentStep < 4) {
+    if (currentStep < 5) {
       setCurrentStep(currentStep + 1);
       setError(undefined);
     } else {
-      // Step 4 - Complete signup
+      // Step 5 - Complete signup
       await handleSignup();
     }
   };
@@ -89,6 +91,7 @@ export default function SignupPage() {
           secondary_color: formData.secondaryColor,
           brand_voice: formData.brandVoice,
           inventory_type: formData.inventoryType,
+          coupon_id: formData.appliedCoupon?.id || null,
         }),
       });
 
@@ -158,16 +161,17 @@ export default function SignupPage() {
           </div>
           <h1 className="font-heading text-2xl font-bold">Get Started with DealerAdGen</h1>
           <p className="text-sm text-muted-foreground mt-2">
-            {currentStep === 1 && "Step 1 of 4 — Account Setup"}
-            {currentStep === 2 && "Step 2 of 4 — Brand Identity"}
-            {currentStep === 3 && "Step 3 of 4 — Inventory Setup"}
-            {currentStep === 4 && "Step 4 of 4 — Review"}
+            {currentStep === 1 && "Step 1 of 5 — Account Setup"}
+            {currentStep === 2 && "Step 2 of 5 — Brand Identity"}
+            {currentStep === 3 && "Step 3 of 5 — Inventory Setup"}
+            {currentStep === 4 && "Step 4 of 5 — Coupon (Optional)"}
+            {currentStep === 5 && "Step 5 of 5 — Review"}
           </p>
         </div>
 
         {/* Progress Bar */}
         <div className="mb-8 flex gap-2">
-          {[1, 2, 3, 4].map((step) => (
+          {[1, 2, 3, 4, 5].map((step) => (
             <div
               key={step}
               className={`h-1 flex-1 rounded-full transition-all ${
@@ -213,7 +217,18 @@ export default function SignupPage() {
             )}
 
             {currentStep === 4 && (
-              <Step4Complete onComplete={handleNext} isLoading={isLoading} />
+              <Step4Coupon
+                data={formData}
+                onChange={(updates) => setFormData({ ...formData, ...updates })}
+                currentStep={currentStep}
+                onNext={handleNext}
+                onPrev={handlePrev}
+                isLoading={isLoading}
+              />
+            )}
+
+            {currentStep === 5 && (
+              <Step5Complete onComplete={handleNext} isLoading={isLoading} />
             )}
           </CardContent>
         </Card>

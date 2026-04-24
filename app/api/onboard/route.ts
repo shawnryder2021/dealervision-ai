@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { applyCoupon } from "@/lib/db/coupons";
 
 export async function POST(request: Request) {
   try {
@@ -12,6 +13,7 @@ export async function POST(request: Request) {
       secondary_color = "#FFFFFF",
       brand_voice = "professional",
       inventory_type = "both",
+      coupon_id = null,
     } = body;
 
     if (!user_id || !dealership_name) {
@@ -80,6 +82,38 @@ export async function POST(request: Request) {
         { error: profileError.message || "Failed to create profile" },
         { status: 500 }
       );
+    }
+
+    // Apply coupon if provided
+    if (coupon_id) {
+      try {
+        // Get coupon details to calculate discount
+        const { data: coupon } = await supabase
+          .from("coupon_codes")
+          .select("discount_type, discount_value")
+          .eq("id", coupon_id)
+          .single();
+
+        if (coupon) {
+          const discountAmount =
+            coupon.discount_type === "fixed"
+              ? coupon.discount_value
+              : coupon.discount_type === "percentage"
+                ? 0 // Percentage discounts applied during checkout
+                : 0;
+
+          // Record coupon usage
+          await applyCoupon(
+            coupon_id,
+            dealership.id,
+            null, // subscription_id is null at signup
+            discountAmount
+          );
+        }
+      } catch (error) {
+        console.error("[onboard] Failed to apply coupon:", error);
+        // Don't fail signup if coupon application fails
+      }
     }
 
     return NextResponse.json({ dealership_id: dealership.id });

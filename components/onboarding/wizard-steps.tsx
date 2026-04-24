@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { CouponStep } from "./coupon-step";
+import type { CouponValidationResult } from "@/lib/db/coupons";
 
 export interface WizardFormData {
   // Account & Dealership
@@ -27,6 +29,8 @@ export interface WizardFormData {
   secondaryColor: string;
   // Inventory
   inventoryType: "new" | "used" | "both" | "";
+  // Coupon
+  appliedCoupon?: CouponValidationResult["coupon"] | null;
 }
 
 interface WizardStepsProps {
@@ -46,7 +50,7 @@ export function Step1AccountDealership({ data, onChange, onNext, isLoading, erro
     <div className="space-y-6">
       <div>
         <h2 className="font-heading text-xl font-bold mb-1">Create Your Account</h2>
-        <p className="text-sm text-muted-foreground">Step 1 of 4 — Basic account information</p>
+        <p className="text-sm text-muted-foreground">Step 1 of 5 — Basic account information</p>
       </div>
 
       {error && (
@@ -148,7 +152,7 @@ export function Step2BrandIdentity({ data, onChange, onNext, onPrev, isLoading }
     <div className="space-y-6">
       <div>
         <h2 className="font-heading text-xl font-bold mb-1">Brand Identity</h2>
-        <p className="text-sm text-muted-foreground">Step 2 of 4 — Customize your brand appearance</p>
+        <p className="text-sm text-muted-foreground">Step 2 of 5 — Customize your brand appearance</p>
       </div>
 
       <div className="space-y-4">
@@ -257,7 +261,7 @@ export function Step3Inventory({ data, onChange, onNext, onPrev, isLoading }: Wi
     <div className="space-y-6">
       <div>
         <h2 className="font-heading text-xl font-bold mb-1">Inventory Setup</h2>
-        <p className="text-sm text-muted-foreground">Step 3 of 4 — Configure your inventory type</p>
+        <p className="text-sm text-muted-foreground">Step 3 of 5 — Configure your inventory type</p>
       </div>
 
       <div className="space-y-4">
@@ -310,7 +314,41 @@ export function Step3Inventory({ data, onChange, onNext, onPrev, isLoading }: Wi
   );
 }
 
-export function Step4Complete({ onComplete, isLoading }: { onComplete: () => void; isLoading: boolean }) {
+export function Step4Coupon({
+  data,
+  onChange,
+  onNext,
+  onPrev,
+  isLoading,
+}: WizardStepsProps) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-heading text-xl font-bold mb-1">Promotional Code</h2>
+        <p className="text-sm text-muted-foreground">Step 4 of 5 — Apply a coupon code (optional)</p>
+      </div>
+
+      <CouponStep
+        onCouponApply={(coupon) => onChange({ appliedCoupon: coupon })}
+        onCouponRemove={() => onChange({ appliedCoupon: null })}
+        appliedCoupon={data.appliedCoupon || null}
+      />
+
+      <div className="flex gap-2">
+        <Button onClick={onPrev} variant="outline" disabled={isLoading}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
+        <Button onClick={onNext} className="flex-1 gradient-primary text-white" disabled={isLoading}>
+          {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ArrowRight className="h-4 w-4 mr-2" />}
+          Continue
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export function Step5Complete({ onComplete, isLoading }: { onComplete: () => void; isLoading: boolean }) {
   return (
     <div className="space-y-6 text-center">
       <div className="flex justify-center mb-4">
@@ -320,8 +358,8 @@ export function Step4Complete({ onComplete, isLoading }: { onComplete: () => voi
       </div>
 
       <div>
-        <h2 className="font-heading text-xl font-bold mb-2">You're All Set!</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="font-heading text-xl font-bold mb-1">Step 5 of 5 — Ready to Go!</h2>
+        <p className="text-sm text-muted-foreground mt-2">
           Your account is ready. Let's create your first marketing visual.
         </p>
       </div>
