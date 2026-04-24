@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/client";
-import {
-  updateCustomBackground,
-  deleteCustomBackground,
-} from "@/lib/db/custom-backgrounds";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * PATCH /api/custom-backgrounds/[id]
@@ -15,7 +11,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -29,6 +25,7 @@ export async function PATCH(
       name?: string;
       description?: string | null;
       is_favorite?: boolean;
+      updated_at?: string;
     } = {};
 
     if (typeof body.name === "string") updates.name = body.name.trim();
@@ -36,22 +33,21 @@ export async function PATCH(
     if (typeof body.is_favorite === "boolean")
       updates.is_favorite = body.is_favorite;
 
-    const result = await updateCustomBackground(id, updates);
+    updates.updated_at = new Date().toISOString();
 
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.error || "Failed to update" },
-        { status: 400 }
-      );
-    }
+    const { error } = await supabase
+      .from("custom_backgrounds")
+      .update(updates)
+      .eq("id", id);
+
+    if (error) throw error;
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error updating custom background:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -65,7 +61,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -74,21 +70,18 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const result = await deleteCustomBackground(id);
+    const { error } = await supabase
+      .from("custom_backgrounds")
+      .delete()
+      .eq("id", id);
 
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.error || "Failed to delete" },
-        { status: 400 }
-      );
-    }
+    if (error) throw error;
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting custom background:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

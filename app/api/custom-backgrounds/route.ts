@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/client";
-import {
-  listCustomBackgrounds,
-  createCustomBackground,
-} from "@/lib/db/custom-backgrounds";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/custom-backgrounds
@@ -11,7 +7,7 @@ import {
  */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -20,7 +16,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get dealership from X-Dealership-Id header (for admin client mode) or profile
+    // Get dealership from X-Dealership-Id header (admin client mode) or profile
     const headerDealershipId = request.headers.get("X-Dealership-Id");
     let dealershipId: string | null = headerDealershipId;
 
@@ -40,8 +36,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const backgrounds = await listCustomBackgrounds(dealershipId);
-    return NextResponse.json(backgrounds);
+    const { data, error } = await supabase
+      .from("custom_backgrounds")
+      .select("*")
+      .eq("dealership_id", dealershipId)
+      .order("is_favorite", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return NextResponse.json(data || []);
   } catch (error) {
     console.error("Error listing custom backgrounds:", error);
     return NextResponse.json(
@@ -58,7 +61,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -67,7 +70,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Resolve dealership
     const headerDealershipId = request.headers.get("X-Dealership-Id");
     let dealershipId: string | null = headerDealershipId;
     if (!dealershipId) {
@@ -89,10 +91,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     if (!body.name || typeof body.name !== "string") {
-      return NextResponse.json(
-        { error: "Name is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
     if (!body.image_url || typeof body.image_url !== "string") {
       return NextResponse.json(
@@ -101,28 +100,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await createCustomBackground({
-      dealership_id: dealershipId,
-      created_by: user.id,
-      name: body.name,
-      image_url: body.image_url,
-      thumbnail_url: body.thumbnail_url,
-      description: body.description,
-    });
+    const { data, error } = await supabase
+      .from("custom_backgrounds")
+      .insert({
+        dealership_id: dealershipId,
+        created_by: user.id,
+        name: body.name.trim(),
+        image_url: body.image_url,
+        thumbnail_url: body.thumbnail_url ?? null,
+        description: body.description ?? null,
+      })
+      .select()
+      .single();
 
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.error || "Failed to create background" },
-        { status: 400 }
-      );
-    }
+    if (error) throw error;
 
-    return NextResponse.json(result.background, { status: 201 });
+    return NextResponse.json(data, { status: 201 });
   } catch (error) {
     console.error("Error creating custom background:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
