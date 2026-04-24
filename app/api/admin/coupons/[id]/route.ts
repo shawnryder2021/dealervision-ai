@@ -18,9 +18,10 @@ async function isSuperAdmin(email: string): Promise<boolean> {
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -32,7 +33,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const result = await updateCoupon(params.id, body);
+    const result = await updateCoupon(id, body);
 
     if (!result.success) {
       return NextResponse.json(
@@ -53,9 +54,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -66,7 +68,7 @@ export async function DELETE(
       );
     }
 
-    const result = await deleteCoupon(params.id);
+    const result = await deleteCoupon(id);
 
     if (!result.success) {
       return NextResponse.json(
