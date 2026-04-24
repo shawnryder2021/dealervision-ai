@@ -167,6 +167,12 @@ export function LandingPagePreview({ page }: { page: LandingPage }) {
             </a>
           </p>
         )}
+        <p className="mt-4 pt-4 border-t border-white border-opacity-20 text-[10px] opacity-60">
+          Powered by DealerAdGen AI, developed by{" "}
+          <a href="https://shawnryder.com" target="_blank" rel="noopener noreferrer" className="hover:underline">
+            Shawn Ryder Digital
+          </a>
+        </p>
       </div>
     </div>
   );

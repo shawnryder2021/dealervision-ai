@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Zap, Building2, Rocket } from "lucide-react";
@@ -160,10 +161,28 @@ function PricingContent() {
         </div>
 
         {/* Trust strip */}
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-2 pb-12">
           <p className="text-sm text-muted-foreground">
             All plans include: SSL-secured payments via Stripe · Cancel anytime ·
             Shared across your team · 24-hour support
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-border/30 pt-8 mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+          <p>
+            &copy; {new Date().getFullYear()} DealerAdGen AI. All rights reserved.
+          </p>
+          <p>
+            Developed by{" "}
+            <Link
+              href="https://shawnryder.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-foreground hover:text-primary transition-colors"
+            >
+              Shawn Ryder Digital
+            </Link>
           </p>
         </div>
       </div>

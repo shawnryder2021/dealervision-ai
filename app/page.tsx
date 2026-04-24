@@ -270,28 +270,42 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t border-border/50 py-8 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded gradient-primary">
-              <Wand2 className="h-3 w-3 text-white" />
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 pb-6 border-b border-border/30">
+            <div className="flex items-center gap-2">
+              <div className="flex h-6 w-6 items-center justify-center rounded gradient-primary">
+                <Wand2 className="h-3 w-3 text-white" />
+              </div>
+              <span className="text-sm font-medium">DealerAdGen AI</span>
             </div>
-            <span className="text-sm font-medium">DealerAdGen AI</span>
+            <div className="flex items-center gap-6 text-xs text-muted-foreground">
+              <Link href="/resources" className="hover:text-foreground transition-colors">
+                Resources
+              </Link>
+              <Link href="/login" className="hover:text-foreground transition-colors">
+                Sign In
+              </Link>
+              <Link href="/signup" className="hover:text-foreground transition-colors">
+                Get Started
+              </Link>
+            </div>
           </div>
-          <div className="flex items-center gap-6 text-xs text-muted-foreground">
-            <Link href="/resources" className="hover:text-foreground transition-colors">
-              Resources
-            </Link>
-            <Link href="/login" className="hover:text-foreground transition-colors">
-              Sign In
-            </Link>
-            <Link href="/signup" className="hover:text-foreground transition-colors">
-              Get Started
-            </Link>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+            <p>
+              &copy; {new Date().getFullYear()} DealerAdGen AI. All rights reserved.
+            </p>
+            <p>
+              Developed by{" "}
+              <Link
+                href="https://shawnryder.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-foreground hover:text-primary transition-colors"
+              >
+                Shawn Ryder Digital
+              </Link>
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} DealerAdGen AI. All rights
-            reserved.
-          </p>
         </div>
       </footer>
     </div>

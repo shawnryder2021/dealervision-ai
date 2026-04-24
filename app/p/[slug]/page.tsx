@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import {
@@ -319,9 +320,20 @@ export default function PublicLandingPage() {
         {page.dealership_phone && (
           <p className="mt-1 text-sm opacity-60">{page.dealership_phone}</p>
         )}
-        <div className="mt-6 pt-4 border-t border-white/10">
+        <div className="mt-6 pt-4 border-t border-white/10 space-y-2">
           <p className="text-xs opacity-30">
             Powered by DealerAdGen AI
+          </p>
+          <p className="text-xs opacity-20">
+            Developed by{" "}
+            <Link
+              href="https://shawnryder.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:opacity-100 transition-opacity"
+            >
+              Shawn Ryder Digital
+            </Link>
           </p>
         </div>
       </footer>
