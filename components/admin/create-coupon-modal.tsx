@@ -64,7 +64,7 @@ export function CreateCouponModal({ coupon, onClose }: CreateCouponModalProps) {
           description: formData.description || null,
           discount_type: formData.discount_type,
           discount_value: parseFloat(String(formData.discount_value)),
-          max_uses: formData.max_uses ? parseInt(formData.max_uses) : null,
+          max_uses: formData.max_uses ? parseInt(String(formData.max_uses)) : null,
           active: formData.active,
           expiration_date: formData.expiration_date || null,
           applicable_plans: formData.applicable_plans
