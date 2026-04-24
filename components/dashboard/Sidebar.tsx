@@ -27,7 +27,6 @@ import {
   Sparkles,
   Users,
   Mail,
-  QrCode,
   Share2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -62,6 +61,7 @@ const navSections = [
       { href: "/dashboard/leads", label: "Leads", icon: Users },
       { href: "/dashboard/landing-pages", label: "Landing Pages", icon: FileText },
       { href: "/dashboard/email", label: "Email", icon: Mail },
+      { href: "/dashboard/publish", label: "Publish", icon: Share2 },
       { href: "/dashboard/activity", label: "Activity", icon: Activity },
       { href: "/dashboard/calendar", label: "Calendar", icon: CalendarDays },
     ],
