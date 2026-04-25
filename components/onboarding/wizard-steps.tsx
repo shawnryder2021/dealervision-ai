@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { CouponStep } from "./coupon-step";
 import type { CouponValidationResult } from "@/lib/db/coupons";
+import { getAllMakes } from "@/lib/vehicle-data";
 
 export interface WizardFormData {
   // Account & Dealership
@@ -29,6 +30,7 @@ export interface WizardFormData {
   secondaryColor: string;
   // Inventory
   inventoryType: "new" | "used" | "both" | "";
+  manufacturerBrand: string;
   // Coupon
   appliedCoupon?: CouponValidationResult["coupon"] | null;
 }
@@ -257,6 +259,9 @@ export function Step2BrandIdentity({ data, onChange, onNext, onPrev, isLoading }
 }
 
 export function Step3Inventory({ data, onChange, onNext, onPrev, isLoading }: WizardStepsProps) {
+  const manufacturerOptions = getAllMakes();
+  const needsManufacturer = data.inventoryType === "new" || data.inventoryType === "both";
+
   return (
     <div className="space-y-6">
       <div>
@@ -269,7 +274,13 @@ export function Step3Inventory({ data, onChange, onNext, onPrev, isLoading }: Wi
           <Label htmlFor="inventoryType">What type of vehicles do you sell?</Label>
           <Select
             value={data.inventoryType}
-            onValueChange={(value) => onChange({ inventoryType: value as any })}
+            onValueChange={(value) => {
+              const inventoryType = value as WizardFormData["inventoryType"];
+              onChange({
+                inventoryType,
+                manufacturerBrand: inventoryType === "used" ? "" : data.manufacturerBrand,
+              });
+            }}
             disabled={isLoading}
           >
             <SelectTrigger>
@@ -282,6 +293,31 @@ export function Step3Inventory({ data, onChange, onNext, onPrev, isLoading }: Wi
             </SelectContent>
           </Select>
         </div>
+
+        {needsManufacturer && (
+          <div className="space-y-2">
+            <Label htmlFor="manufacturerBrand">Primary New Vehicle Manufacturer</Label>
+            <Select
+              value={data.manufacturerBrand}
+              onValueChange={(value) => onChange({ manufacturerBrand: value })}
+              disabled={isLoading}
+            >
+              <SelectTrigger id="manufacturerBrand">
+                <SelectValue placeholder="Select manufacturer (Honda, Volkswagen, Ford...)" />
+              </SelectTrigger>
+              <SelectContent>
+                {manufacturerOptions.map((make) => (
+                  <SelectItem key={make} value={make}>
+                    {make}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              We use this to match manufacturer styling, fonts, and visual details for your new-vehicle ads.
+            </p>
+          </div>
+        )}
 
         <Card className="bg-muted/50 border-0">
           <CardContent className="pt-4 space-y-3">
@@ -305,7 +341,11 @@ export function Step3Inventory({ data, onChange, onNext, onPrev, isLoading }: Wi
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
-        <Button onClick={onNext} className="flex-1 gradient-primary text-white" disabled={!data.inventoryType || isLoading}>
+        <Button
+          onClick={onNext}
+          className="flex-1 gradient-primary text-white"
+          disabled={!data.inventoryType || (needsManufacturer && !data.manufacturerBrand) || isLoading}
+        >
           {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ArrowRight className="h-4 w-4 mr-2" />}
           Continue
         </Button>

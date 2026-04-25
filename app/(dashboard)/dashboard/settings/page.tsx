@@ -32,6 +32,7 @@ import { isDemoMode } from "@/lib/demo-data";
 import { updateProfile } from "@/lib/db/profiles";
 import { logActivity } from "@/lib/db/activity";
 import { saveDemoSettings } from "@/lib/demo-settings";
+import { getAllMakes } from "@/lib/vehicle-data";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
@@ -61,6 +62,7 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [localContext, setLocalContext] = useState({
     inventory_type: "both" as "new" | "used" | "both",
+    manufacturer_brand: "",
     years_established: "",
     communities_served: "",
     landmarks: "",
@@ -83,6 +85,7 @@ export default function SettingsPage() {
     "idle" | "testing" | "success" | "failed"
   >("idle");
   const [webhookTestError, setWebhookTestError] = useState("");
+  const manufacturerOptions = getAllMakes();
 
   // Profile state
   const [fullName, setFullName] = useState("");
@@ -129,6 +132,7 @@ export default function SettingsPage() {
         const lc = dealership.local_context;
         setLocalContext({
           inventory_type: lc.inventory_type ?? "both",
+          manufacturer_brand: lc.manufacturer_brand || "",
           years_established: lc.years_established || "",
           communities_served: lc.communities_served || "",
           landmarks: lc.landmarks || "",
@@ -186,6 +190,10 @@ export default function SettingsPage() {
 
     const localContextToSave = {
       inventory_type: localContext.inventory_type,
+      manufacturer_brand:
+        localContext.inventory_type === "used"
+          ? undefined
+          : localContext.manufacturer_brand.trim() || undefined,
       years_established: localContext.years_established.trim() || undefined,
       communities_served: localContext.communities_served.trim() || undefined,
       landmarks: localContext.landmarks.trim() || undefined,
@@ -628,7 +636,13 @@ export default function SettingsPage() {
                 <button
                   key={v}
                   type="button"
-                  onClick={() => setLocalContext({ ...localContext, inventory_type: v })}
+                  onClick={() =>
+                    setLocalContext({
+                      ...localContext,
+                      inventory_type: v,
+                      manufacturer_brand: v === "used" ? "" : localContext.manufacturer_brand,
+                    })
+                  }
                   className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all capitalize ${
                     localContext.inventory_type === v
                       ? "border-primary bg-primary/10 text-primary"
@@ -640,6 +654,30 @@ export default function SettingsPage() {
               ))}
             </div>
           </div>
+
+          {(localContext.inventory_type === "new" || localContext.inventory_type === "both") && (
+            <div className="space-y-2">
+              <Label htmlFor="manufacturerBrand">Primary New Vehicle Manufacturer</Label>
+              <select
+                id="manufacturerBrand"
+                value={localContext.manufacturer_brand}
+                onChange={(e) =>
+                  setLocalContext({ ...localContext, manufacturer_brand: e.target.value })
+                }
+                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Select manufacturer</option>
+                {manufacturerOptions.map((make) => (
+                  <option key={make} value={make}>
+                    {make}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-muted-foreground">
+                Used to align visuals with manufacturer look-and-feel (fonts, style, and brand details).
+              </p>
+            </div>
+          )}
 
           <Separator />
 

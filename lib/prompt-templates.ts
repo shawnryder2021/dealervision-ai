@@ -126,6 +126,21 @@ function getBrandContext(dealership: Dealership): string {
   return `Dealership: ${dealership.name}.${taglineStr} ${colorStr}${contactStr}${getLocalContext(dealership)} Use primary color ${colors.primary} as the dominant brand color in overlays, banners, and accents.`;
 }
 
+function getManufacturerStyleGuidance(make?: string): string {
+  if (!make) return "";
+
+  const key = make.toLowerCase();
+  const brandGuidance: Record<string, string> = {
+    honda: "Use clean Honda-inspired design language: practical, modern, confident layouts with precise sans-serif typography and restrained red accent usage.",
+    volkswagen: "Use Volkswagen-inspired visual style: minimal, grid-based composition, balanced whitespace, modern sans-serif typography, and crisp blue/white brand cues.",
+    ford: "Use Ford-inspired style cues: bold confidence, strong headline hierarchy, truck/SUV-ready utility vibe, and clear high-contrast typography.",
+  };
+
+  return brandGuidance[key]
+    ? ` Manufacturer style direction: ${brandGuidance[key]}`
+    : ` Manufacturer style direction: Match ${make} visual identity cues with consistent typography, layout rhythm, and brand-appropriate design details without copying protected logos.`;
+}
+
 /** Builds a local market context string injected into every prompt */
 function getLocalContext(dealership: Dealership): string {
   const lc = dealership.local_context;
@@ -138,6 +153,10 @@ function getLocalContext(dealership: Dealership): string {
       : lc.inventory_type === "used" ? "pre-owned/used vehicles only"
       : "both new and pre-owned vehicles";
     parts.push(`Dealership sells ${inv}`);
+  }
+  if (lc.manufacturer_brand && lc.inventory_type !== "used") {
+    parts.push(`primary new-vehicle manufacturer focus: ${lc.manufacturer_brand}`);
+    parts.push(getManufacturerStyleGuidance(lc.manufacturer_brand).trim());
   }
   if (lc.years_established) parts.push(lc.years_established);
   if (lc.communities_served) parts.push(`serving ${lc.communities_served}`);
