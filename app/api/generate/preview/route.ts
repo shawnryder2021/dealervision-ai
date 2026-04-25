@@ -69,6 +69,8 @@ export async function POST(request: Request) {
       testimonial_author: body.testimonial_author,
       rating: body.rating,
       custom_prompt: body.custom_prompt,
+      include_vehicle_year: body.include_vehicle_year,
+      include_vehicle_model: body.include_vehicle_model,
     });
 
     const aspectRatio = getAspectRatioForChannel(body.channel);

@@ -19,6 +19,8 @@ interface PromptContext {
   testimonial_author?: string;
   rating?: number;
   custom_prompt?: string;
+  include_vehicle_year?: string;
+  include_vehicle_model?: string;
 }
 
 function getChannelFormatting(channelId: string): string {
@@ -252,10 +254,25 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
 
 export function buildPrompt(context: PromptContext): string {
   const template = TEMPLATES[context.content_type];
-  if (!template) {
-    return TEMPLATES.custom(context);
+  const includeParts: string[] = [];
+
+  if (context.include_vehicle_year) {
+    includeParts.push(`vehicle year "${context.include_vehicle_year}"`);
   }
-  return template(context).replace(/\s+/g, " ").trim();
+
+  if (context.include_vehicle_model) {
+    includeParts.push(`vehicle model "${context.include_vehicle_model}"`);
+  }
+
+  const includePrompt =
+    includeParts.length > 0
+      ? `Include ${includeParts.join(" and ")} in the visible creative text or scene details if it naturally fits the layout.`
+      : "";
+
+  if (!template) {
+    return `${TEMPLATES.custom(context)} ${includePrompt}`.replace(/\s+/g, " ").trim();
+  }
+  return `${template(context)} ${includePrompt}`.replace(/\s+/g, " ").trim();
 }
 
 export function getAspectRatioForChannel(channelId: string): string {
