@@ -3,9 +3,15 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { normalizeFeatureFlags } from "@/lib/platform-feature-flags";
 
 function isMissingPlatformSettingsError(errorMessage: string) {
+  const normalized = errorMessage.toLowerCase();
   return (
-    errorMessage.includes('relation "platform_settings"') ||
-    errorMessage.includes('column "app_nav_flags"')
+    normalized.includes('relation "platform_settings"') ||
+    normalized.includes("relation 'platform_settings'") ||
+    normalized.includes('column "app_nav_flags"') ||
+    normalized.includes("column 'app_nav_flags'") ||
+    normalized.includes("platform_settings.app_nav_flags") ||
+    normalized.includes("app_nav_flags does not exist") ||
+    normalized.includes("could not find the 'app_nav_flags' column")
   );
 }
 
