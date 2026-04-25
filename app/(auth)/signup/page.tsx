@@ -33,6 +33,7 @@ export default function SignupPage() {
     primaryColor: "#0066FF",
     secondaryColor: "#FF6600",
     inventoryType: "",
+    manufacturerBrand: "",
     appliedCoupon: null,
   });
 
@@ -91,6 +92,7 @@ export default function SignupPage() {
           secondary_color: formData.secondaryColor,
           brand_voice: formData.brandVoice,
           inventory_type: formData.inventoryType,
+          manufacturer_brand: formData.manufacturerBrand || null,
           coupon_id: formData.appliedCoupon?.id || null,
         }),
       });

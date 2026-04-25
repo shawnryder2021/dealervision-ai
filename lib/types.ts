@@ -27,6 +27,7 @@ export interface Dealership {
   };
   local_context?: {
     inventory_type?: "new" | "used" | "both";
+    manufacturer_brand?: string;
     years_established?: string;
     communities_served?: string;
     landmarks?: string;

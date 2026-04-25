@@ -13,6 +13,7 @@ export async function POST(request: Request) {
       secondary_color = "#FFFFFF",
       brand_voice = "professional",
       inventory_type = "both",
+      manufacturer_brand = null,
       coupon_id = null,
     } = body;
 
@@ -53,6 +54,8 @@ export async function POST(request: Request) {
         local_context: {
           inventory_type,
           personality: brand_voice,
+          manufacturer_brand:
+            inventory_type === "used" ? undefined : manufacturer_brand || undefined,
         },
       })
       .select()
