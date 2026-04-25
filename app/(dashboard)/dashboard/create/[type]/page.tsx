@@ -532,7 +532,7 @@ export default function GenerateTypePage() {
                       <Select
                         value={includeVehicleYear || "none"}
                         onValueChange={(value) =>
-                          setIncludeVehicleYear(value === "none" ? undefined : value)
+                          setIncludeVehicleYear(value && value !== "none" ? value : undefined)
                         }
                       >
                         <SelectTrigger>
@@ -555,7 +555,7 @@ export default function GenerateTypePage() {
                       <Select
                         value={includeVehicleModel || "none"}
                         onValueChange={(value) =>
-                          setIncludeVehicleModel(value === "none" ? undefined : value)
+                          setIncludeVehicleModel(value && value !== "none" ? value : undefined)
                         }
                       >
                         <SelectTrigger>
