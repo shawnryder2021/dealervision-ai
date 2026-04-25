@@ -126,6 +126,8 @@ export interface GenerateRequest {
   testimonial_author?: string;
   rating?: number;
   campaign?: string;
+  include_vehicle_year?: string;
+  include_vehicle_model?: string;
 }
 
 export interface KieCreateTaskResponse {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Wand2, Eye, Loader2, Download, BookmarkPlus } from "lucide-react";
 import Link from "next/link";
@@ -19,6 +19,13 @@ import { TextOverlayEditor } from "@/components/create/TextOverlayEditor";
 import { ImageUploader } from "@/components/shared/ImageUploader";
 import { SaveTemplateDialog } from "@/components/create/TemplateGallery";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAppStore } from "@/lib/store";
 import { createClient } from "@/lib/supabase/client";
 import { isDemoMode } from "@/lib/demo-data";
@@ -56,6 +63,8 @@ export default function GenerateTypePage() {
   const [campaign, setCampaign] = useState("");
   const [referencePhotos, setReferencePhotos] = useState<{ url: string; display_url: string; thumbnail_url: string }[]>([]);
   const [watermarkEnabled, setWatermarkEnabled] = useState(true);
+  const [includeVehicleYear, setIncludeVehicleYear] = useState<string | undefined>();
+  const [includeVehicleModel, setIncludeVehicleModel] = useState<string | undefined>();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedAsset, setGeneratedAsset] = useState<GeneratedAsset | null>(null);
@@ -98,6 +107,26 @@ export default function GenerateTypePage() {
     loadVehicles();
   }, [dealership, storeVehicles]);
 
+  const availableYears = useMemo(
+    () =>
+      Array.from(new Set(vehicles.map((v) => v.year).filter((y): y is number => y != null)))
+        .sort((a, b) => b - a)
+        .map(String),
+    [vehicles]
+  );
+
+  const availableModels = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          vehicles
+            .map((v) => v.model?.trim())
+            .filter((model): model is string => Boolean(model))
+        )
+      ).sort((a, b) => a.localeCompare(b)),
+    [vehicles]
+  );
+
   const handlePreviewPrompt = useCallback(async () => {
     if (isDemoMode() && dealership) {
       const vehicle = vehicleId ? vehicles.find((v) => v.id === vehicleId) : null;
@@ -111,6 +140,8 @@ export default function GenerateTypePage() {
         offer_details: offerDetails, service_offer: serviceOffer,
         service_details: serviceDetails, testimonial_text: testimonialText,
         testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
+        include_vehicle_year: includeVehicleYear,
+        include_vehicle_model: includeVehicleModel,
       });
       setPreviewPrompt(prompt);
       return;
@@ -127,6 +158,8 @@ export default function GenerateTypePage() {
           offer_details: offerDetails, service_offer: serviceOffer,
           service_details: serviceDetails, testimonial_text: testimonialText,
           testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
+          include_vehicle_year: includeVehicleYear,
+          include_vehicle_model: includeVehicleModel,
         }),
       });
       if (!res.ok) {
@@ -144,6 +177,7 @@ export default function GenerateTypePage() {
     contentType, channel, vehicleId, headline, subheadline, cta, style,
     eventName, eventDates, offerDetails, serviceOffer, serviceDetails,
     testimonialText, testimonialAuthor, rating, customPrompt, dealership, vehicles,
+    includeVehicleYear, includeVehicleModel,
   ]);
 
   async function handleGenerate() {
@@ -166,6 +200,8 @@ export default function GenerateTypePage() {
           offer_details: offerDetails, service_offer: serviceOffer,
           service_details: serviceDetails, testimonial_text: testimonialText,
           testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
+          include_vehicle_year: includeVehicleYear,
+          include_vehicle_model: includeVehicleModel,
         });
 
         const aspectRatio = getAspectRatioForChannel(channel);
@@ -231,6 +267,8 @@ export default function GenerateTypePage() {
           service_details: serviceDetails, testimonial_text: testimonialText,
           testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
           campaign,
+          include_vehicle_year: includeVehicleYear,
+          include_vehicle_model: includeVehicleModel,
           image_input: prodImageInput.length > 0 ? prodImageInput : undefined,
           watermark: watermarkEnabled,
         }),
@@ -482,11 +520,64 @@ export default function GenerateTypePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {showVehicleSelector && (
-                <VehicleSelector
-                  vehicles={vehicles}
-                  value={vehicleId}
-                  onChange={setVehicleId}
-                />
+                <>
+                  <VehicleSelector
+                    vehicles={vehicles}
+                    value={vehicleId}
+                    onChange={setVehicleId}
+                  />
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Include Vehicle Year in Image (Optional)</Label>
+                      <Select
+                        value={includeVehicleYear || "none"}
+                        onValueChange={(value) =>
+                          setIncludeVehicleYear(value === "none" ? undefined : value)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a year..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">
+                            <span className="text-muted-foreground">Don&apos;t force a year</span>
+                          </SelectItem>
+                          {availableYears.map((year) => (
+                            <SelectItem key={year} value={year}>
+                              {year}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Include Vehicle Model in Image (Optional)</Label>
+                      <Select
+                        value={includeVehicleModel || "none"}
+                        onValueChange={(value) =>
+                          setIncludeVehicleModel(value === "none" ? undefined : value)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a model..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">
+                            <span className="text-muted-foreground">Don&apos;t force a model</span>
+                          </SelectItem>
+                          {availableModels.map((model) => (
+                            <SelectItem key={model} value={model}>
+                              {model}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Leave these blank unless you want the AI to intentionally show specific year/model details in the graphic.
+                  </p>
+                </>
               )}
 
               <div className="space-y-2">
