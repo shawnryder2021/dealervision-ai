@@ -299,7 +299,7 @@ export function Step3Inventory({ data, onChange, onNext, onPrev, isLoading }: Wi
             <Label htmlFor="manufacturerBrand">Primary New Vehicle Manufacturer</Label>
             <Select
               value={data.manufacturerBrand}
-              onValueChange={(value) => onChange({ manufacturerBrand: value })}
+              onValueChange={(value) => onChange({ manufacturerBrand: value ?? "" })}
               disabled={isLoading}
             >
               <SelectTrigger id="manufacturerBrand">
