@@ -14,6 +14,16 @@ export const FEATURE_FLAG_KEYS = [
   "usage",
   "billing",
   "socialAccounts",
+  "inventoryAging",
+  "leadReply",
+  "salespeople",
+  "photoEnhancer",
+  "walkaroundVideo",
+  "oemCoop",
+  "comparison",
+  "reviewReply",
+  "recalls",
+  "showroomTv",
 ] as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[number];
@@ -35,6 +45,16 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   usage: true,
   billing: true,
   socialAccounts: true,
+  inventoryAging: true,
+  leadReply: true,
+  salespeople: true,
+  photoEnhancer: true,
+  walkaroundVideo: true,
+  oemCoop: true,
+  comparison: true,
+  reviewReply: true,
+  recalls: true,
+  showroomTv: true,
 };
 
 export const FEATURE_FLAG_LABELS: Record<FeatureFlagKey, string> = {
@@ -53,6 +73,16 @@ export const FEATURE_FLAG_LABELS: Record<FeatureFlagKey, string> = {
   usage: "Usage",
   billing: "Billing",
   socialAccounts: "Social Accounts",
+  inventoryAging: "Inventory Aging",
+  leadReply: "Lead Reply Assistant",
+  salespeople: "Salespeople",
+  photoEnhancer: "Photo Enhancer",
+  walkaroundVideo: "Walkaround Video",
+  oemCoop: "OEM Co-op Compliance",
+  comparison: "Vehicle Comparison",
+  reviewReply: "Review Reply",
+  recalls: "NHTSA Recalls",
+  showroomTv: "Showroom TV Mode",
 };
 
 export function normalizeFeatureFlags(raw: unknown): FeatureFlags {

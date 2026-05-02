@@ -47,6 +47,8 @@ export interface Dealership {
     secret?: string;
   };
   image_model: "kie-nano-banana" | "openai-gpt-image-2";
+  oem_brand?: string | null;
+  state_code?: string | null;
   created_at: string;
   updated_at: string;
 }

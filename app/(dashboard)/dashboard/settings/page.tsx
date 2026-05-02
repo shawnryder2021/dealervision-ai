@@ -17,7 +17,10 @@ import {
   MapPin,
   CreditCard,
   ArrowRight,
+  Shield,
 } from "lucide-react";
+import { OEM_BRAND_OPTIONS } from "@/lib/oem-presets";
+import { STATE_OPTIONS } from "@/lib/state-disclaimers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,6 +62,8 @@ export default function SettingsPage() {
   });
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [oemBrand, setOemBrand] = useState<string>("");
+  const [stateCode, setStateCode] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [localContext, setLocalContext] = useState({
     inventory_type: "both" as "new" | "used" | "both",
@@ -105,6 +110,8 @@ export default function SettingsPage() {
       setTagline(dealership.tagline || "");
       setLogoUrl(dealership.logo_url || null);
       setBrandColors(dealership.brand_colors);
+      setOemBrand((dealership as { oem_brand?: string | null }).oem_brand || "");
+      setStateCode((dealership as { state_code?: string | null }).state_code || "");
       setContact({
         address: dealership.contact.address || "",
         phone: dealership.contact.phone || "",
@@ -214,6 +221,8 @@ export default function SettingsPage() {
         contact,
         local_context: localContextToSave,
         webhook_config: webhookToSave,
+        oem_brand: oemBrand || null,
+        state_code: stateCode || null,
         updated_at: new Date().toISOString(),
       };
       setDealership(updated);
@@ -234,6 +243,8 @@ export default function SettingsPage() {
         contact,
         local_context: localContextToSave,
         webhook_config: webhookToSave,
+        oem_brand: oemBrand || null,
+        state_code: stateCode || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", dealership.id)
@@ -490,6 +501,53 @@ export default function SettingsPage() {
           <Separator />
 
           <BrandColorPicker value={brandColors} onChange={setBrandColors} />
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-primary" />
+              OEM Co-op Compliance Mode
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              When set, all generated assets follow your manufacturer&apos;s brand guidelines (logo placement,
+              approved fonts, colors, disclaimers) so you stay eligible for OEM co-op reimbursement.
+            </p>
+            <select
+              value={oemBrand}
+              onChange={(e) => setOemBrand(e.target.value)}
+              className="w-full mt-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">Off (no OEM compliance)</option>
+              {OEM_BRAND_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-primary" />
+              State for advertising disclaimers
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Auto-append state-specific dealer-advertising disclaimers (price, APR, doc fees) to every generated asset.
+            </p>
+            <select
+              value={stateCode}
+              onChange={(e) => setStateCode(e.target.value)}
+              className="w-full mt-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">Off (no state disclaimers)</option>
+              {STATE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </CardContent>
       </Card>
 

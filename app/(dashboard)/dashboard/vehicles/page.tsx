@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Car, Plus, Search, Edit, Trash2, Eye, Upload, QrCode } from "lucide-react";
+import { Car, Plus, Search, Edit, Trash2, Eye, Upload, QrCode, FileText, ScrollText } from "lucide-react";
+import { buildWindowSticker, buildBuyersGuide } from "@/lib/pdf-stickers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -429,6 +430,34 @@ export default function VehiclesPage() {
                     onClick={() => setQrVehicle(v)}
                   >
                     <QrCode className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    title="Window Sticker PDF"
+                    onClick={() => {
+                      if (!dealership) return;
+                      buildWindowSticker(v, dealership).save(
+                        `window-sticker-${v.stock_number || v.id}.pdf`
+                      );
+                    }}
+                  >
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    title="FTC Buyers Guide"
+                    onClick={() => {
+                      if (!dealership) return;
+                      buildBuyersGuide(v, dealership).save(
+                        `buyers-guide-${v.stock_number || v.id}.pdf`
+                      );
+                    }}
+                  >
+                    <ScrollText className="h-3.5 w-3.5 text-muted-foreground" />
                   </Button>
                   <Button
                     size="icon"

@@ -87,6 +87,7 @@ export default function GenerateTypePage() {
     if (searchParams.get("serviceDetails")) setServiceDetails(searchParams.get("serviceDetails")!);
     if (searchParams.get("customPrompt")) setCustomPrompt(searchParams.get("customPrompt")!);
     if (searchParams.get("campaign")) setCampaign(searchParams.get("campaign")!);
+    if (searchParams.get("vehicleId")) setVehicleId(searchParams.get("vehicleId")!);
   }, [searchParams]);
 
   useEffect(() => {

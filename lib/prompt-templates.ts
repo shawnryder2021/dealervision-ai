@@ -1,5 +1,7 @@
 import type { Dealership, Vehicle } from "./types";
 import { CHANNEL_PRESETS } from "./constants";
+import { buildOemComplianceBlock, type OemBrandKey } from "./oem-presets";
+import { buildStateDisclaimerBlock } from "./state-disclaimers";
 
 interface PromptContext {
   content_type: string;
@@ -269,10 +271,17 @@ export function buildPrompt(context: PromptContext): string {
       ? `Include ${includeParts.join(" and ")} in the visible creative text or scene details if it naturally fits the layout.`
       : "";
 
-  if (!template) {
-    return `${TEMPLATES.custom(context)} ${includePrompt}`.replace(/\s+/g, " ").trim();
-  }
-  return `${template(context)} ${includePrompt}`.replace(/\s+/g, " ").trim();
+  const rendered = template ? template(context) : TEMPLATES.custom(context);
+  const base = `${rendered} ${includePrompt}`.replace(/\s+/g, " ").trim();
+
+  const ext = context.dealership as Dealership & {
+    oem_brand?: OemBrandKey | null;
+    state_code?: string | null;
+  };
+  let final = base;
+  if (ext.oem_brand) final += buildOemComplianceBlock(ext.oem_brand);
+  if (ext.state_code) final += buildStateDisclaimerBlock(ext.state_code);
+  return final;
 }
 
 export function getAspectRatioForChannel(channelId: string): string {
