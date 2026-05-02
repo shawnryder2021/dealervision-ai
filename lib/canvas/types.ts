@@ -33,6 +33,13 @@ export interface ImageElement extends BaseElement {
   type: "image";
   src: string;
   cornerRadius?: number;
+  filters?: {
+    brightness?: number; // -1..1
+    contrast?: number; // -100..100
+    blur?: number; // 0..40
+    grayscale?: boolean;
+    invert?: boolean;
+  };
 }
 
 export type ShapeKind = "rect" | "circle" | "star" | "ribbon" | "callout" | "line";
@@ -66,6 +73,7 @@ export interface Design {
   canvasHeight: number;
   vehicleId: string | null;
   elements: CanvasElement[];
+  backgroundColor?: string;
   thumbnailUrl?: string | null;
   exportedUrl?: string | null;
 }

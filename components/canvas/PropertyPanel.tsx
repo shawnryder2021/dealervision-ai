@@ -256,6 +256,86 @@ export function PropertyPanel({ selected, dealership, onChange, onDelete, onDupl
               className="mt-1 h-8 text-xs"
             />
           </div>
+          <div className="rounded border p-2 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Filters</p>
+            <div>
+              <Label className="text-xs">Brightness ({(im.filters?.brightness ?? 0).toFixed(2)})</Label>
+              <input
+                type="range"
+                min="-1"
+                max="1"
+                step="0.05"
+                value={im.filters?.brightness ?? 0}
+                onChange={(e) =>
+                  onChange({
+                    filters: { ...(im.filters || {}), brightness: Number(e.target.value) },
+                  })
+                }
+                className="w-full"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Contrast ({im.filters?.contrast ?? 0})</Label>
+              <input
+                type="range"
+                min="-100"
+                max="100"
+                step="5"
+                value={im.filters?.contrast ?? 0}
+                onChange={(e) =>
+                  onChange({
+                    filters: { ...(im.filters || {}), contrast: Number(e.target.value) },
+                  })
+                }
+                className="w-full"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Blur ({im.filters?.blur ?? 0})</Label>
+              <input
+                type="range"
+                min="0"
+                max="40"
+                step="1"
+                value={im.filters?.blur ?? 0}
+                onChange={(e) =>
+                  onChange({
+                    filters: { ...(im.filters || {}), blur: Number(e.target.value) },
+                  })
+                }
+                className="w-full"
+              />
+            </div>
+            <div className="flex gap-3 text-xs">
+              <label className="flex items-center gap-1">
+                <input
+                  type="checkbox"
+                  checked={!!im.filters?.grayscale}
+                  onChange={(e) =>
+                    onChange({ filters: { ...(im.filters || {}), grayscale: e.target.checked } })
+                  }
+                />
+                Grayscale
+              </label>
+              <label className="flex items-center gap-1">
+                <input
+                  type="checkbox"
+                  checked={!!im.filters?.invert}
+                  onChange={(e) =>
+                    onChange({ filters: { ...(im.filters || {}), invert: e.target.checked } })
+                  }
+                />
+                Invert
+              </label>
+            </div>
+            <button
+              type="button"
+              className="text-xs text-primary hover:underline"
+              onClick={() => onChange({ filters: {} })}
+            >
+              Reset filters
+            </button>
+          </div>
         </>
       )}
 

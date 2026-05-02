@@ -130,12 +130,15 @@ export default function LeadReplyPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>Vehicle they&apos;re asking about (optional)</Label>
-              <Select value={vehicleId} onValueChange={(v) => setVehicleId(v ?? "")}>
+              <Select
+                value={vehicleId || "__none__"}
+                onValueChange={(v) => setVehicleId(v && v !== "__none__" ? v : "")}
+              >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="No specific vehicle" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No specific vehicle</SelectItem>
+                  <SelectItem value="__none__">No specific vehicle</SelectItem>
                   {vehicles.map((v) => (
                     <SelectItem key={v.id} value={v.id}>
                       {[v.year, v.make, v.model, v.trim].filter(Boolean).join(" ")}

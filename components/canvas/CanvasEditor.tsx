@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import Konva_ from "konva";
 import {
   Stage,
   Layer,
@@ -29,6 +30,7 @@ interface Props {
   dealership: Dealership | null;
   stageRef: React.MutableRefObject<Konva.Stage | null>;
   scale: number;
+  backgroundColor?: string;
 }
 
 type CommonHandlers = {
@@ -74,6 +76,18 @@ function buildHandlers(
   };
 }
 
+function proxiedSrc(url: string): string {
+  if (!url) return url;
+  if (url.startsWith("data:") || url.startsWith("blob:")) return url;
+  if (typeof window !== "undefined") {
+    try {
+      const u = new URL(url, window.location.origin);
+      if (u.origin === window.location.origin) return url; // same-origin: no proxy
+    } catch {}
+  }
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`;
+}
+
 function ImageNode({
   el,
   handlers,
@@ -81,9 +95,34 @@ function ImageNode({
   el: ImageElement;
   handlers: CommonHandlers;
 }) {
-  const [img] = useImage(el.src, "anonymous");
+  const [img] = useImage(proxiedSrc(el.src), "anonymous");
+  const ref = useRef<Konva_.Image | null>(null);
+  const filters = el.filters || {};
+  const filterArr = useMemo(() => {
+    const arr: Array<typeof Konva_.Filters[keyof typeof Konva_.Filters]> = [];
+    if (filters.brightness != null) arr.push(Konva_.Filters.Brighten);
+    if (filters.contrast != null) arr.push(Konva_.Filters.Contrast);
+    if (filters.blur) arr.push(Konva_.Filters.Blur);
+    if (filters.grayscale) arr.push(Konva_.Filters.Grayscale);
+    if (filters.invert) arr.push(Konva_.Filters.Invert);
+    return arr;
+  }, [filters.brightness, filters.contrast, filters.blur, filters.grayscale, filters.invert]);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || !img) return;
+    if (filterArr.length > 0) {
+      node.cache();
+      node.filters(filterArr);
+      node.getLayer()?.batchDraw();
+    } else {
+      node.clearCache();
+      node.filters([]);
+      node.getLayer()?.batchDraw();
+    }
+  }, [img, filterArr, el.width, el.height]);
   return (
     <KonvaImage
+      ref={ref as React.RefObject<Konva_.Image>}
       id={el.id}
       x={el.x}
       y={el.y}
@@ -93,6 +132,9 @@ function ImageNode({
       opacity={el.opacity ?? 1}
       image={img}
       cornerRadius={el.cornerRadius}
+      brightness={filters.brightness ?? 0}
+      contrast={filters.contrast ?? 0}
+      blurRadius={filters.blur ?? 0}
       {...handlers}
     />
   );
@@ -202,6 +244,7 @@ export default function CanvasEditor({
   dealership,
   stageRef,
   scale,
+  backgroundColor = "#ffffff",
 }: Props) {
   const layerRef = useRef<Konva.Layer | null>(null);
   const trRef = useRef<Konva.Transformer | null>(null);
@@ -248,7 +291,7 @@ export default function CanvasEditor({
       style={{ background: "#ffffff" }}
     >
       <Layer ref={layerRef as React.RefObject<Konva.Layer>}>
-        <Rect x={0} y={0} width={width} height={height} fill="#ffffff" listening={false} />
+        <Rect x={0} y={0} width={width} height={height} fill={backgroundColor} listening={false} />
         {merged.map((el) => {
           const handlers = buildHandlers(el, onSelect, updateEl);
           if (el.type === "image") return <ImageNode key={el.id} el={el} handlers={handlers} />;

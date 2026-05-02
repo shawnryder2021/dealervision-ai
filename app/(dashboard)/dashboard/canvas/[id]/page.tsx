@@ -11,6 +11,16 @@ import {
   Layers,
   Bookmark,
   PaintBucket,
+  Undo2,
+  Redo2,
+  AlignHorizontalJustifyCenter,
+  AlignVerticalJustifyCenter,
+  AlignStartHorizontal,
+  AlignEndHorizontal,
+  AlignStartVertical,
+  AlignEndVertical,
+  Sparkles,
+  Wand2,
 } from "lucide-react";
 import type Konva from "konva";
 import { Button } from "@/components/ui/button";
@@ -25,11 +35,13 @@ import {
 } from "@/components/ui/select";
 import { useAppStore } from "@/lib/store";
 import { CANVAS_SIZE_PRESETS, newId, type CanvasElement, type Design } from "@/lib/canvas/types";
-import { BADGE_PRESETS } from "@/lib/canvas/badge-presets";
 import { Toolbar } from "@/components/canvas/Toolbar";
 import { PropertyPanel } from "@/components/canvas/PropertyPanel";
 import { BadgePicker } from "@/components/canvas/BadgePicker";
 import { AssetPickerDialog } from "@/components/canvas/AssetPickerDialog";
+import { AIHeadlineDialog } from "@/components/canvas/AIHeadlineDialog";
+import { StarterTemplatesDialog } from "@/components/canvas/StarterTemplatesDialog";
+import { templateToDesign, STARTER_TEMPLATES } from "@/lib/canvas/starter-templates";
 import type { Vehicle } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -46,7 +58,10 @@ const DEFAULT_DESIGN: Design = {
   canvasHeight: 1080,
   vehicleId: null,
   elements: [],
+  backgroundColor: "#ffffff",
 };
+
+const HISTORY_LIMIT = 50;
 
 export default function CanvasEditorPage() {
   const params = useParams();
@@ -56,11 +71,13 @@ export default function CanvasEditorPage() {
   const isNew = id === "new";
 
   const { dealership, vehicles } = useAppStore();
-  const [design, setDesign] = useState<Design>(DEFAULT_DESIGN);
+  const [design, setDesignState] = useState<Design>(DEFAULT_DESIGN);
   const [designId, setDesignId] = useState<string | null>(isNew ? null : id);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [badgeOpen, setBadgeOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [headlineOpen, setHeadlineOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(!isNew);
@@ -68,35 +85,77 @@ export default function CanvasEditorPage() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [stageScale, setStageScale] = useState(1);
 
+  // Undo/redo history
+  const historyRef = useRef<Design[]>([]);
+  const futureRef = useRef<Design[]>([]);
+  const skipHistoryRef = useRef(true); // first set after load shouldn't push history
+
+  const setDesign = useCallback((updater: Design | ((d: Design) => Design)) => {
+    setDesignState((prev) => {
+      const next = typeof updater === "function" ? (updater as (d: Design) => Design)(prev) : updater;
+      if (!skipHistoryRef.current) {
+        historyRef.current.push(prev);
+        if (historyRef.current.length > HISTORY_LIMIT) historyRef.current.shift();
+        futureRef.current = [];
+      }
+      skipHistoryRef.current = false;
+      return next;
+    });
+  }, []);
+
+  const undo = useCallback(() => {
+    setDesignState((prev) => {
+      const last = historyRef.current.pop();
+      if (!last) return prev;
+      futureRef.current.push(prev);
+      return last;
+    });
+  }, []);
+
+  const redo = useCallback(() => {
+    setDesignState((prev) => {
+      const next = futureRef.current.pop();
+      if (!next) return prev;
+      historyRef.current.push(prev);
+      return next;
+    });
+  }, []);
+
   const vehicle: Vehicle | null = useMemo(
     () => (design.vehicleId ? vehicles.find((v) => v.id === design.vehicleId) ?? null : null),
     [design.vehicleId, vehicles]
   );
 
-  // Load existing design
+  // Load existing design or initialize from query params / starter template
   useEffect(() => {
     if (isNew) {
-      const fromAsset = searchParams.get("fromAssetId");
       const fromUrl = searchParams.get("fromUrl");
-      const url = fromUrl;
-      if (url || fromAsset) {
-        // Initialize with background image element
-        setDesign((d) => ({
-          ...d,
-          elements: url
-            ? [
-                {
-                  id: newId(),
-                  type: "image",
-                  src: url,
-                  x: 0,
-                  y: 0,
-                  width: d.canvasWidth,
-                  height: d.canvasHeight,
-                  rotation: 0,
-                } as CanvasElement,
-              ]
-            : d.elements,
+      const templateId = searchParams.get("template");
+
+      if (templateId) {
+        const t = STARTER_TEMPLATES.find((x) => x.id === templateId);
+        if (t) {
+          skipHistoryRef.current = true;
+          setDesignState((prev) => ({ ...prev, ...templateToDesign(t, dealership) } as Design));
+          return;
+        }
+      }
+      if (fromUrl) {
+        skipHistoryRef.current = true;
+        setDesignState((prev) => ({
+          ...prev,
+          elements: [
+            {
+              id: newId(),
+              type: "image",
+              src: fromUrl,
+              x: 0,
+              y: 0,
+              width: prev.canvasWidth,
+              height: prev.canvasHeight,
+              rotation: 0,
+            } as CanvasElement,
+          ],
         }));
       }
       return;
@@ -106,7 +165,8 @@ export default function CanvasEditorPage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.design) {
-          setDesign({
+          skipHistoryRef.current = true;
+          setDesignState({
             id: data.design.id,
             name: data.design.name,
             kind: data.design.kind,
@@ -115,6 +175,7 @@ export default function CanvasEditorPage() {
             canvasHeight: data.design.canvas_height,
             vehicleId: data.design.vehicle_id,
             elements: data.design.elements || [],
+            backgroundColor: data.design.background_color || "#ffffff",
             thumbnailUrl: data.design.thumbnail_url,
             exportedUrl: data.design.exported_url,
           });
@@ -122,7 +183,7 @@ export default function CanvasEditorPage() {
         }
       })
       .finally(() => setLoading(false));
-  }, [id, isNew, searchParams]);
+  }, [id, isNew, searchParams, dealership]);
 
   // Fit canvas to container
   useEffect(() => {
@@ -142,15 +203,21 @@ export default function CanvasEditorPage() {
     return () => window.removeEventListener("resize", fit);
   }, [design.canvasWidth, design.canvasHeight]);
 
-  const updateElements = useCallback((next: CanvasElement[]) => {
-    setDesign((d) => ({ ...d, elements: next }));
-  }, []);
+  const updateElements = useCallback(
+    (next: CanvasElement[]) => {
+      setDesign((d) => ({ ...d, elements: next }));
+    },
+    [setDesign]
+  );
 
-  const addElements = useCallback((els: CanvasElement | CanvasElement[]) => {
-    const arr = Array.isArray(els) ? els : [els];
-    setDesign((d) => ({ ...d, elements: [...d.elements, ...arr] }));
-    if (arr.length === 1) setSelectedId(arr[0].id);
-  }, []);
+  const addElements = useCallback(
+    (els: CanvasElement | CanvasElement[]) => {
+      const arr = Array.isArray(els) ? els : [els];
+      setDesign((d) => ({ ...d, elements: [...d.elements, ...arr] }));
+      if (arr.length === 1) setSelectedId(arr[0].id);
+    },
+    [setDesign]
+  );
 
   const selected = useMemo(
     () => design.elements.find((el) => el.id === selectedId) || null,
@@ -167,18 +234,18 @@ export default function CanvasEditorPage() {
     }));
   };
 
-  const deleteSelected = () => {
+  const deleteSelected = useCallback(() => {
     if (!selectedId) return;
     setDesign((d) => ({ ...d, elements: d.elements.filter((el) => el.id !== selectedId) }));
     setSelectedId(null);
-  };
+  }, [selectedId, setDesign]);
 
-  const duplicateSelected = () => {
+  const duplicateSelected = useCallback(() => {
     if (!selected) return;
     const copy: CanvasElement = { ...selected, id: newId(), x: selected.x + 20, y: selected.y + 20 };
     setDesign((d) => ({ ...d, elements: [...d.elements, copy] }));
     setSelectedId(copy.id);
-  };
+  }, [selected, setDesign]);
 
   const moveLayer = (direction: "up" | "down") => {
     if (!selectedId) return;
@@ -228,6 +295,7 @@ export default function CanvasEditorPage() {
     canvas_height: design.canvasHeight,
     vehicle_id: design.vehicleId,
     elements: design.elements,
+    background_color: design.backgroundColor || "#ffffff",
   });
 
   const save = async (kind: "draft" | "template" = "draft") => {
@@ -242,7 +310,7 @@ export default function CanvasEditorPage() {
         if (!res.ok) throw new Error((await res.json()).error || "Failed");
         const data = await res.json();
         setDesignId(data.design.id);
-        setDesign((d) => ({ ...d, id: data.design.id, kind }));
+        setDesignState((d) => ({ ...d, id: data.design.id, kind }));
         router.replace(`/dashboard/canvas/${data.design.id}`);
       } else {
         const res = await fetch(`/api/canvas-templates/${designId}`, {
@@ -251,7 +319,7 @@ export default function CanvasEditorPage() {
           body: JSON.stringify(persistBody(kind)),
         });
         if (!res.ok) throw new Error((await res.json()).error || "Failed");
-        setDesign((d) => ({ ...d, kind }));
+        setDesignState((d) => ({ ...d, kind }));
       }
       toast.success(kind === "template" ? "Saved as template" : "Saved");
     } catch (e) {
@@ -265,11 +333,16 @@ export default function CanvasEditorPage() {
     if (!stageRef.current) return;
     setExporting(true);
     try {
-      // First save so we have an id
       if (!designId) await save("draft");
-      const targetId = designId;
-      const finalId = targetId || (design.id as string | undefined);
-      const dataUrl = stageRef.current.toDataURL({ pixelRatio: 2 });
+      const finalId = designId || (design.id as string | undefined);
+      let dataUrl: string;
+      try {
+        dataUrl = stageRef.current.toDataURL({ pixelRatio: 2 });
+      } catch (e) {
+        throw new Error(
+          "Export blocked by image CORS. Re-add any external images via the Library or Upload action so they go through the proxy."
+        );
+      }
       if (!finalId) throw new Error("No design id");
       const res = await fetch(`/api/canvas-templates/${finalId}/export`, {
         method: "POST",
@@ -287,6 +360,93 @@ export default function CanvasEditorPage() {
     }
   };
 
+  // Alignment helpers
+  const alignSelected = (action: "left" | "right" | "centerH" | "top" | "bottom" | "centerV") => {
+    if (!selected) return;
+    const W = design.canvasWidth;
+    const H = design.canvasHeight;
+    const patch: Partial<CanvasElement> = {};
+    if (action === "left") patch.x = 0;
+    if (action === "right") patch.x = W - selected.width;
+    if (action === "centerH") patch.x = (W - selected.width) / 2;
+    if (action === "top") patch.y = 0;
+    if (action === "bottom") patch.y = H - selected.height;
+    if (action === "centerV") patch.y = (H - selected.height) / 2;
+    updateSelected(patch);
+  };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isTyping =
+        target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+      if (isTyping) return;
+
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        redo();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        duplicateSelected();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        save("draft");
+        return;
+      }
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (selectedId) {
+          e.preventDefault();
+          deleteSelected();
+        }
+        return;
+      }
+      if (e.key === "Escape") {
+        setSelectedId(null);
+        return;
+      }
+      // Arrow nudging
+      if (selectedId && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
+        e.preventDefault();
+        const step = e.shiftKey ? 20 : 2;
+        const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+        const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+        updateSelected({ x: selected!.x + dx, y: selected!.y + dy });
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [selectedId, selected, undo, redo, deleteSelected, duplicateSelected]);
+
+  const insertHeadlineFromAI = (text: string) => {
+    addElements({
+      id: newId(),
+      type: "text",
+      text,
+      x: design.canvasWidth / 2 - 400,
+      y: 120,
+      width: 800,
+      height: 140,
+      rotation: 0,
+      fontFamily: "Bebas Neue",
+      fontSize: 96,
+      fontStyle: "bold",
+      align: "center",
+      fill: dealership?.brand_colors?.primary || "#0F2A47",
+      letterSpacing: 2,
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
@@ -297,7 +457,6 @@ export default function CanvasEditorPage() {
 
   return (
     <div className="flex h-[calc(100vh-4rem)] -m-6">
-      {/* Left rail: toolbar + layers */}
       <aside className="w-56 border-r p-3 overflow-y-auto bg-background">
         <Button variant="ghost" size="sm" className="w-full justify-start mb-3" onClick={() => router.push("/dashboard/canvas")}>
           <ArrowLeft className="h-4 w-4 mr-1" /> Designs
@@ -311,6 +470,25 @@ export default function CanvasEditorPage() {
           onOpenLibrary={() => setLibraryOpen(true)}
           onUpload={handleUpload}
         />
+
+        <div className="mt-3 space-y-1">
+          <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setHeadlineOpen(true)}>
+            <Sparkles className="h-4 w-4 mr-2 text-primary" /> AI Headline
+          </Button>
+          <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setTemplatesOpen(true)}>
+            <Wand2 className="h-4 w-4 mr-2" /> Starter templates
+          </Button>
+        </div>
+
+        <div className="mt-5">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Canvas color</Label>
+          <input
+            type="color"
+            value={design.backgroundColor || "#ffffff"}
+            onChange={(e) => setDesign((d) => ({ ...d, backgroundColor: e.target.value }))}
+            className="mt-1 w-full h-8 rounded border bg-transparent"
+          />
+        </div>
 
         <div className="mt-5">
           <Label className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1">
@@ -341,17 +519,16 @@ export default function CanvasEditorPage() {
         </div>
       </aside>
 
-      {/* Center stage */}
       <div className="flex-1 flex flex-col bg-muted/30 min-w-0">
-        <div className="border-b p-2 flex items-center gap-2 bg-background">
+        <div className="border-b p-2 flex flex-wrap items-center gap-2 bg-background">
           <Input
             value={design.name}
             onChange={(e) => setDesign((d) => ({ ...d, name: e.target.value }))}
-            className="h-8 max-w-xs"
+            className="h-8 max-w-[180px]"
             placeholder="Design name"
           />
           <Select value={design.canvasSize} onValueChange={(v) => v && handleSizeChange(v)}>
-            <SelectTrigger className="h-8 max-w-[220px] text-xs">
+            <SelectTrigger className="h-8 max-w-[200px] text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -363,15 +540,15 @@ export default function CanvasEditorPage() {
             </SelectContent>
           </Select>
           <Select
-            value={design.vehicleId ?? ""}
-            onValueChange={(v) => setDesign((d) => ({ ...d, vehicleId: v || null }))}
+            value={design.vehicleId ?? "__none__"}
+            onValueChange={(v) => setDesign((d) => ({ ...d, vehicleId: v && v !== "__none__" ? v : null }))}
           >
-            <SelectTrigger className="h-8 max-w-[260px] text-xs">
+            <SelectTrigger className="h-8 max-w-[220px] text-xs">
               <PaintBucket className="h-3.5 w-3.5 mr-1" />
-              <SelectValue placeholder="Bind a vehicle (optional)" />
+              <SelectValue placeholder="Bind a vehicle" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">No vehicle binding</SelectItem>
+              <SelectItem value="__none__">No vehicle binding</SelectItem>
               {vehicles.map((v) => (
                 <SelectItem key={v.id} value={v.id}>
                   {[v.year, v.make, v.model, v.trim].filter(Boolean).join(" ")}
@@ -380,6 +557,36 @@ export default function CanvasEditorPage() {
               ))}
             </SelectContent>
           </Select>
+
+          <span className="w-px h-6 bg-border" />
+
+          <Button size="icon-sm" variant="ghost" onClick={undo} title="Undo (⌘Z)">
+            <Undo2 className="h-4 w-4" />
+          </Button>
+          <Button size="icon-sm" variant="ghost" onClick={redo} title="Redo (⌘⇧Z)">
+            <Redo2 className="h-4 w-4" />
+          </Button>
+
+          <span className="w-px h-6 bg-border" />
+
+          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("left")} disabled={!selected} title="Align left">
+            <AlignStartHorizontal className="h-4 w-4" />
+          </Button>
+          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("centerH")} disabled={!selected} title="Center horizontally">
+            <AlignHorizontalJustifyCenter className="h-4 w-4" />
+          </Button>
+          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("right")} disabled={!selected} title="Align right">
+            <AlignEndHorizontal className="h-4 w-4" />
+          </Button>
+          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("top")} disabled={!selected} title="Align top">
+            <AlignStartVertical className="h-4 w-4" />
+          </Button>
+          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("centerV")} disabled={!selected} title="Center vertically">
+            <AlignVerticalJustifyCenter className="h-4 w-4" />
+          </Button>
+          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("bottom")} disabled={!selected} title="Align bottom">
+            <AlignEndVertical className="h-4 w-4" />
+          </Button>
 
           <div className="ml-auto flex gap-2">
             <Button size="sm" variant="outline" onClick={() => save("template")} disabled={saving}>
@@ -409,12 +616,12 @@ export default function CanvasEditorPage() {
               dealership={dealership}
               stageRef={stageRef}
               scale={stageScale}
+              backgroundColor={design.backgroundColor}
             />
           </div>
         </div>
       </div>
 
-      {/* Right rail: properties */}
       <aside className="w-72 border-l p-3 overflow-y-auto bg-background">
         <PropertyPanel
           selected={selected}
@@ -449,6 +656,23 @@ export default function CanvasEditorPage() {
             height: design.canvasHeight,
             rotation: 0,
           });
+        }}
+      />
+      <AIHeadlineDialog
+        open={headlineOpen}
+        onClose={() => setHeadlineOpen(false)}
+        dealership={dealership}
+        vehicle={vehicle}
+        onPick={insertHeadlineFromAI}
+      />
+      <StarterTemplatesDialog
+        open={templatesOpen}
+        onClose={() => setTemplatesOpen(false)}
+        dealership={dealership}
+        onPick={(t) => {
+          const next = templateToDesign(t, dealership);
+          setDesign((d) => ({ ...d, ...next } as Design));
+          setSelectedId(null);
         }}
       />
     </div>

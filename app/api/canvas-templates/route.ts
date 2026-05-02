@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
     vehicle_id: body.vehicle_id || null,
     elements: Array.isArray(body.elements) ? body.elements : [],
     thumbnail_url: body.thumbnail_url || null,
+    background_color: body.background_color || body.metadata?.backgroundColor || "#ffffff",
   };
   const { data, error } = await supabase.from("design_templates").insert(insert).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

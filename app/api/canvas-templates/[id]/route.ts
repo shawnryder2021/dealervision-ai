@@ -36,8 +36,12 @@ export async function PATCH(request: NextRequest, ctx: { params: Promise<{ id: s
     "canvas_height",
     "vehicle_id",
     "elements",
+    "background_color",
   ]) {
     if (key in body) updates[key] = body[key];
+  }
+  if (body.metadata?.backgroundColor && !("background_color" in updates)) {
+    updates.background_color = body.metadata.backgroundColor;
   }
   const { data, error } = await a.supabase
     .from("design_templates")
