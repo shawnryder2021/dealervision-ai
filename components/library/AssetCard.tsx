@@ -1,6 +1,7 @@
 "use client";
 
-import { Heart, Download, MoreHorizontal, Trash2, Pencil, Eye, Check, FileDown, Share2 } from "lucide-react";
+import { Heart, Download, MoreHorizontal, Trash2, Pencil, Eye, Check, FileDown, Share2, Palette } from "lucide-react";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -145,6 +146,16 @@ export function AssetCard({
                   <Eye className="h-4 w-4 mr-2" />
                   View Details
                 </DropdownMenuItem>
+                {asset.image_url && (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      window.location.href = `/dashboard/canvas/new?fromUrl=${encodeURIComponent(asset.image_url!)}`;
+                    }}
+                  >
+                    <Palette className="h-4 w-4 mr-2" />
+                    Edit in Design Studio
+                  </DropdownMenuItem>
+                )}
                 {onExportPDF && asset.image_url && (
                   <DropdownMenuItem onClick={() => onExportPDF(asset)}>
                     <FileDown className="h-4 w-4 mr-2" />

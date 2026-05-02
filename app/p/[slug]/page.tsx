@@ -21,13 +21,18 @@ export default function PublicLandingPage() {
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    const found = getLandingPage(slug);
-    if (found && found.status === "published") {
-      setPage(found);
-    } else {
-      setNotFound(true);
-    }
-    setLoading(false);
+    const timer = window.setTimeout(() => {
+      const found = getLandingPage(slug);
+      if (found && found.status === "published") {
+        setPage(found);
+        setNotFound(false);
+      } else {
+        setPage(null);
+        setNotFound(true);
+      }
+      setLoading(false);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [slug]);
 
   if (loading) {
@@ -45,12 +50,12 @@ export default function PublicLandingPage() {
         <p className="text-gray-500 mb-6">
           This landing page doesn&apos;t exist or hasn&apos;t been published yet.
         </p>
-        <a
+        <Link
           href="/"
           className="text-blue-600 hover:underline text-sm font-medium"
         >
           ← Back to home
-        </a>
+        </Link>
       </div>
     );
   }

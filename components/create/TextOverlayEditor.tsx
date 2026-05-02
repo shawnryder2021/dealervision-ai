@@ -92,6 +92,7 @@ export function TextOverlayEditor({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const inlineInputRef = useRef<HTMLInputElement>(null);
+  const layerIdRef = useRef(0);
   const [layers, setLayers] = useState<TextLayer[]>([]);
   const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -111,25 +112,38 @@ export function TextOverlayEditor({
   // Load image
   useEffect(() => {
     if (!open || !imageUrl) return;
-    setImageLoaded(false);
+    let cancelled = false;
     const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      setImgEl(img);
-      setImageLoaded(true);
+    const timer = window.setTimeout(() => {
+      setImageLoaded(false);
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        if (cancelled) return;
+        setImgEl(img);
+        setImageLoaded(true);
+      };
+      img.onerror = () => {
+        if (!cancelled) toast.error("Failed to load image");
+      };
+      img.src = imageUrl;
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
     };
-    img.onerror = () => toast.error("Failed to load image");
-    img.src = imageUrl;
   }, [open, imageUrl]);
 
   // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
-      setLayers([]);
-      setSelectedLayer(null);
-      setDragging(null);
-      setEditingInline(null);
-      setHoveredLayer(null);
+      const timer = window.setTimeout(() => {
+        setLayers([]);
+        setSelectedLayer(null);
+        setDragging(null);
+        setEditingInline(null);
+        setHoveredLayer(null);
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [open]);
 
@@ -224,8 +238,9 @@ export function TextOverlayEditor({
   }, [editingInline]);
 
   function addPreset(preset: (typeof PRESET_OVERLAYS)[number]) {
+    layerIdRef.current += 1;
     const newLayer: TextLayer = {
-      id: `layer-${Date.now()}`,
+      id: `layer-${layerIdRef.current}`,
       text: preset.text,
       x: imgEl ? imgEl.width / 2 : 300,
       y: imgEl ? imgEl.height * 0.8 : 400,

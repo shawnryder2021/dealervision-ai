@@ -13,7 +13,8 @@ export default function ShowroomLandingPage() {
   const [origin, setOrigin] = useState("");
 
   useEffect(() => {
-    if (typeof window !== "undefined") setOrigin(window.location.origin);
+    const timer = window.setTimeout(() => setOrigin(window.location.origin), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const url = useMemo(

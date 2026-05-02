@@ -56,7 +56,7 @@ export default function ImportFromURLPage() {
     setStep(s);
   };
 
-  const handleDetect = async (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleDetect = async (e: React.MouseEvent<HTMLButtonElement> | React.KeyboardEvent<HTMLInputElement>) => {
     e.preventDefault();
 
     if (!sourceUrl.trim()) {
@@ -135,7 +135,7 @@ export default function ImportFromURLPage() {
       <div>
         <h1 className="text-3xl font-bold">Import from URL</h1>
         <p className="text-gray-600 mt-2">
-          Enter your dealership inventory URL and we'll automatically detect and import
+          Enter your dealership inventory URL and we&apos;ll automatically detect and import
           your vehicles.
         </p>
       </div>
@@ -192,11 +192,11 @@ export default function ImportFromURLPage() {
               placeholder="https://example.com/inventory"
               value={sourceUrl}
               onChange={(e) => setSourceUrl(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && !isDetecting && handleDetect(e as any)}
+              onKeyDown={(e) => e.key === "Enter" && !isDetecting && handleDetect(e)}
               className="mt-2 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <p className="text-sm text-gray-500 mt-2">
-              Enter the direct URL to your dealer inventory page (e.g., your website's
+              Enter the direct URL to your dealer inventory page (e.g., your website&apos;s
               inventory listing).
             </p>
           </div>

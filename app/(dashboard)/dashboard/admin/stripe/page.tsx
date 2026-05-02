@@ -298,7 +298,7 @@ export default function StripeConfigPage() {
             <h4 className="font-medium mb-2">2. Register Webhook Endpoint</h4>
             <ol className="list-decimal list-inside space-y-1 text-muted-foreground ml-2">
               <li>Navigate to Webhooks in Stripe Dashboard</li>
-              <li>Click "Add Endpoint"</li>
+              <li>Click &quot;Add Endpoint&quot;</li>
               <li>
                 URL: <code className="bg-muted px-2 py-1 rounded text-xs">
                   https://yourdomain.com/api/stripe/webhooks
@@ -312,7 +312,7 @@ export default function StripeConfigPage() {
           <div>
             <h4 className="font-medium mb-2">3. Test & Deploy</h4>
             <ol className="list-decimal list-inside space-y-1 text-muted-foreground ml-2">
-              <li>Click "Test Connection" above to verify keys</li>
+              <li>Click &quot;Test Connection&quot; above to verify keys</li>
               <li>For production: Switch to live mode in Stripe Dashboard and get live keys</li>
               <li>Update environment variables on your hosting platform</li>
             </ol>

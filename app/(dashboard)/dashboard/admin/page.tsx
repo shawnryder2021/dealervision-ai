@@ -13,6 +13,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { ComponentType } from "react";
 
 interface AdminStats {
   total_dealerships: number;
@@ -36,7 +37,7 @@ const StatCard = ({
   subtext,
   loading,
 }: {
-  icon: any;
+  icon: ComponentType<{ className?: string }>;
   label: string;
   value: string | number;
   subtext?: string;

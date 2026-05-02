@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Car, Plus, Search, Edit, Trash2, Eye, Upload, QrCode, FileText, ScrollText } from "lucide-react";
 import { buildWindowSticker, buildBuyersGuide } from "@/lib/pdf-stickers";
@@ -62,15 +62,7 @@ export default function VehiclesPage() {
     status: "available" as Vehicle["status"],
   });
 
-  useEffect(() => {
-    if (isDemoMode()) {
-      setVehicles(storeVehicles);
-      return;
-    }
-    loadVehicles();
-  }, [dealership, storeVehicles]);
-
-  async function loadVehicles() {
+  const loadVehicles = useCallback(async () => {
     if (!dealership) return;
     const supabase = createClient();
     const { data } = await supabase
@@ -79,7 +71,18 @@ export default function VehiclesPage() {
       .eq("dealership_id", dealership.id)
       .order("created_at", { ascending: false });
     if (data) setVehicles(data);
-  }
+  }, [dealership]);
+
+  useEffect(() => {
+    if (isDemoMode()) {
+      const timer = window.setTimeout(() => setVehicles(storeVehicles), 0);
+      return () => window.clearTimeout(timer);
+    }
+    const timer = window.setTimeout(() => {
+      loadVehicles();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [dealership, storeVehicles, loadVehicles]);
 
   async function handleAdd() {
     if (!dealership) return;

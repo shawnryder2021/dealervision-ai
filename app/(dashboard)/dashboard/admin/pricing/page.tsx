@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Zap, Rocket, Building2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import type { ComponentType } from "react";
 
 interface Plan {
   id: string;
@@ -24,7 +25,7 @@ interface Plan {
   created_at: string;
 }
 
-const PLAN_ICONS: Record<string, any> = {
+const PLAN_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   starter: Zap,
   professional: Rocket,
   enterprise: Building2,

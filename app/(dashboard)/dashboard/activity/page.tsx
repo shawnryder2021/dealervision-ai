@@ -85,6 +85,7 @@ export default function ActivityPage() {
   const [filter, setFilter] = useState<FilterType>("all");
   const [userFilter, setUserFilter] = useState<string>("all");
   const [showCount, setShowCount] = useState(30);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (!dealership) return;
@@ -103,6 +104,11 @@ export default function ActivityPage() {
       cancelled = true;
     };
   }, [dealership]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 60000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   // Unique users
   const users = useMemo(() => {
@@ -148,7 +154,7 @@ export default function ActivityPage() {
     (e) => formatDate(e.created_at) === "Today"
   ).length;
   const weekCount = events.filter(
-    (e) => Date.now() - new Date(e.created_at).getTime() < 7 * 86400000
+    (e) => now - new Date(e.created_at).getTime() < 7 * 86400000
   ).length;
 
   function renderEventDetail(event: ActivityEvent) {

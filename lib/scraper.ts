@@ -374,7 +374,7 @@ function extractVehicleFromItem(
   fieldMapping?: Record<string, string>
 ): ScrapedVehicle {
   // Strategy 1: Field mapping (explicit CSS selectors from user)
-  let mappingData: Partial<ScrapedVehicle> = {};
+  const mappingData: Partial<ScrapedVehicle> = {};
   if (fieldMapping && Object.keys(fieldMapping).length > 0) {
     for (const [field, selector] of Object.entries(fieldMapping)) {
       const val = $(selector, item).first().text().trim();

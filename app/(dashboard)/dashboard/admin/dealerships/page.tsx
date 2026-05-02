@@ -17,6 +17,7 @@ import { Building2, TrendingUp, Wand2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
+import type { Dealership } from "@/lib/types";
 
 interface DealershipData {
   id: string;
@@ -33,7 +34,7 @@ interface DealershipData {
     social_posts_published: number;
   };
   // Full dealership record returned by the admin API (bypasses RLS)
-  dealership_record: Record<string, any>;
+  dealership_record: Dealership;
 }
 
 const statusColors: Record<string, string> = {
@@ -79,8 +80,8 @@ export default function DealershipsPage() {
 
     // Stash own dealership, switch to client
     setOwnDealership(currentDealership);
-    setAdminActiveDealership(fullDealership as any);
-    setDealership(fullDealership as any);
+    setAdminActiveDealership(fullDealership);
+    setDealership(fullDealership);
     toast.success(`Now working as: ${fullDealership.name}`);
     router.push("/dashboard");
   };

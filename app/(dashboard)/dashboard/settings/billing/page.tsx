@@ -320,7 +320,7 @@ function BillingContent() {
             </div>
             <p className="text-xs text-muted-foreground mt-3">
               Plan changes take effect immediately. Prorated amounts are applied to your next invoice.
-              Use "Manage subscription" to change plans via the Stripe portal.
+              Use &quot;Manage subscription&quot; to change plans via the Stripe portal.
             </p>
           </CardContent>
         </Card>

@@ -30,7 +30,6 @@ import {
 } from "@/lib/templates";
 import type { Template } from "@/lib/templates";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 // === Template Gallery (shown on /dashboard/create) ===
 export function TemplateGallery() {
@@ -39,7 +38,8 @@ export function TemplateGallery() {
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
-    setTemplates(getTemplates());
+    const timer = window.setTimeout(() => setTemplates(getTemplates()), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   function handleUse(template: Template) {
@@ -173,14 +173,17 @@ export function SaveTemplateDialog({
 
   useEffect(() => {
     if (open) {
-      const typeInfo = CONTENT_TYPES.find((t) => t.id === defaults.contentType);
-      const channelInfo = CHANNEL_PRESETS.find(
-        (c) => c.id === defaults.channel
-      );
-      setName(
-        `${typeInfo?.name || defaults.contentType} — ${channelInfo?.name || defaults.channel}`
-      );
-      setDescription("");
+      const timer = window.setTimeout(() => {
+        const typeInfo = CONTENT_TYPES.find((t) => t.id === defaults.contentType);
+        const channelInfo = CHANNEL_PRESETS.find(
+          (c) => c.id === defaults.channel
+        );
+        setName(
+          `${typeInfo?.name || defaults.contentType} — ${channelInfo?.name || defaults.channel}`
+        );
+        setDescription("");
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [open, defaults]);
 

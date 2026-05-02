@@ -400,7 +400,7 @@ export function Step5Complete({ onComplete, isLoading }: { onComplete: () => voi
       <div>
         <h2 className="font-heading text-xl font-bold mb-1">Step 5 of 5 — Ready to Go!</h2>
         <p className="text-sm text-muted-foreground mt-2">
-          Your account is ready. Let's create your first marketing visual.
+          Your account is ready. Let&apos;s create your first marketing visual.
         </p>
       </div>
 

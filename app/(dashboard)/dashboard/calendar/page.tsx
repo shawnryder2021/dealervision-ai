@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   CalendarDays,
   ChevronLeft,
@@ -124,9 +124,9 @@ export default function CalendarPage() {
   const [formNotes, setFormNotes] = useState("");
   const [formStatus, setFormStatus] = useState<"planned" | "created" | "published">("planned");
 
-  // Load planned content
   useEffect(() => {
-    setPlanned(getPlannedContent());
+    const timer = window.setTimeout(() => setPlanned(getPlannedContent()), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   // ── Pre-computed asset map by date ──────────────────────────────────
@@ -160,13 +160,13 @@ export default function CalendarPage() {
   );
 
   // ── Navigation ──────────────────────────────────────────────────────
-  const goToday = useCallback(() => {
+  function goToday() {
     setViewYear(today.getFullYear());
     setViewMonth(today.getMonth());
     setSelectedDate(toDateKey(today));
-  }, []);
+  }
 
-  const goPrev = useCallback(() => {
+  function goPrev() {
     setViewMonth((prev) => {
       if (prev === 0) {
         setViewYear((y) => y - 1);
@@ -174,9 +174,9 @@ export default function CalendarPage() {
       }
       return prev - 1;
     });
-  }, []);
+  }
 
-  const goNext = useCallback(() => {
+  function goNext() {
     setViewMonth((prev) => {
       if (prev === 11) {
         setViewYear((y) => y + 1);
@@ -184,7 +184,7 @@ export default function CalendarPage() {
       }
       return prev + 1;
     });
-  }, []);
+  }
 
   // ── Plan content dialog ─────────────────────────────────────────────
   function openPlanDialog(dateStr?: string) {

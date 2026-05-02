@@ -24,6 +24,7 @@ export const FEATURE_FLAG_KEYS = [
   "reviewReply",
   "recalls",
   "showroomTv",
+  "canvasEditor",
 ] as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[number];
@@ -55,6 +56,7 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   reviewReply: true,
   recalls: true,
   showroomTv: true,
+  canvasEditor: true,
 };
 
 export const FEATURE_FLAG_LABELS: Record<FeatureFlagKey, string> = {
@@ -83,6 +85,7 @@ export const FEATURE_FLAG_LABELS: Record<FeatureFlagKey, string> = {
   reviewReply: "Review Reply",
   recalls: "NHTSA Recalls",
   showroomTv: "Showroom TV Mode",
+  canvasEditor: "Design Studio (Canvas)",
 };
 
 export function normalizeFeatureFlags(raw: unknown): FeatureFlags {

@@ -158,7 +158,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             vehicle.vin || vehicle.stock_number || `${vehicle.make}-${vehicle.model}-${i}`;
 
           // Check if this vehicle already exists from this source
-          let importRecord = await getImportRecord(sourceData.id, externalId);
+          const importRecord = await getImportRecord(sourceData.id, externalId);
 
           // Insert or update vehicle
           const vehicleData = {
