@@ -10,6 +10,7 @@ export interface BaseElement {
   rotation: number; // degrees
   opacity?: number; // 0..1
   locked?: boolean;
+  visible?: boolean; // default true
   name?: string; // optional layer label
 }
 

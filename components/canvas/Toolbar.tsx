@@ -1,22 +1,24 @@
 "use client";
 
-import { Type, Square, Circle as CircleIcon, Star as StarIcon, Image as ImageIcon, QrCode, Palette, Sparkles } from "lucide-react";
+import { Type, Square, Circle as CircleIcon, Star as StarIcon, Image as ImageIcon, QrCode, Palette, Sparkles, Building2, Car as CarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { newId, type CanvasElement } from "@/lib/canvas/types";
-import type { Dealership } from "@/lib/types";
+import type { Dealership, Vehicle } from "@/lib/types";
 
 interface Props {
   dealership: Dealership | null;
+  vehicle: Vehicle | null;
   canvasWidth: number;
   canvasHeight: number;
   onAdd: (el: CanvasElement | CanvasElement[]) => void;
   onOpenBadges: () => void;
   onOpenLibrary: () => void;
+  onOpenVehiclePhotos: () => void;
   onUpload: (file: File) => void;
 }
 
-export function Toolbar({ dealership, canvasWidth, canvasHeight, onAdd, onOpenBadges, onOpenLibrary, onUpload }: Props) {
+export function Toolbar({ dealership, vehicle, canvasWidth, canvasHeight, onAdd, onOpenBadges, onOpenLibrary, onOpenVehiclePhotos, onUpload }: Props) {
   const cx = canvasWidth / 2;
   const cy = canvasHeight / 2;
   const colors = dealership?.brand_colors;
@@ -55,6 +57,22 @@ export function Toolbar({ dealership, canvasWidth, canvasHeight, onAdd, onOpenBa
       cornerRadius: shape === "rect" ? 12 : undefined,
       numPoints: shape === "star" ? 5 : undefined,
       innerRadius: shape === "star" ? 0.45 : undefined,
+    });
+  };
+
+  const addLogo = () => {
+    const url = dealership?.logo_url;
+    if (!url) return;
+    onAdd({
+      id: newId(),
+      type: "image",
+      src: url,
+      x: 60,
+      y: 60,
+      width: 280,
+      height: 100,
+      rotation: 0,
+      name: "Dealer logo",
     });
   };
 
@@ -111,6 +129,16 @@ export function Toolbar({ dealership, canvasWidth, canvasHeight, onAdd, onOpenBa
           <Button variant="ghost" size="sm" className="justify-start" onClick={onOpenLibrary}>
             <ImageIcon className="h-4 w-4 mr-2" /> From Library
           </Button>
+          {dealership?.logo_url && (
+            <Button variant="ghost" size="sm" className="justify-start" onClick={addLogo}>
+              <Building2 className="h-4 w-4 mr-2" /> Dealer logo
+            </Button>
+          )}
+          {vehicle && (vehicle.photos?.length ?? 0) > 0 && (
+            <Button variant="ghost" size="sm" className="justify-start" onClick={onOpenVehiclePhotos}>
+              <CarIcon className="h-4 w-4 mr-2" /> Vehicle photos ({vehicle.photos.length})
+            </Button>
+          )}
           <label className="flex items-center text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-md px-2 py-1 cursor-pointer">
             <ImageIcon className="h-4 w-4 mr-2 opacity-70" /> Upload…
             <input

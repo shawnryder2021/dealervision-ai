@@ -48,7 +48,9 @@ export default function CanvasGalleryPage() {
     }
   };
 
-  const filtered = filter === "all" ? designs : designs.filter((d) => d.kind === filter);
+  // Exclude custom badges from the main gallery — they live inside the editor's badge picker.
+  const visible = designs.filter((d) => d.kind !== ("badge" as typeof d.kind));
+  const filtered = filter === "all" ? visible : visible.filter((d) => d.kind === filter);
 
   return (
     <div className="space-y-6">

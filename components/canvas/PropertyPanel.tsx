@@ -9,6 +9,8 @@ import {
   Italic,
   ChevronUp,
   ChevronDown,
+  ChevronsUp,
+  ChevronsDown,
   Trash2,
   Copy,
   Lock,
@@ -37,7 +39,7 @@ interface Props {
   onChange: (patch: Partial<CanvasElement>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
-  onMoveLayer: (direction: "up" | "down") => void;
+  onMoveLayer: (direction: "up" | "down" | "front" | "back") => void;
 }
 
 export function PropertyPanel({ selected, dealership, onChange, onDelete, onDuplicate, onMoveLayer }: Props) {
@@ -69,11 +71,17 @@ export function PropertyPanel({ selected, dealership, onChange, onDelete, onDupl
       <div className="flex justify-between items-center">
         <span className="text-xs uppercase tracking-wider text-muted-foreground">{selected.type}</span>
         <div className="flex gap-1">
-          <Button size="icon-xs" variant="ghost" onClick={() => onMoveLayer("up")} title="Bring forward">
+          <Button size="icon-xs" variant="ghost" onClick={() => onMoveLayer("front")} title="Bring to front (⌘⇧])">
+            <ChevronsUp className="h-3.5 w-3.5" />
+          </Button>
+          <Button size="icon-xs" variant="ghost" onClick={() => onMoveLayer("up")} title="Bring forward (⌘])">
             <ChevronUp className="h-3.5 w-3.5" />
           </Button>
-          <Button size="icon-xs" variant="ghost" onClick={() => onMoveLayer("down")} title="Send backward">
+          <Button size="icon-xs" variant="ghost" onClick={() => onMoveLayer("down")} title="Send backward (⌘[)">
             <ChevronDown className="h-3.5 w-3.5" />
+          </Button>
+          <Button size="icon-xs" variant="ghost" onClick={() => onMoveLayer("back")} title="Send to back (⌘⇧[)">
+            <ChevronsDown className="h-3.5 w-3.5" />
           </Button>
           <Button size="icon-xs" variant="ghost" onClick={onDuplicate} title="Duplicate">
             <Copy className="h-3.5 w-3.5" />

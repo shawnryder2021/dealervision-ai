@@ -21,6 +21,11 @@ import {
   AlignEndVertical,
   Sparkles,
   Wand2,
+  Grid3x3,
+  ScanSearch,
+  Maximize2,
+  BadgeCheck,
+  Trash2,
 } from "lucide-react";
 import type Konva from "konva";
 import { Button } from "@/components/ui/button";
@@ -41,6 +46,8 @@ import { BadgePicker } from "@/components/canvas/BadgePicker";
 import { AssetPickerDialog } from "@/components/canvas/AssetPickerDialog";
 import { AIHeadlineDialog } from "@/components/canvas/AIHeadlineDialog";
 import { StarterTemplatesDialog } from "@/components/canvas/StarterTemplatesDialog";
+import { LayerPanel } from "@/components/canvas/LayerPanel";
+import { VehiclePhotoPicker } from "@/components/canvas/VehiclePhotoPicker";
 import { templateToDesign, STARTER_TEMPLATES } from "@/lib/canvas/starter-templates";
 import type { Vehicle } from "@/lib/types";
 import { toast } from "sonner";
@@ -73,11 +80,15 @@ export default function CanvasEditorPage() {
   const { dealership, vehicles } = useAppStore();
   const [design, setDesignState] = useState<Design>(DEFAULT_DESIGN);
   const [designId, setDesignId] = useState<string | null>(isNew ? null : id);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [badgeOpen, setBadgeOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [headlineOpen, setHeadlineOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [vehiclePhotosOpen, setVehiclePhotosOpen] = useState(false);
+  const [showGrid, setShowGrid] = useState(false);
+  const [showThirds, setShowThirds] = useState(false);
+  const [showSafe, setShowSafe] = useState(false);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(!isNew);
@@ -85,10 +96,9 @@ export default function CanvasEditorPage() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [stageScale, setStageScale] = useState(1);
 
-  // Undo/redo history
   const historyRef = useRef<Design[]>([]);
   const futureRef = useRef<Design[]>([]);
-  const skipHistoryRef = useRef(true); // first set after load shouldn't push history
+  const skipHistoryRef = useRef(true);
 
   const setDesign = useCallback((updater: Design | ((d: Design) => Design)) => {
     setDesignState((prev) => {
@@ -126,7 +136,6 @@ export default function CanvasEditorPage() {
     [design.vehicleId, vehicles]
   );
 
-  // Load existing design or initialize from query params / starter template
   useEffect(() => {
     if (isNew) {
       const fromUrl = searchParams.get("fromUrl");
@@ -154,6 +163,7 @@ export default function CanvasEditorPage() {
               width: prev.canvasWidth,
               height: prev.canvasHeight,
               rotation: 0,
+              name: "Background",
             } as CanvasElement,
           ],
         }));
@@ -185,7 +195,6 @@ export default function CanvasEditorPage() {
       .finally(() => setLoading(false));
   }, [id, isNew, searchParams, dealership]);
 
-  // Fit canvas to container
   useEffect(() => {
     const fit = () => {
       const el = containerRef.current;
@@ -214,48 +223,72 @@ export default function CanvasEditorPage() {
     (els: CanvasElement | CanvasElement[]) => {
       const arr = Array.isArray(els) ? els : [els];
       setDesign((d) => ({ ...d, elements: [...d.elements, ...arr] }));
-      if (arr.length === 1) setSelectedId(arr[0].id);
+      if (arr.length === 1) setSelectedIds([arr[0].id]);
     },
     [setDesign]
   );
 
+  const handleSelect = useCallback((id: string | null, additive = false) => {
+    if (id === null) {
+      setSelectedIds([]);
+      return;
+    }
+    if (additive) {
+      setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    } else {
+      setSelectedIds([id]);
+    }
+  }, []);
+
   const selected = useMemo(
-    () => design.elements.find((el) => el.id === selectedId) || null,
-    [design.elements, selectedId]
+    () => (selectedIds.length === 1 ? design.elements.find((el) => el.id === selectedIds[0]) || null : null),
+    [design.elements, selectedIds]
   );
 
   const updateSelected = (patch: Partial<CanvasElement>) => {
-    if (!selectedId) return;
+    if (selectedIds.length === 0) return;
     setDesign((d) => ({
       ...d,
       elements: d.elements.map((el) =>
-        el.id === selectedId ? ({ ...el, ...patch } as CanvasElement) : el
+        selectedIds.includes(el.id) ? ({ ...el, ...patch } as CanvasElement) : el
       ),
     }));
   };
 
   const deleteSelected = useCallback(() => {
-    if (!selectedId) return;
-    setDesign((d) => ({ ...d, elements: d.elements.filter((el) => el.id !== selectedId) }));
-    setSelectedId(null);
-  }, [selectedId, setDesign]);
+    if (selectedIds.length === 0) return;
+    setDesign((d) => ({ ...d, elements: d.elements.filter((el) => !selectedIds.includes(el.id)) }));
+    setSelectedIds([]);
+  }, [selectedIds, setDesign]);
 
   const duplicateSelected = useCallback(() => {
-    if (!selected) return;
-    const copy: CanvasElement = { ...selected, id: newId(), x: selected.x + 20, y: selected.y + 20 };
-    setDesign((d) => ({ ...d, elements: [...d.elements, copy] }));
-    setSelectedId(copy.id);
-  }, [selected, setDesign]);
-
-  const moveLayer = (direction: "up" | "down") => {
-    if (!selectedId) return;
+    if (selectedIds.length === 0) return;
+    const newSet: string[] = [];
     setDesign((d) => {
-      const idx = d.elements.findIndex((el) => el.id === selectedId);
+      const copies = d.elements
+        .filter((el) => selectedIds.includes(el.id))
+        .map((el) => {
+          const copy: CanvasElement = { ...el, id: newId(), x: el.x + 20, y: el.y + 20 };
+          newSet.push(copy.id);
+          return copy;
+        });
+      return { ...d, elements: [...d.elements, ...copies] };
+    });
+    setTimeout(() => setSelectedIds(newSet), 0);
+  }, [selectedIds, setDesign]);
+
+  const moveLayer = (direction: "up" | "down" | "front" | "back") => {
+    if (selectedIds.length !== 1) return;
+    const id = selectedIds[0];
+    setDesign((d) => {
+      const idx = d.elements.findIndex((el) => el.id === id);
       if (idx < 0) return d;
       const arr = [...d.elements];
-      const swap = direction === "up" ? idx + 1 : idx - 1;
-      if (swap < 0 || swap >= arr.length) return d;
-      [arr[idx], arr[swap]] = [arr[swap], arr[idx]];
+      const [item] = arr.splice(idx, 1);
+      if (direction === "front") arr.push(item);
+      else if (direction === "back") arr.unshift(item);
+      else if (direction === "up") arr.splice(Math.min(idx + 1, arr.length), 0, item);
+      else arr.splice(Math.max(idx - 1, 0), 0, item);
       return { ...d, elements: arr };
     });
   };
@@ -287,7 +320,32 @@ export default function CanvasEditorPage() {
     setDesign((d) => ({ ...d, canvasSize: sizeId, canvasWidth: preset.width, canvasHeight: preset.height }));
   };
 
-  const persistBody = (kind: "draft" | "template") => ({
+  // Resize the canvas AND re-flow elements proportionally to the new dimensions
+  const resizeAndScale = (sizeId: string) => {
+    const preset = CANVAS_SIZE_PRESETS.find((p) => p.id === sizeId);
+    if (!preset) return;
+    setDesign((d) => {
+      const sx = preset.width / d.canvasWidth;
+      const sy = preset.height / d.canvasHeight;
+      return {
+        ...d,
+        canvasSize: sizeId,
+        canvasWidth: preset.width,
+        canvasHeight: preset.height,
+        elements: d.elements.map((el) => ({
+          ...el,
+          x: el.x * sx,
+          y: el.y * sy,
+          width: el.width * sx,
+          height: el.height * sy,
+          ...(el.type === "text" ? { fontSize: (el as { fontSize: number }).fontSize * Math.min(sx, sy) } : {}),
+        })),
+      };
+    });
+    toast.success("Resized and scaled to " + preset.label);
+  };
+
+  const persistBody = (kind: "draft" | "template" | "badge") => ({
     name: design.name,
     kind,
     canvas_size: design.canvasSize,
@@ -329,6 +387,35 @@ export default function CanvasEditorPage() {
     }
   };
 
+  const saveSelectionAsBadge = async () => {
+    if (selectedIds.length === 0) {
+      toast.error("Select one or more elements first");
+      return;
+    }
+    const name = window.prompt("Name this badge:", "My custom badge");
+    if (!name) return;
+    const els = design.elements.filter((el) => selectedIds.includes(el.id));
+    try {
+      const res = await fetch("/api/canvas-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          kind: "badge",
+          canvas_size: design.canvasSize,
+          canvas_width: design.canvasWidth,
+          canvas_height: design.canvasHeight,
+          elements: els,
+          background_color: design.backgroundColor || "#ffffff",
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed");
+      toast.success("Saved as reusable badge");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
   const exportPNG = async () => {
     if (!stageRef.current) return;
     setExporting(true);
@@ -338,10 +425,8 @@ export default function CanvasEditorPage() {
       let dataUrl: string;
       try {
         dataUrl = stageRef.current.toDataURL({ pixelRatio: 2 });
-      } catch (e) {
-        throw new Error(
-          "Export blocked by image CORS. Re-add any external images via the Library or Upload action so they go through the proxy."
-        );
+      } catch (_e) {
+        throw new Error("Export blocked by image CORS. Re-add any external images via the Library or Upload action.");
       }
       if (!finalId) throw new Error("No design id");
       const res = await fetch(`/api/canvas-templates/${finalId}/export`, {
@@ -360,27 +445,30 @@ export default function CanvasEditorPage() {
     }
   };
 
-  // Alignment helpers
   const alignSelected = (action: "left" | "right" | "centerH" | "top" | "bottom" | "centerV") => {
-    if (!selected) return;
+    if (selectedIds.length === 0) return;
     const W = design.canvasWidth;
     const H = design.canvasHeight;
-    const patch: Partial<CanvasElement> = {};
-    if (action === "left") patch.x = 0;
-    if (action === "right") patch.x = W - selected.width;
-    if (action === "centerH") patch.x = (W - selected.width) / 2;
-    if (action === "top") patch.y = 0;
-    if (action === "bottom") patch.y = H - selected.height;
-    if (action === "centerV") patch.y = (H - selected.height) / 2;
-    updateSelected(patch);
+    setDesign((d) => ({
+      ...d,
+      elements: d.elements.map((el) => {
+        if (!selectedIds.includes(el.id)) return el;
+        const patch: Partial<CanvasElement> = {};
+        if (action === "left") patch.x = 0;
+        if (action === "right") patch.x = W - el.width;
+        if (action === "centerH") patch.x = (W - el.width) / 2;
+        if (action === "top") patch.y = 0;
+        if (action === "bottom") patch.y = H - el.height;
+        if (action === "centerV") patch.y = (H - el.height) / 2;
+        return { ...el, ...patch } as CanvasElement;
+      }),
+    }));
   };
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      const isTyping =
-        target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+      const isTyping = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
       if (isTyping) return;
 
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
@@ -404,29 +492,49 @@ export default function CanvasEditorPage() {
         save("draft");
         return;
       }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        setSelectedIds(design.elements.map((el) => el.id));
+        return;
+      }
+      if (e.key === "]" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        moveLayer(e.shiftKey ? "front" : "up");
+        return;
+      }
+      if (e.key === "[" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        moveLayer(e.shiftKey ? "back" : "down");
+        return;
+      }
       if (e.key === "Delete" || e.key === "Backspace") {
-        if (selectedId) {
+        if (selectedIds.length > 0) {
           e.preventDefault();
           deleteSelected();
         }
         return;
       }
       if (e.key === "Escape") {
-        setSelectedId(null);
+        setSelectedIds([]);
         return;
       }
-      // Arrow nudging
-      if (selectedId && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
+      if (selectedIds.length > 0 && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
         e.preventDefault();
         const step = e.shiftKey ? 20 : 2;
         const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
         const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
-        updateSelected({ x: selected!.x + dx, y: selected!.y + dy });
+        setDesign((d) => ({
+          ...d,
+          elements: d.elements.map((el) =>
+            selectedIds.includes(el.id) ? ({ ...el, x: el.x + dx, y: el.y + dy } as CanvasElement) : el
+          ),
+        }));
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [selectedId, selected, undo, redo, deleteSelected, duplicateSelected]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIds, design.elements]);
 
   const insertHeadlineFromAI = (text: string) => {
     addElements({
@@ -463,11 +571,13 @@ export default function CanvasEditorPage() {
         </Button>
         <Toolbar
           dealership={dealership}
+          vehicle={vehicle}
           canvasWidth={design.canvasWidth}
           canvasHeight={design.canvasHeight}
           onAdd={addElements}
           onOpenBadges={() => setBadgeOpen(true)}
           onOpenLibrary={() => setLibraryOpen(true)}
+          onOpenVehiclePhotos={() => setVehiclePhotosOpen(true)}
           onUpload={handleUpload}
         />
 
@@ -477,6 +587,15 @@ export default function CanvasEditorPage() {
           </Button>
           <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => setTemplatesOpen(true)}>
             <Wand2 className="h-4 w-4 mr-2" /> Starter templates
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            onClick={saveSelectionAsBadge}
+            disabled={selectedIds.length === 0}
+          >
+            <BadgeCheck className="h-4 w-4 mr-2" /> Save selection as badge
           </Button>
         </div>
 
@@ -490,32 +609,35 @@ export default function CanvasEditorPage() {
           />
         </div>
 
+        <div className="mt-4">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Overlays</Label>
+          <div className="grid grid-cols-3 gap-1 mt-1">
+            <Button size="sm" variant={showGrid ? "default" : "ghost"} onClick={() => setShowGrid((v) => !v)} title="50px grid">
+              <Grid3x3 className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="sm" variant={showThirds ? "default" : "ghost"} onClick={() => setShowThirds((v) => !v)} title="Rule of thirds">
+              <ScanSearch className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="sm" variant={showSafe ? "default" : "ghost"} onClick={() => setShowSafe((v) => !v)} title="Safe area">
+              <Maximize2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+
         <div className="mt-5">
           <Label className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1">
             <Layers className="h-3 w-3" /> Layers ({design.elements.length})
           </Label>
-          <div className="mt-1 space-y-0.5 max-h-72 overflow-y-auto">
-            {design.elements
-              .slice()
-              .reverse()
-              .map((el) => (
-                <button
-                  key={el.id}
-                  onClick={() => setSelectedId(el.id)}
-                  className={`w-full text-left px-2 py-1 text-xs rounded ${
-                    selectedId === el.id ? "bg-primary/10 text-primary" : "hover:bg-muted"
-                  }`}
-                >
-                  {el.type === "text"
-                    ? `T ${(el as { text: string }).text.slice(0, 20)}`
-                    : el.type === "image"
-                    ? "Image"
-                    : el.type === "qr"
-                    ? "QR"
-                    : `Shape (${(el as { shape: string }).shape})`}
-                </button>
-              ))}
-          </div>
+          <LayerPanel
+            elements={design.elements}
+            selectedIds={selectedIds}
+            onSelect={handleSelect}
+            onChange={updateElements}
+            onDelete={(id) => {
+              setDesign((d) => ({ ...d, elements: d.elements.filter((el) => el.id !== id) }));
+              setSelectedIds((prev) => prev.filter((x) => x !== id));
+            }}
+          />
         </div>
       </aside>
 
@@ -535,6 +657,19 @@ export default function CanvasEditorPage() {
               {CANVAS_SIZE_PRESETS.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.label} · {p.width}×{p.height}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value="" onValueChange={(v) => v && resizeAndScale(v)}>
+            <SelectTrigger className="h-8 max-w-[180px] text-xs" title="Resize and re-flow elements">
+              <Maximize2 className="h-3.5 w-3.5 mr-1" />
+              <SelectValue placeholder="Resize & rescale" />
+            </SelectTrigger>
+            <SelectContent>
+              {CANVAS_SIZE_PRESETS.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  → {p.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -569,24 +704,28 @@ export default function CanvasEditorPage() {
 
           <span className="w-px h-6 bg-border" />
 
-          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("left")} disabled={!selected} title="Align left">
+          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("left")} disabled={selectedIds.length === 0}>
             <AlignStartHorizontal className="h-4 w-4" />
           </Button>
-          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("centerH")} disabled={!selected} title="Center horizontally">
+          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("centerH")} disabled={selectedIds.length === 0}>
             <AlignHorizontalJustifyCenter className="h-4 w-4" />
           </Button>
-          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("right")} disabled={!selected} title="Align right">
+          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("right")} disabled={selectedIds.length === 0}>
             <AlignEndHorizontal className="h-4 w-4" />
           </Button>
-          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("top")} disabled={!selected} title="Align top">
+          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("top")} disabled={selectedIds.length === 0}>
             <AlignStartVertical className="h-4 w-4" />
           </Button>
-          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("centerV")} disabled={!selected} title="Center vertically">
+          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("centerV")} disabled={selectedIds.length === 0}>
             <AlignVerticalJustifyCenter className="h-4 w-4" />
           </Button>
-          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("bottom")} disabled={!selected} title="Align bottom">
+          <Button size="icon-sm" variant="ghost" onClick={() => alignSelected("bottom")} disabled={selectedIds.length === 0}>
             <AlignEndVertical className="h-4 w-4" />
           </Button>
+
+          {selectedIds.length > 1 && (
+            <span className="text-xs text-muted-foreground ml-1">{selectedIds.length} selected</span>
+          )}
 
           <div className="ml-auto flex gap-2">
             <Button size="sm" variant="outline" onClick={() => save("template")} disabled={saving}>
@@ -609,28 +748,48 @@ export default function CanvasEditorPage() {
               width={design.canvasWidth}
               height={design.canvasHeight}
               elements={design.elements}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
+              selectedIds={selectedIds}
+              onSelect={handleSelect}
               onChange={updateElements}
               vehicle={vehicle}
               dealership={dealership}
               stageRef={stageRef}
               scale={stageScale}
               backgroundColor={design.backgroundColor}
+              showGrid={showGrid}
+              showSafeArea={showSafe}
+              showThirds={showThirds}
             />
           </div>
         </div>
       </div>
 
       <aside className="w-72 border-l p-3 overflow-y-auto bg-background">
-        <PropertyPanel
-          selected={selected}
-          dealership={dealership}
-          onChange={updateSelected}
-          onDelete={deleteSelected}
-          onDuplicate={duplicateSelected}
-          onMoveLayer={moveLayer}
-        />
+        {selectedIds.length > 1 ? (
+          <div className="space-y-3 text-sm">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">{selectedIds.length} elements selected</p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button size="sm" variant="outline" onClick={duplicateSelected}>
+                Duplicate
+              </Button>
+              <Button size="sm" variant="outline" onClick={deleteSelected}>
+                <Trash2 className="h-3.5 w-3.5 mr-1 text-destructive" /> Delete all
+              </Button>
+              <Button size="sm" variant="outline" onClick={saveSelectionAsBadge} className="col-span-2">
+                <BadgeCheck className="h-3.5 w-3.5 mr-1" /> Save as badge
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <PropertyPanel
+            selected={selected}
+            dealership={dealership}
+            onChange={updateSelected}
+            onDelete={deleteSelected}
+            onDuplicate={duplicateSelected}
+            onMoveLayer={(d) => moveLayer(d)}
+          />
+        )}
       </aside>
 
       <BadgePicker
@@ -655,6 +814,25 @@ export default function CanvasEditorPage() {
             width: design.canvasWidth,
             height: design.canvasHeight,
             rotation: 0,
+            name: "Background",
+          });
+        }}
+      />
+      <VehiclePhotoPicker
+        open={vehiclePhotosOpen}
+        onClose={() => setVehiclePhotosOpen(false)}
+        vehicle={vehicle}
+        onPick={(url) => {
+          addElements({
+            id: newId(),
+            type: "image",
+            src: url,
+            x: design.canvasWidth / 2 - 320,
+            y: design.canvasHeight / 2 - 240,
+            width: 640,
+            height: 480,
+            rotation: 0,
+            name: "Vehicle photo",
           });
         }}
       />
@@ -672,7 +850,7 @@ export default function CanvasEditorPage() {
         onPick={(t) => {
           const next = templateToDesign(t, dealership);
           setDesign((d) => ({ ...d, ...next } as Design));
-          setSelectedId(null);
+          setSelectedIds([]);
         }}
       />
     </div>

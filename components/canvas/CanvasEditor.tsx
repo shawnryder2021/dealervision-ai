@@ -11,6 +11,7 @@ import {
   Text as KonvaText,
   Image as KonvaImage,
   Transformer,
+  Line,
 } from "react-konva";
 import type Konva from "konva";
 import useImage from "use-image";
@@ -23,41 +24,49 @@ interface Props {
   width: number;
   height: number;
   elements: CanvasElement[];
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
+  selectedIds: string[];
+  onSelect: (id: string | null, additive?: boolean) => void;
   onChange: (next: CanvasElement[]) => void;
   vehicle: Vehicle | null;
   dealership: Dealership | null;
   stageRef: React.MutableRefObject<Konva.Stage | null>;
   scale: number;
   backgroundColor?: string;
+  showGrid?: boolean;
+  showSafeArea?: boolean;
+  showThirds?: boolean;
 }
 
 type CommonHandlers = {
   draggable: boolean;
   onMouseDown: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   onTouchStart: (e: Konva.KonvaEventObject<TouchEvent>) => void;
+  onDragMove?: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onTransformEnd: (e: Konva.KonvaEventObject<Event>) => void;
 };
 
-function buildHandlers(
-  el: CanvasElement,
-  onSelect: (id: string) => void,
-  updateEl: (id: string, patch: Partial<CanvasElement>) => void
-): CommonHandlers {
+interface BuildHandlersCtx {
+  onSelect: (id: string, additive?: boolean) => void;
+  updateEl: (id: string, patch: Partial<CanvasElement>) => void;
+  onDragMove?: (e: Konva.KonvaEventObject<DragEvent>, el: CanvasElement) => void;
+}
+
+function buildHandlers(el: CanvasElement, ctx: BuildHandlersCtx): CommonHandlers {
   return {
     draggable: !el.locked,
     onMouseDown: (e) => {
       e.cancelBubble = true;
-      onSelect(el.id);
+      const native = e.evt as MouseEvent;
+      ctx.onSelect(el.id, native?.shiftKey || native?.metaKey || false);
     },
     onTouchStart: (e) => {
       e.cancelBubble = true;
-      onSelect(el.id);
+      ctx.onSelect(el.id);
     },
+    onDragMove: (e) => ctx.onDragMove?.(e, el),
     onDragEnd: (e) => {
-      updateEl(el.id, { x: e.target.x(), y: e.target.y() });
+      ctx.updateEl(el.id, { x: e.target.x(), y: e.target.y() });
     },
     onTransformEnd: (e) => {
       const node = e.target;
@@ -65,7 +74,7 @@ function buildHandlers(
       const sy = node.scaleY();
       node.scaleX(1);
       node.scaleY(1);
-      updateEl(el.id, {
+      ctx.updateEl(el.id, {
         x: node.x(),
         y: node.y(),
         width: Math.max(8, el.width * sx),
@@ -233,11 +242,42 @@ function TextNode({ el, handlers }: { el: TextElement; handlers: CommonHandlers 
   );
 }
 
+interface Guide {
+  type: "v" | "h";
+  pos: number;
+}
+
+const SNAP_THRESHOLD = 6; // canvas units
+
+function computeSnapTargets(
+  width: number,
+  height: number,
+  movingId: string,
+  elements: CanvasElement[]
+) {
+  const v: number[] = [0, width / 2, width];
+  const h: number[] = [0, height / 2, height];
+  for (const el of elements) {
+    if (el.id === movingId) continue;
+    if (el.visible === false) continue;
+    v.push(el.x, el.x + el.width / 2, el.x + el.width);
+    h.push(el.y, el.y + el.height / 2, el.y + el.height);
+  }
+  return { v, h };
+}
+
+function snap(value: number, targets: number[]): { snapped: number; line: number | null } {
+  for (const t of targets) {
+    if (Math.abs(value - t) <= SNAP_THRESHOLD) return { snapped: t, line: t };
+  }
+  return { snapped: value, line: null };
+}
+
 export default function CanvasEditor({
   width,
   height,
   elements,
-  selectedId,
+  selectedIds,
   onSelect,
   onChange,
   vehicle,
@@ -245,27 +285,32 @@ export default function CanvasEditor({
   stageRef,
   scale,
   backgroundColor = "#ffffff",
+  showGrid = false,
+  showSafeArea = false,
+  showThirds = false,
 }: Props) {
   const layerRef = useRef<Konva.Layer | null>(null);
   const trRef = useRef<Konva.Transformer | null>(null);
+  const [guides, setGuides] = useState<Guide[]>([]);
 
   const merged = useMemo(() => applyMergeTags(elements, vehicle, dealership), [elements, vehicle, dealership]);
+  const visibleEls = useMemo(() => merged.filter((el) => el.visible !== false), [merged]);
 
   useEffect(() => {
     const tr = trRef.current;
     const layer = layerRef.current;
     if (!tr || !layer) return;
-    if (!selectedId) {
+    if (selectedIds.length === 0) {
       tr.nodes([]);
       tr.getLayer()?.batchDraw();
       return;
     }
-    const node = layer.findOne(`#${selectedId}`);
-    if (node) {
-      tr.nodes([node]);
-      tr.getLayer()?.batchDraw();
-    }
-  }, [selectedId, merged]);
+    const nodes = selectedIds
+      .map((id) => layer.findOne(`#${id}`))
+      .filter(Boolean) as Konva.Node[];
+    tr.nodes(nodes);
+    tr.getLayer()?.batchDraw();
+  }, [selectedIds, visibleEls]);
 
   const handleStageMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (e.target === e.target.getStage()) onSelect(null);
@@ -273,6 +318,57 @@ export default function CanvasEditor({
 
   const updateEl = (id: string, patch: Partial<CanvasElement>) => {
     onChange(elements.map((el) => (el.id === id ? ({ ...el, ...patch } as CanvasElement) : el)));
+  };
+
+  const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>, el: CanvasElement) => {
+    const node = e.target;
+    const x = node.x();
+    const y = node.y();
+    const targets = computeSnapTargets(width, height, el.id, elements);
+    const newGuides: Guide[] = [];
+    // Check left, center, right edges
+    const xLeft = snap(x, targets.v);
+    const xCenter = snap(x + el.width / 2, targets.v);
+    const xRight = snap(x + el.width, targets.v);
+    const candidates = [
+      { kind: "left" as const, snapped: xLeft },
+      { kind: "center" as const, snapped: xCenter },
+      { kind: "right" as const, snapped: xRight },
+    ].filter((c) => c.snapped.line !== null);
+    if (candidates.length > 0) {
+      // Pick the closest one
+      candidates.sort((a, b) => Math.abs(a.snapped.snapped - (a.kind === "left" ? x : a.kind === "center" ? x + el.width / 2 : x + el.width)) - Math.abs(b.snapped.snapped - (b.kind === "left" ? x : b.kind === "center" ? x + el.width / 2 : x + el.width)));
+      const best = candidates[0];
+      const line = best.snapped.line!;
+      const offset = best.kind === "left" ? 0 : best.kind === "center" ? -el.width / 2 : -el.width;
+      node.x(line + offset);
+      newGuides.push({ type: "v", pos: line });
+    }
+    const yTop = snap(y, targets.h);
+    const yMid = snap(y + el.height / 2, targets.h);
+    const yBot = snap(y + el.height, targets.h);
+    const candY = [
+      { kind: "top" as const, snapped: yTop },
+      { kind: "mid" as const, snapped: yMid },
+      { kind: "bot" as const, snapped: yBot },
+    ].filter((c) => c.snapped.line !== null);
+    if (candY.length > 0) {
+      candY.sort((a, b) => Math.abs(a.snapped.snapped - (a.kind === "top" ? y : a.kind === "mid" ? y + el.height / 2 : y + el.height)) - Math.abs(b.snapped.snapped - (b.kind === "top" ? y : b.kind === "mid" ? y + el.height / 2 : y + el.height)));
+      const best = candY[0];
+      const line = best.snapped.line!;
+      const offset = best.kind === "top" ? 0 : best.kind === "mid" ? -el.height / 2 : -el.height;
+      node.y(line + offset);
+      newGuides.push({ type: "h", pos: line });
+    }
+    setGuides(newGuides);
+  };
+
+  const clearGuides = () => setGuides([]);
+
+  const handlerCtx = {
+    onSelect,
+    updateEl,
+    onDragMove: handleDragMove,
   };
 
   return (
@@ -292,13 +388,80 @@ export default function CanvasEditor({
     >
       <Layer ref={layerRef as React.RefObject<Konva.Layer>}>
         <Rect x={0} y={0} width={width} height={height} fill={backgroundColor} listening={false} />
-        {merged.map((el) => {
-          const handlers = buildHandlers(el, onSelect, updateEl);
-          if (el.type === "image") return <ImageNode key={el.id} el={el} handlers={handlers} />;
-          if (el.type === "shape") return <ShapeNode key={el.id} el={el} handlers={handlers} />;
-          if (el.type === "qr") return <QrNode key={el.id} el={el} handlers={handlers} />;
-          return <TextNode key={el.id} el={el} handlers={handlers} />;
+        {visibleEls.map((el) => {
+          const handlers = buildHandlers(el, handlerCtx);
+          // Wrap onDragEnd to clear guides
+          const wrappedHandlers = {
+            ...handlers,
+            onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
+              clearGuides();
+              handlers.onDragEnd(e);
+            },
+          };
+          if (el.type === "image") return <ImageNode key={el.id} el={el} handlers={wrappedHandlers} />;
+          if (el.type === "shape") return <ShapeNode key={el.id} el={el} handlers={wrappedHandlers} />;
+          if (el.type === "qr") return <QrNode key={el.id} el={el} handlers={wrappedHandlers} />;
+          return <TextNode key={el.id} el={el} handlers={wrappedHandlers} />;
         })}
+
+        {/* Guide lines */}
+        {guides.map((g, i) => (
+          <Line
+            key={i}
+            points={g.type === "v" ? [g.pos, 0, g.pos, height] : [0, g.pos, width, g.pos]}
+            stroke="#FF00AA"
+            strokeWidth={1 / scale}
+            dash={[6 / scale, 4 / scale]}
+            listening={false}
+          />
+        ))}
+
+        {/* Overlays */}
+        {showGrid && (
+          <>
+            {Array.from({ length: Math.floor(width / 50) }).map((_, i) => (
+              <Line
+                key={`gv-${i}`}
+                points={[(i + 1) * 50, 0, (i + 1) * 50, height]}
+                stroke="#0000FF"
+                strokeWidth={1 / scale}
+                opacity={0.08}
+                listening={false}
+              />
+            ))}
+            {Array.from({ length: Math.floor(height / 50) }).map((_, i) => (
+              <Line
+                key={`gh-${i}`}
+                points={[0, (i + 1) * 50, width, (i + 1) * 50]}
+                stroke="#0000FF"
+                strokeWidth={1 / scale}
+                opacity={0.08}
+                listening={false}
+              />
+            ))}
+          </>
+        )}
+        {showThirds && (
+          <>
+            <Line points={[width / 3, 0, width / 3, height]} stroke="#000" opacity={0.25} strokeWidth={1 / scale} listening={false} />
+            <Line points={[(2 * width) / 3, 0, (2 * width) / 3, height]} stroke="#000" opacity={0.25} strokeWidth={1 / scale} listening={false} />
+            <Line points={[0, height / 3, width, height / 3]} stroke="#000" opacity={0.25} strokeWidth={1 / scale} listening={false} />
+            <Line points={[0, (2 * height) / 3, width, (2 * height) / 3]} stroke="#000" opacity={0.25} strokeWidth={1 / scale} listening={false} />
+          </>
+        )}
+        {showSafeArea && (
+          <Rect
+            x={width * 0.05}
+            y={height * 0.05}
+            width={width * 0.9}
+            height={height * 0.9}
+            stroke="#16a34a"
+            strokeWidth={2 / scale}
+            dash={[10 / scale, 6 / scale]}
+            listening={false}
+          />
+        )}
+
         <Transformer
           ref={trRef as React.RefObject<Konva.Transformer>}
           rotateEnabled
