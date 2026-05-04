@@ -1,5 +1,5 @@
 /**
- * Admin Dealerships API - View all dealerships and their subscription status
+ * Admin Dealerships API - View all dealerships, create new ones
  * Only accessible by super admins
  */
 
@@ -88,6 +88,7 @@ export async function GET(request: NextRequest) {
         id: d.id,
         name: d.name,
         owner_email: ownerEmail || ownerProfile?.full_name || "Unknown",
+        owner_user_id: ownerProfile?.id || null,
         created_at: d.created_at,
         subscription_status: subscription?.status || null,
         subscription_plan: subscription?.subscription_plans?.name || null,
@@ -106,6 +107,97 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ dealerships: formattedDealerships });
   } catch (error) {
     console.error("Error fetching dealerships:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST /api/admin/dealerships
+ * Create a new dealership: auth user + dealerships row + profiles row
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.email || !(await isSuperAdmin(user.email))) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { name, owner_email, owner_name, password, phone, website, address, city, state_code } = body;
+
+    if (!name || !owner_email || !password) {
+      return NextResponse.json(
+        { error: "name, owner_email, and password are required" },
+        { status: 400 }
+      );
+    }
+
+    const adminSupabase = await createServiceClient();
+
+    // 1. Create auth user
+    const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
+      email: owner_email,
+      password,
+      email_confirm: true,
+    });
+
+    if (authError) {
+      return NextResponse.json({ error: authError.message }, { status: 400 });
+    }
+
+    const newUserId = authData.user.id;
+
+    // 2. Create dealership record
+    const { data: dealershipData, error: dealershipError } = await adminSupabase
+      .from("dealerships")
+      .insert({
+        name,
+        phone: phone || null,
+        website: website || null,
+        address: address || null,
+        city: city || null,
+        state_code: state_code || null,
+      })
+      .select()
+      .single();
+
+    if (dealershipError) {
+      // Rollback: delete the auth user
+      await adminSupabase.auth.admin.deleteUser(newUserId);
+      return NextResponse.json({ error: dealershipError.message }, { status: 500 });
+    }
+
+    // 3. Create profile linking user to dealership
+    const { error: profileError } = await adminSupabase
+      .from("profiles")
+      .insert({
+        id: newUserId,
+        dealership_id: dealershipData.id,
+        full_name: owner_name || owner_email.split("@")[0],
+        role: "owner",
+      });
+
+    if (profileError) {
+      // Rollback: delete dealership and auth user
+      await adminSupabase.from("dealerships").delete().eq("id", dealershipData.id);
+      await adminSupabase.auth.admin.deleteUser(newUserId);
+      return NextResponse.json({ error: profileError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      dealership: dealershipData,
+      user_id: newUserId,
+      message: "Dealership and owner account created successfully",
+    });
+  } catch (error) {
+    console.error("Error creating dealership:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
