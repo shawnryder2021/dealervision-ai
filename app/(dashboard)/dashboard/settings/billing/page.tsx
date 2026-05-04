@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   CreditCard, CheckCircle, AlertTriangle, XCircle,
-  ExternalLink, Zap, Rocket, Building2, ArrowUpRight,
+  ExternalLink, Zap, Rocket, Building2, ArrowUpRight, Coins,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -77,6 +77,7 @@ function BillingContent() {
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [creditBalance, setCreditBalance] = useState<{ balance: number; total_granted: number; total_used: number } | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [upgradingTo, setUpgradingTo] = useState<string | null>(null);
 
@@ -93,11 +94,20 @@ function BillingContent() {
 
     async function load() {
       try {
-        const res = await fetch(`/api/stripe/subscription?dealershipId=${dealership!.id}`);
-        if (res.ok) {
-          const data = await res.json();
+        const [subRes, credRes] = await Promise.all([
+          fetch(`/api/stripe/subscription?dealershipId=${dealership!.id}`),
+          fetch("/api/credits"),
+        ]);
+        if (subRes.ok) {
+          const data = await subRes.json();
           setSubscription(data.subscription);
           setUsage(data.usage);
+        }
+        if (credRes.ok) {
+          const credData = await credRes.json();
+          if (credData.balance?.balance > 0 || credData.balance?.total_granted > 0) {
+            setCreditBalance(credData.balance);
+          }
         }
       } catch {
         // Subscription not found — new user
@@ -165,6 +175,43 @@ function BillingContent() {
           Manage your plan, usage, and payment details. Shared across your entire team.
         </p>
       </div>
+
+      {/* Credits balance (shown only when credits have been allocated) */}
+      {creditBalance && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="pt-5 pb-5">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Coins className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-primary text-lg">
+                    {creditBalance.balance.toLocaleString()} credits available
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {creditBalance.total_used.toLocaleString()} used of {creditBalance.total_granted.toLocaleString()} total granted · 1 credit = 1 asset generation
+                  </p>
+                </div>
+              </div>
+              {creditBalance.total_granted > 0 && (
+                <div className="w-40">
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span>Used</span>
+                    <span>{Math.round((creditBalance.total_used / creditBalance.total_granted) * 100)}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${Math.min(100, Math.round((creditBalance.total_used / creditBalance.total_granted) * 100))}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Current plan */}
       <Card>

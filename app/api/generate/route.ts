@@ -64,11 +64,13 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Quota check (skipped for super admins) ───────────────────────────────
+    let useCredits = false;
     if (!isAdmin) {
       const quota = await checkQuota(effectiveDealershipId, "assets_generated");
       if (!quota.allowed) {
         return NextResponse.json({ error: quota.reason }, { status: 402 });
       }
+      useCredits = !!quota.useCredits;
     }
 
     // Fetch vehicle if specified
@@ -164,8 +166,19 @@ export async function POST(request: NextRequest) {
         })
         .eq("id", asset.id);
 
-      // Increment subscription usage counter
-      if (!isAdmin) await incrementUsage(effectiveDealershipId, { assets_generated: 1 });
+      // Increment usage counter (subscription or credit-based)
+      if (!isAdmin) {
+        if (useCredits) {
+          // Deduct one credit atomically
+          const { deductOneCredit } = await import("@/lib/db/credits");
+          const newBalance = await deductOneCredit(effectiveDealershipId);
+          if (newBalance === -1) {
+            console.warn("Credit deduction failed — balance may have reached 0 concurrently");
+          }
+        } else {
+          await incrementUsage(effectiveDealershipId, { assets_generated: 1 });
+        }
+      }
 
       // Log usage
       const cost = provider.getResolutionCost(resolution);

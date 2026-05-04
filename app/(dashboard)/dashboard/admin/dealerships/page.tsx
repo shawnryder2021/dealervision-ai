@@ -44,13 +44,36 @@ import {
   ShieldCheck,
   User,
   Crown,
+  Coins,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  History,
+  Minus,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 import type { Dealership } from "@/lib/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+interface CreditBalance {
+  dealership_id: string;
+  balance: number;
+  total_granted: number;
+  total_used: number;
+  updated_at?: string;
+}
+
+interface CreditTransaction {
+  id: string;
+  amount: number;
+  type: "grant" | "usage" | "adjustment";
+  note: string | null;
+  admin_email: string | null;
+  created_at: string;
+}
+
 interface DealershipUser {
   id: string;
   email: string;
@@ -310,6 +333,189 @@ function ResetPasswordModal({
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Manage Credits Modal ─────────────────────────────────────────────────────
+function ManageCreditsModal({
+  open,
+  onClose,
+  dealership,
+}: {
+  open: boolean;
+  onClose: () => void;
+  dealership: DealershipData | null;
+}) {
+  const [balance, setBalance] = useState<CreditBalance | null>(null);
+  const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ amount: "", type: "grant", note: "" });
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    if (!dealership) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/dealerships/${dealership.id}/credits`);
+      if (res.ok) {
+        const data = await res.json();
+        setBalance(data.balance);
+        setTransactions(data.transactions || []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (open && dealership) load();
+  }, [open, dealership]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseInt(form.amount, 10);
+    if (!amt || isNaN(amt)) { toast.error("Enter a valid amount"); return; }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/dealerships/${dealership!.id}/credits`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: form.type === "adjustment" && amt > 0 ? amt : form.type === "adjustment" ? amt : Math.abs(amt),
+          type: form.type,
+          note: form.note || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
+      toast.success("Credits updated");
+      setForm({ amount: "", type: "grant", note: "" });
+      load();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const txIcon = (tx: CreditTransaction) => {
+    if (tx.type === "usage") return <ArrowDownCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />;
+    if (tx.amount < 0) return <Minus className="h-3.5 w-3.5 text-orange-500 shrink-0" />;
+    return <ArrowUpCircle className="h-3.5 w-3.5 text-green-500 shrink-0" />;
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Coins className="h-5 w-5 text-primary" />
+            Manage Credits — {dealership?.name}
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* Balance summary */}
+        {loading ? (
+          <Skeleton className="h-24" />
+        ) : (
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="rounded-lg border p-3">
+              <p className="text-2xl font-bold text-primary">{balance?.balance ?? 0}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Available</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-2xl font-bold">{balance?.total_granted ?? 0}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Total Granted</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-2xl font-bold">{balance?.total_used ?? 0}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Total Used</p>
+            </div>
+          </div>
+        )}
+
+        {/* Add / adjust credits form */}
+        <form onSubmit={handleSubmit} className="border rounded-md p-4 space-y-3 bg-muted/30">
+          <p className="text-sm font-semibold">Add / Adjust Credits</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Amount</Label>
+              <Input
+                className="mt-1"
+                type="number"
+                min={1}
+                value={form.amount}
+                onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                placeholder="e.g. 50"
+                required
+              />
+              <p className="text-xs text-muted-foreground mt-0.5">Use negative for adjustments</p>
+            </div>
+            <div>
+              <Label className="text-xs">Type</Label>
+              <Select value={form.type} onValueChange={(v) => v && setForm((f) => ({ ...f, type: v }))}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="grant">Grant (add credits)</SelectItem>
+                  <SelectItem value="adjustment">Adjustment (add or remove)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Note (optional)</Label>
+            <Textarea
+              className="mt-1 text-sm"
+              rows={2}
+              value={form.note}
+              onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
+              placeholder="e.g. Onboarding package — 50 credits"
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button type="submit" size="sm" disabled={saving}>
+              {saving ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Saving…</> : "Apply Credits"}
+            </Button>
+          </div>
+        </form>
+
+        {/* Transaction history */}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <History className="h-3.5 w-3.5" /> Transaction History
+          </p>
+          {loading ? (
+            <div className="space-y-1">{[1,2,3].map((i) => <Skeleton key={i} className="h-8" />)}</div>
+          ) : transactions.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No transactions yet.</p>
+          ) : (
+            <div className="border rounded-md divide-y max-h-56 overflow-y-auto">
+              {transactions.map((tx) => (
+                <div key={tx.id} className="flex items-start gap-2 px-3 py-2 text-sm">
+                  {txIcon(tx)}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`font-medium ${tx.amount > 0 ? "text-green-600" : "text-red-600"}`}>
+                        {tx.amount > 0 ? "+" : ""}{tx.amount}
+                      </span>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {new Date(tx.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                    {tx.note && <p className="text-xs text-muted-foreground truncate">{tx.note}</p>}
+                    {tx.admin_email && (
+                      <p className="text-xs text-muted-foreground/60">by {tx.admin_email}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -589,6 +795,8 @@ export default function DealershipsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [passwordTarget, setPasswordTarget] = useState<DealershipData | null>(null);
   const [usersTarget, setUsersTarget] = useState<DealershipData | null>(null);
+  const [creditsTarget, setCreditsTarget] = useState<DealershipData | null>(null);
+  const [creditBalances, setCreditBalances] = useState<Record<string, number>>({});
   const router = useRouter();
   const { dealership: currentDealership, setDealership, setAdminActiveDealership, setOwnDealership } = useAppStore();
 
@@ -599,7 +807,22 @@ export default function DealershipsPage() {
       const res = await fetch("/api/admin/dealerships");
       if (res.ok) {
         const data = await res.json();
-        setDealerships(data.dealerships || []);
+        const list: DealershipData[] = data.dealerships || [];
+        setDealerships(list);
+        // Fetch credit balances for all dealerships in parallel (best effort)
+        const balanceEntries = await Promise.all(
+          list.map(async (d) => {
+            try {
+              const cr = await fetch(`/api/admin/dealerships/${d.id}/credits`);
+              if (cr.ok) {
+                const cd = await cr.json();
+                return [d.id, cd.balance?.balance ?? 0] as [string, number];
+              }
+            } catch {}
+            return [d.id, 0] as [string, number];
+          })
+        );
+        setCreditBalances(Object.fromEntries(balanceEntries));
       }
     } catch (error) {
       console.error("Failed to fetch dealerships:", error);
@@ -657,6 +880,7 @@ export default function DealershipsPage() {
                     <TableHead className="text-right">Assets</TableHead>
                     <TableHead className="text-right">Pages</TableHead>
                     <TableHead className="text-right">Posts</TableHead>
+                    <TableHead className="text-right">Credits</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
@@ -695,6 +919,15 @@ export default function DealershipsPage() {
                       <TableCell className="text-right font-mono">{dealership.monthly_usage.assets_generated}</TableCell>
                       <TableCell className="text-right font-mono">{dealership.monthly_usage.landing_pages_created}</TableCell>
                       <TableCell className="text-right font-mono">{dealership.monthly_usage.social_posts_published}</TableCell>
+                      <TableCell className="text-right">
+                        {(creditBalances[dealership.id] ?? 0) > 0 ? (
+                          <span className="font-semibold text-primary">
+                            {creditBalances[dealership.id]}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground font-mono">0</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-sm">
                         {new Date(dealership.created_at).toLocaleDateString()}
                       </TableCell>
@@ -717,6 +950,15 @@ export default function DealershipsPage() {
                           >
                             <Users className="h-3 w-3" />
                             Users
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className={`gap-1 text-xs ${(creditBalances[dealership.id] ?? 0) > 0 ? "border-primary/50 text-primary" : ""}`}
+                            onClick={() => setCreditsTarget(dealership)}
+                          >
+                            <Coins className="h-3 w-3" />
+                            Credits {(creditBalances[dealership.id] ?? 0) > 0 && `(${creditBalances[dealership.id]})`}
                           </Button>
                           <Button
                             size="sm"
@@ -797,6 +1039,15 @@ export default function DealershipsPage() {
         userId={passwordTarget?.owner_user_id ?? null}
         userEmail={passwordTarget?.owner_email ?? ""}
         context={passwordTarget?.name ?? ""}
+      />
+      <ManageCreditsModal
+        open={!!creditsTarget}
+        onClose={() => {
+          setCreditsTarget(null);
+          // Refresh balances after closing so the table updates
+          fetchDealerships();
+        }}
+        dealership={creditsTarget}
       />
       <ManageUsersModal
         open={!!usersTarget}

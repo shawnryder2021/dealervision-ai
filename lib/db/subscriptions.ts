@@ -154,6 +154,8 @@ export interface QuotaStatus {
   used: number;
   limit: number | null;
   percentUsed: number;
+  /** When true, caller must deduct one credit via deductOneCredit() */
+  useCredits?: boolean;
 }
 
 export async function checkQuota(
@@ -166,9 +168,23 @@ export async function checkQuota(
   ]);
 
   if (!isActiveSubscription(sub)) {
+    // No active subscription — check if they have allocated credits instead
+    const { getCreditBalanceAdmin } = await import("@/lib/db/credits");
+    const credits = await getCreditBalanceAdmin(dealershipId);
+    if (credits && credits.balance > 0) {
+      return {
+        allowed: true,
+        used: credits.total_used,
+        limit: credits.total_granted || null,
+        percentUsed: credits.total_granted
+          ? Math.round((credits.total_used / credits.total_granted) * 100)
+          : 0,
+        useCredits: true,
+      };
+    }
     return {
       allowed: false,
-      reason: "No active subscription. Please subscribe to continue.",
+      reason: "No active subscription or available credits. Please subscribe or contact your account manager.",
       used: 0,
       limit: 0,
       percentUsed: 100,
