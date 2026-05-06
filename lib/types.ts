@@ -130,6 +130,7 @@ export interface GenerateRequest {
   campaign?: string;
   include_vehicle_year?: string;
   include_vehicle_model?: string;
+  scene_location?: string;
 }
 
 export interface KieCreateTaskResponse {

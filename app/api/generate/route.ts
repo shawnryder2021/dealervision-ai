@@ -108,6 +108,7 @@ export async function POST(request: NextRequest) {
       custom_prompt: body.custom_prompt,
       include_vehicle_year: body.include_vehicle_year,
       include_vehicle_model: body.include_vehicle_model,
+      scene_location: body.scene_location,
     });
 
     // Read image model directly from the already-fetched dealership object

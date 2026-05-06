@@ -18,6 +18,7 @@ import { EditImageDialog } from "@/components/create/EditImageDialog";
 import { TextOverlayEditor } from "@/components/create/TextOverlayEditor";
 import { ImageUploader } from "@/components/shared/ImageUploader";
 import { SaveTemplateDialog } from "@/components/create/TemplateGallery";
+import { SceneLocationPicker } from "@/components/create/SceneLocationPicker";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -65,6 +66,7 @@ export default function GenerateTypePage() {
   const [watermarkEnabled, setWatermarkEnabled] = useState(true);
   const [includeVehicleYear, setIncludeVehicleYear] = useState<string | undefined>();
   const [includeVehicleModel, setIncludeVehicleModel] = useState<string | undefined>();
+  const [sceneLocation, setSceneLocation] = useState<string | undefined>();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedAsset, setGeneratedAsset] = useState<GeneratedAsset | null>(null);
@@ -143,6 +145,7 @@ export default function GenerateTypePage() {
         testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
         include_vehicle_year: includeVehicleYear,
         include_vehicle_model: includeVehicleModel,
+          scene_location: sceneLocation,
       });
       setPreviewPrompt(prompt);
       return;
@@ -161,6 +164,7 @@ export default function GenerateTypePage() {
           testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
           include_vehicle_year: includeVehicleYear,
           include_vehicle_model: includeVehicleModel,
+          scene_location: sceneLocation,
         }),
       });
       if (!res.ok) {
@@ -178,7 +182,7 @@ export default function GenerateTypePage() {
     contentType, channel, vehicleId, headline, subheadline, cta, style,
     eventName, eventDates, offerDetails, serviceOffer, serviceDetails,
     testimonialText, testimonialAuthor, rating, customPrompt, dealership, vehicles,
-    includeVehicleYear, includeVehicleModel,
+    includeVehicleYear, includeVehicleModel, sceneLocation,
   ]);
 
   async function handleGenerate() {
@@ -203,6 +207,7 @@ export default function GenerateTypePage() {
           testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
           include_vehicle_year: includeVehicleYear,
           include_vehicle_model: includeVehicleModel,
+          scene_location: sceneLocation,
         });
 
         const aspectRatio = getAspectRatioForChannel(channel);
@@ -270,6 +275,7 @@ export default function GenerateTypePage() {
           campaign,
           include_vehicle_year: includeVehicleYear,
           include_vehicle_model: includeVehicleModel,
+          scene_location: sceneLocation,
           image_input: prodImageInput.length > 0 ? prodImageInput : undefined,
           watermark: watermarkEnabled,
         }),
@@ -746,6 +752,29 @@ export default function GenerateTypePage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Scene & Location */}
+          {style === "photorealistic" && (
+            <Card className="glass">
+              <CardHeader>
+                <CardTitle className="text-base">Scene & Location</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Choose where the vehicle is placed in the image. Only applies to photorealistic style.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <SceneLocationPicker
+                  value={sceneLocation}
+                  onChange={setSceneLocation}
+                  hasLocalLandmark={!!(
+                    dealership?.local_context &&
+                    typeof dealership.local_context === "object" &&
+                    (dealership.local_context as Record<string, unknown>).landmarks
+                  )}
+                />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Prompt Preview */}
           <Card className="glass">
