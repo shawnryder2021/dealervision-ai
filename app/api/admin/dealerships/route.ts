@@ -154,11 +154,20 @@ export async function POST(request: NextRequest) {
 
     const newUserId = authData.user.id;
 
+    // Generate a URL-safe slug from the dealership name + random suffix for uniqueness
+    const baseSlug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-");
+    const slug = `${baseSlug}-${Math.random().toString(36).slice(2, 7)}`;
+
     // 2. Create dealership record
     const { data: dealershipData, error: dealershipError } = await adminSupabase
       .from("dealerships")
       .insert({
         name,
+        slug,
         phone: phone || null,
         website: website || null,
         address: address || null,
