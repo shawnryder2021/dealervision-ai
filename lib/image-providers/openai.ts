@@ -45,6 +45,11 @@ export class OpenAIProvider extends ImageProvider {
               prompt: input.prompt,
               aspect_ratio: input.aspect_ratio || "auto",
               nsfw_checker: false,
+              // KIE.ai may use image_input for image-to-image generation;
+              // pass it through if provided (logo + reference photos)
+              ...(input.image_input && input.image_input.length > 0
+                ? { image_input: input.image_input }
+                : {}),
             },
           }),
         });

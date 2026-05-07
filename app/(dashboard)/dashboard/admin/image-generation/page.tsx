@@ -78,7 +78,7 @@ export default function ImageGenerationPage() {
     }
   }
 
-  async function saveDealershipModel(dealershipId: string, model: ImageModelOption) {
+  async function saveDealershipModel(dealershipId: string, model: ImageModelOption | null) {
     try {
       const res = await fetch("/api/admin/image-model", {
         method: "POST",
@@ -99,7 +99,11 @@ export default function ImageGenerationPage() {
       );
 
       setEditingDealership(null);
-      toast.success(`Model updated to ${model === "kie-nano-banana" ? "KIE.ai" : "OpenAI GPT-Image-2"}`);
+      if (model === null) {
+        toast.success("Override cleared — using global default");
+      } else {
+        toast.success(`Model updated to ${model === "kie-nano-banana" ? "KIE.ai" : "OpenAI GPT-Image-2"}`);
+      }
     } catch (err) {
       console.error("Failed to save model:", err);
       toast.error(err instanceof Error ? err.message : "Failed to update dealership model");
@@ -309,9 +313,8 @@ export default function ImageGenerationPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() =>
-                                saveDealershipModel(dealership.id, "openai-gpt-image-2")
-                              }
+                              onClick={() => saveDealershipModel(dealership.id, null)}
+                              title="Clear override and use global default"
                             >
                               Reset
                             </Button>

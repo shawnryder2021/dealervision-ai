@@ -151,11 +151,18 @@ export async function POST(request: NextRequest) {
     try {
       const provider = getImageProvider(imageModel);
 
+      // Build image_input: include user-provided reference photos + dealership logo
+      // so the AI uses the actual brand logo instead of inventing one
+      const userRefs = Array.isArray(body.image_input) ? body.image_input.filter(Boolean) : [];
+      const logoUrl = dealership.logo_url ? [dealership.logo_url] : [];
+      const imageInput = [...userRefs, ...logoUrl];
+
       const providerResult = await provider.createImageTask({
         prompt,
         aspect_ratio: aspectRatio,
         resolution,
         output_format: "png",
+        image_input: imageInput.length > 0 ? imageInput : undefined,
       });
 
       // Update asset with task ID

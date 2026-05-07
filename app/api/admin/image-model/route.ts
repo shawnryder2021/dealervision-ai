@@ -55,13 +55,18 @@ export async function POST(request: Request) {
 
     const { dealershipId, model } = await request.json();
 
-    if (!VALID_MODELS.includes(model)) {
-      return NextResponse.json({ error: `Invalid model. Must be one of: ${VALID_MODELS.join(", ")}` }, { status: 400 });
+    // model: null is allowed when clearing a per-dealership override
+    const clearOverride = model === null;
+    if (!clearOverride && !VALID_MODELS.includes(model)) {
+      return NextResponse.json({ error: `Invalid model. Must be one of: ${VALID_MODELS.join(", ")} (or null to clear)` }, { status: 400 });
     }
 
     const service = await createServiceClient();
 
     if (!dealershipId) {
+      if (clearOverride) {
+        return NextResponse.json({ error: "Global default cannot be null" }, { status: 400 });
+      }
       const { error } = await service
         .from("platform_settings")
         .upsert(
@@ -84,7 +89,7 @@ export async function POST(request: Request) {
 
     const { error } = await service
       .from("dealerships")
-      .update({ image_model: model })
+      .update({ image_model: clearOverride ? null : model })
       .eq("id", dealershipId);
 
     if (error) {

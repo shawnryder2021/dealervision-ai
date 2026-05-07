@@ -46,7 +46,8 @@ export interface Dealership {
     include_user_email: boolean;
     secret?: string;
   };
-  image_model: "kie-nano-banana" | "openai-gpt-image-2";
+  /** Per-dealership override. Null means "use platform default" (`platform_settings.default_image_model`). */
+  image_model: "kie-nano-banana" | "openai-gpt-image-2" | null;
   oem_brand?: string | null;
   state_code?: string | null;
   created_at: string;
@@ -131,6 +132,8 @@ export interface GenerateRequest {
   include_vehicle_year?: string;
   include_vehicle_model?: string;
   scene_location?: string;
+  /** Reference image URLs (user-uploaded photos). Logo URL is added automatically server-side. */
+  image_input?: string[];
 }
 
 export interface KieCreateTaskResponse {

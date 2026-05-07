@@ -130,7 +130,13 @@ function getBrandContext(dealership: Dealership): string {
       ? ` IMPORTANT: Include a clean professional footer bar at the bottom of the image with this text displayed clearly and legibly: "${footerText}".${socialStr}`
       : "";
 
-  return `Dealership: ${dealership.name}.${taglineStr} ${colorStr}${contactStr}${getLocalContext(dealership)} Use primary color ${colors.primary} as the dominant brand color in overlays, banners, and accents.`;
+  // Logo handling — the actual logo URL is passed as image_input to the provider.
+  // Tell the AI to use it rather than inventing one. If no logo, suppress logo invention.
+  const logoStr = dealership.logo_url
+    ? ` IMPORTANT LOGO INSTRUCTION: A reference image of the official ${dealership.name} dealership logo has been provided as input. You MUST use that exact provided logo as the dealership brand mark in this image — do NOT invent, redraw, or stylize a different logo. Place it cleanly with proper sizing and white-space around it.`
+    : ` IMPORTANT: Do NOT invent or generate a fictional dealership logo. Display the dealership name "${dealership.name}" as clean professional typography only. No fake emblems, badges, or invented logo marks.`;
+
+  return `Dealership: ${dealership.name}.${taglineStr} ${colorStr}${contactStr}${logoStr}${getLocalContext(dealership)} Use primary color ${colors.primary} as the dominant brand color in overlays, banners, and accents.`;
 }
 
 function getManufacturerStyleGuidance(make?: string): string {
