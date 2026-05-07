@@ -12,7 +12,8 @@
 import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImageProvider } from "@/lib/image-providers";
-import { uploadToImgBB } from "@/lib/imgbb";
+import { uploadToImgBB, uploadBufferToImgBB } from "@/lib/imgbb";
+import { compositeLogoOntoImage } from "@/lib/image-compositor";
 import type { ImageModelOption } from "@/lib/db/image-generation";
 
 export async function POST() {
@@ -72,18 +73,42 @@ export async function POST() {
               .eq("id", asset.id);
             updated++;
 
-            // Background ImgBB upload
-            uploadToImgBB(originalUrl)
-              .then((imgbb) => {
-                adminSupabase
+            // Look up dealership logo for the composite step
+            const { data: dealership } = await adminSupabase
+              .from("dealerships")
+              .select("logo_url")
+              .eq("id", asset.dealership_id)
+              .single();
+
+            // Background composite + upload (don't await to keep this endpoint fast)
+            (async () => {
+              try {
+                let finalUrl = originalUrl;
+                if (dealership?.logo_url) {
+                  try {
+                    const composited = await compositeLogoOntoImage({
+                      baseImageUrl: originalUrl,
+                      logoUrl: dealership.logo_url,
+                    });
+                    const imgbb = await uploadBufferToImgBB(composited);
+                    finalUrl = imgbb.url;
+                  } catch (e) {
+                    console.error("[refresh-stuck] composite failed, using base:", e);
+                    const imgbb = await uploadToImgBB(originalUrl);
+                    finalUrl = imgbb.url;
+                  }
+                } else {
+                  const imgbb = await uploadToImgBB(originalUrl);
+                  finalUrl = imgbb.url;
+                }
+                await adminSupabase
                   .from("generated_assets")
-                  .update({ image_url: imgbb.url })
-                  .eq("id", asset.id)
-                  .then(() => {});
-              })
-              .catch((e) =>
-                console.error("[refresh-stuck] ImgBB upload failed:", e)
-              );
+                  .update({ image_url: finalUrl })
+                  .eq("id", asset.id);
+              } catch (e) {
+                console.error("[refresh-stuck] background processing failed:", e);
+              }
+            })();
           } else if (result.status === "failed") {
             await adminSupabase
               .from("generated_assets")

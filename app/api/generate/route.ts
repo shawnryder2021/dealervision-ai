@@ -126,19 +126,12 @@ export async function POST(request: NextRequest) {
       scene_location: body.scene_location,
     });
 
-    // Read image model directly from the already-fetched dealership object
+    // Read image model directly from the already-fetched dealership object.
+    // Logo is composited server-side after generation (see image-compositor.ts),
+    // so any model works regardless of image_input support.
     const globalDefaultModel = await getGlobalImageModel(supabase);
-    let imageModel: ImageModelOption =
+    const imageModel: ImageModelOption =
       (dealership.image_model as ImageModelOption) || globalDefaultModel;
-
-    // If the dealership has a logo and the configured model is gpt-image-2,
-    // force-switch to nano-banana-2 — only nano-banana-2 actually uses
-    // image_input as a reference. gpt-image-2-text-to-image silently
-    // ignores the logo, leading to the AI inventing a similar-looking one.
-    if (dealership.logo_url && imageModel === "openai-gpt-image-2") {
-      console.log("[generate] dealership has logo — switching from gpt-image-2 to nano-banana-2 for image-to-image support");
-      imageModel = "kie-nano-banana";
-    }
 
     // Create asset record
     const { data: asset, error: assetError } = await supabase
@@ -175,11 +168,12 @@ export async function POST(request: NextRequest) {
     try {
       const provider = getImageProvider(imageModel);
 
-      // Build image_input: include user-provided reference photos + dealership logo
-      // so the AI uses the actual brand logo instead of inventing one
+      // Build image_input: only user-provided reference photos. The dealership
+      // logo is composited server-side after generation (see image-compositor.ts)
+      // — we no longer rely on the AI to render it, which produced inconsistent
+      // results and frequent duplicate watermarks.
       const userRefs = Array.isArray(body.image_input) ? body.image_input.filter(Boolean) : [];
-      const logoUrl = dealership.logo_url ? [dealership.logo_url] : [];
-      const imageInput = [...userRefs, ...logoUrl];
+      const imageInput = userRefs;
 
       const providerResult = await provider.createImageTask({
         prompt,

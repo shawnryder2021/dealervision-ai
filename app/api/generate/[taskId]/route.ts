@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getImageProvider } from "@/lib/image-providers";
-import { uploadToImgBB } from "@/lib/imgbb";
+import { uploadToImgBB, uploadBufferToImgBB } from "@/lib/imgbb";
+import { compositeLogoOntoImage } from "@/lib/image-compositor";
 
 export async function GET(
   request: Request,
@@ -59,18 +60,43 @@ export async function GET(
             .select()
             .single();
 
-          // Fire-and-forget: upload to ImgBB in background, then update DB with permanent URL
-          uploadToImgBB(originalUrl)
-            .then((imgbb) => {
-              supabase
+          // Fire-and-forget: composite logo (if any) + upload to ImgBB in background
+          (async () => {
+            try {
+              const adminSupabase = await createServiceClient();
+              const { data: dealership } = await adminSupabase
+                .from("dealerships")
+                .select("logo_url")
+                .eq("id", asset.dealership_id)
+                .single();
+
+              let finalUrl = originalUrl;
+              if (dealership?.logo_url) {
+                try {
+                  const composited = await compositeLogoOntoImage({
+                    baseImageUrl: originalUrl,
+                    logoUrl: dealership.logo_url,
+                  });
+                  const imgbb = await uploadBufferToImgBB(composited);
+                  finalUrl = imgbb.url;
+                } catch (e) {
+                  console.error("[poll] composite failed, falling back:", e);
+                  const imgbb = await uploadToImgBB(originalUrl);
+                  finalUrl = imgbb.url;
+                }
+              } else {
+                const imgbb = await uploadToImgBB(originalUrl);
+                finalUrl = imgbb.url;
+              }
+
+              await adminSupabase
                 .from("generated_assets")
-                .update({ image_url: imgbb.url })
-                .eq("id", asset.id)
-                .then(() => {});
-            })
-            .catch((e) =>
-              console.error("Background ImgBB upload failed:", e)
-            );
+                .update({ image_url: finalUrl })
+                .eq("id", asset.id);
+            } catch (e) {
+              console.error("[poll] background processing failed:", e);
+            }
+          })();
 
           return NextResponse.json(updated || asset);
         }

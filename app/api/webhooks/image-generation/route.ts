@@ -20,7 +20,8 @@
 
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { uploadToImgBB } from "@/lib/imgbb";
+import { uploadToImgBB, uploadBufferToImgBB } from "@/lib/imgbb";
+import { compositeLogoOntoImage } from "@/lib/image-compositor";
 
 interface WebhookExtraction {
   taskId?: string;
@@ -115,22 +116,21 @@ export async function POST(request: Request) {
     }
 
     if (status === "completed" && imageUrl) {
-      // Save with original URL immediately so the user sees the image fast
+      // Save with original URL immediately so the user sees something fast
       await supabase
         .from("generated_assets")
         .update({ status: "completed", image_url: imageUrl })
         .eq("id", asset.id);
 
-      // Fire-and-forget: re-host on ImgBB in background, then update DB with permanent URL
-      uploadToImgBB(imageUrl)
-        .then((imgbb) => {
-          supabase
-            .from("generated_assets")
-            .update({ image_url: imgbb.url })
-            .eq("id", asset.id)
-            .then(() => {});
-        })
-        .catch((e) => console.error("[image-webhook] background ImgBB upload failed:", e));
+      // Fetch the dealership to see if a logo overlay is needed
+      const { data: dealership } = await supabase
+        .from("dealerships")
+        .select("logo_url")
+        .eq("id", asset.dealership_id)
+        .single();
+
+      // Background processing: composite logo (if any) and re-host to ImgBB
+      processImageInBackground(asset.id, imageUrl, dealership?.logo_url || null, supabase);
     } else if (status === "failed") {
       await supabase
         .from("generated_assets")
@@ -154,5 +154,60 @@ export async function POST(request: Request) {
       error instanceof Error ? error.message : "Webhook processing error";
     console.error("[image-webhook] error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+/**
+ * Background pipeline: composite the dealership logo (if any) onto the
+ * AI-generated image, then upload the result to ImgBB and update the asset.
+ * This guarantees a pixel-perfect logo regardless of which AI model was used,
+ * and eliminates the duplicate-watermark problem because we don't depend on
+ * the AI to honor logo instructions.
+ */
+async function processImageInBackground(
+  assetId: string,
+  imageUrl: string,
+  logoUrl: string | null,
+  supabase: Awaited<ReturnType<typeof createServiceClient>>,
+) {
+  try {
+    let finalUrl = imageUrl;
+
+    if (logoUrl) {
+      try {
+        const composited = await compositeLogoOntoImage({
+          baseImageUrl: imageUrl,
+          logoUrl,
+        });
+        const imgbb = await uploadBufferToImgBB(composited);
+        finalUrl = imgbb.url;
+      } catch (e) {
+        console.error("[image-webhook] logo composite failed, falling back to base image:", e);
+        // Fall back to re-hosting the original AI image without the overlay
+        try {
+          const imgbb = await uploadToImgBB(imageUrl);
+          finalUrl = imgbb.url;
+        } catch (e2) {
+          console.error("[image-webhook] fallback ImgBB upload failed:", e2);
+        }
+      }
+    } else {
+      // No logo to overlay — just re-host the original
+      try {
+        const imgbb = await uploadToImgBB(imageUrl);
+        finalUrl = imgbb.url;
+      } catch (e) {
+        console.error("[image-webhook] ImgBB upload failed:", e);
+      }
+    }
+
+    if (finalUrl !== imageUrl) {
+      await supabase
+        .from("generated_assets")
+        .update({ image_url: finalUrl })
+        .eq("id", assetId);
+    }
+  } catch (e) {
+    console.error("[image-webhook] processImageInBackground error:", e);
   }
 }

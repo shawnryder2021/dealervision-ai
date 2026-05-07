@@ -154,27 +154,29 @@ function getBrandContext(dealership: Dealership): string {
 function getLogoLockdown(dealership: Dealership): string {
   const hasLogo = !!dealership.logo_url;
   if (hasLogo) {
+    // The logo is composited server-side AFTER generation, so the AI must
+    // leave a clean reserved area in the top-left and add NO branding itself.
     return [
-      "█████ ABSOLUTE RULES — READ FIRST █████",
-      "An attached image (image_input) contains the official dealership logo. You MUST copy this exact attached image into the top-left header of the output — preserve its shape, colors, icon, and typography exactly as in the attached file. Do NOT interpret it, do NOT recreate it, do NOT redraw it from memory.",
-      "EXACTLY ONE logo appears in the entire output: the attached logo image, placed ONCE in the top-left.",
-      "ABSOLUTELY FORBIDDEN throughout the rest of the image:",
-      "- A second copy, smaller copy, watermark, ghost copy, transparent copy, or footer copy of the dealership logo.",
-      "- Any invented logo, globe icon, monogram, ribbon, badge, emblem, shield, or hand-drawn brand mark.",
-      "- The dealership name rendered as logo art outside the header (it should not appear at all elsewhere unless explicitly listed in the contact text).",
-      "- Any logo, icon, graphic, or brand mark inside the bottom footer bar. Footer is contact text only — phone, address, period.",
-      "- Any duplicate of the logo in any corner.",
-      "If you find yourself generating a small version of the logo near contact text, STOP — that is the failure mode. The footer is plain text only, vertically centered, no graphics.",
-      "█████████████████████████████████████",
+      "█████ ABSOLUTE BRANDING RULES — READ FIRST █████",
+      "DO NOT generate, draw, paint, render, sketch, illustrate, or imagine ANY dealership logo, emblem, brand mark, monogram, shield, globe icon, ribbon, badge, watermark, corner stamp, or branded graphic ANYWHERE in this image. The official dealership logo will be added by a separate process AFTER you generate this image — your job is to leave it out entirely.",
+      "RESERVE a clean empty area in the TOP-LEFT corner of the image (roughly the top-left 22% × 12% of the image). This area should be a smooth, low-detail portion of the background or scene — no headlines, no text, no subjects, no logos here. Just a clean, simple visual area where a logo will be placed later.",
+      "ABSOLUTELY FORBIDDEN ANYWHERE in the image:",
+      "- Any dealership logo, brand mark, emblem, badge, monogram, shield, globe, ribbon, watermark, ghost mark, or corner stamp.",
+      "- The text 'dealership name' rendered as logo art with surrounding icons or graphics.",
+      "- Any logo-shaped graphic, even decorative, in any corner or in the footer.",
+      "- Any small icon-with-text combination that resembles a dealership identifier.",
+      "Manufacturer logos (Toyota, Honda, Ford, etc.) are allowed ONLY where they naturally appear on the actual vehicle's grille and badging in the photograph — never added as overlays.",
+      "If you are tempted to add a small branded watermark, mini-logo, or globe-icon-with-text near a corner — DO NOT. The image must be clean of all dealer branding so the real logo can be cleanly composited on top.",
+      "█████████████████████████████████████████",
       "",
     ].join(" ");
   }
   return [
-    "█████ ABSOLUTE RULES — READ FIRST █████",
-    "NO dealership logo, emblem, badge, globe icon, monogram, shield, ribbon, or invented brand mark anywhere in the image.",
-    `The dealership name "${dealership.name}" may appear ONCE as plain typography in the top-left header, and ONCE as plain text in the contact footer bar. Nowhere else. NEVER as logo art with surrounding icons, plates, or graphics.`,
-    "FORBIDDEN: putting any logo, icon, brand mark, emblem, or graphic element inside the footer. Footer is text-only.",
-    "█████████████████████████████████████",
+    "█████ ABSOLUTE BRANDING RULES — READ FIRST █████",
+    "NO dealership logo, emblem, badge, globe icon, monogram, shield, ribbon, watermark, or invented brand mark anywhere in the image.",
+    `The dealership name "${dealership.name}" may appear ONCE as plain typography in the top-left header. Nowhere else. NEVER as logo art with surrounding icons, plates, or graphics.`,
+    "FORBIDDEN: any logo, icon, brand mark, emblem, or graphic element inside the footer.",
+    "█████████████████████████████████████████",
     "",
   ].join(" ");
 }
