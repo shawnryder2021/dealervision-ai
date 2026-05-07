@@ -133,8 +133,22 @@ function getBrandContext(dealership: Dealership): string {
   // Logo handling — the actual logo URL is passed as image_input to the provider.
   // Tell the AI to use it rather than inventing one. If no logo, suppress logo invention.
   const logoStr = dealership.logo_url
-    ? ` IMPORTANT LOGO INSTRUCTION: A reference image of the official ${dealership.name} dealership logo has been provided as input. You MUST use that exact provided logo as the dealership brand mark in this image — do NOT invent, redraw, or stylize a different logo. Place it cleanly with proper sizing and white-space around it.`
-    : ` IMPORTANT: Do NOT invent or generate a fictional dealership logo. Display the dealership name "${dealership.name}" as clean professional typography only. No fake emblems, badges, or invented logo marks.`;
+    ? ` ════════════════════════════════════════
+       CRITICAL LOGO RULE — MUST BE FOLLOWED EXACTLY:
+       The official ${dealership.name} dealership logo has been provided as a reference image input.
+       1. USE ONLY THE PROVIDED LOGO. Do NOT invent, redraw, redesign, stylize, animate, or modify a logo. Do NOT generate any new logo, emblem, badge, monogram, or brand mark of any kind.
+       2. Place the provided logo as a flat overlay onto the image — preserve its exact shape, colors, proportions, and typography.
+       3. PLACEMENT MUST BE LEGIBLE: position the logo where it is clearly visible — typically a corner (top-left, top-right, or bottom-right) or in a dedicated header/footer band. Never place the logo over busy background detail, the vehicle's grille/wheels/windshield, or text overlays.
+       4. CONTRAST GUARANTEE: place the logo on a clean, contrasting area. If the underlying area is busy or low-contrast, render the logo inside a simple solid or semi-transparent rectangular plate (white plate for dark logos, dark/brand-color plate for light logos) with at least 16px of padding around the logo on all sides. The plate must have rounded corners and a subtle drop shadow so the logo reads as a polished, intentional design element — never floating awkwardly.
+       5. SIZE: the logo should occupy roughly 8-15% of the image width — large enough to be unmistakably visible, small enough to not dominate the composition.
+       6. NO OTHER LOGOS in the image. Do not add manufacturer logos, social-media icons, certification badges, or any decorative emblems unless they are part of the provided logo image itself.
+       ════════════════════════════════════════`
+    : ` ════════════════════════════════════════
+       NO LOGO PROVIDED — DO NOT INVENT ONE:
+       1. Do NOT generate, draw, or invent any dealership logo, emblem, badge, monogram, or brand mark.
+       2. Display the dealership name "${dealership.name}" as clean professional typography only — a clear, readable text setting in the brand color, with no surrounding logo-like graphics.
+       3. The dealership name text must be on a high-contrast area or backed by a simple solid plate so it is clearly readable.
+       ════════════════════════════════════════`;
 
   return `Dealership: ${dealership.name}.${taglineStr} ${colorStr}${contactStr}${logoStr}${getLocalContext(dealership)} Use primary color ${colors.primary} as the dominant brand color in overlays, banners, and accents.`;
 }
