@@ -165,21 +165,53 @@ export default function VinDecoderPage() {
       const aspectRatio = getAspectRatioForChannel(channel);
       const resolution = getResolutionForChannel(channel);
 
-      const endpoint = isDemoMode() ? "/api/demo-generate" : "/api/generate";
-      const res = await fetch(endpoint, {
+      if (isDemoMode()) {
+        const res = await fetch("/api/demo-generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt, aspect_ratio: aspectRatio, resolution }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Generation failed");
+        }
+        const { taskId } = await res.json();
+        const demoAsset: GeneratedAsset = {
+          id: `vin-${Date.now()}`,
+          dealership_id: dealership.id,
+          created_by: null,
+          vehicle_id: null,
+          content_type: "vehicle-spotlight",
+          channel,
+          prompt,
+          image_url: null,
+          storage_path: null,
+          aspect_ratio: aspectRatio,
+          resolution,
+          kie_task_id: taskId,
+          status: "processing",
+          metadata: { vin: decoded.vin },
+          is_favorite: false,
+          campaign: `VIN: ${decoded.vin}`,
+          created_at: new Date().toISOString(),
+        };
+        setGeneratedAsset(demoAsset);
+        addAsset(demoAsset);
+        pollResult(demoAsset, taskId);
+        return;
+      }
+
+      // Production: pass the fully-built prompt so vehicle details are included
+      const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          isDemoMode()
-            ? { prompt, aspect_ratio: aspectRatio, resolution }
-            : {
-                content_type: "vehicle-spotlight",
-                channel,
-                headline,
-                style,
-                campaign: `VIN: ${decoded.vin}`,
-              }
-        ),
+        body: JSON.stringify({
+          content_type: "custom",
+          channel,
+          style,
+          custom_prompt: prompt,
+          campaign: `VIN: ${decoded.vin}`,
+        }),
       });
 
       if (!res.ok) {
@@ -188,33 +220,12 @@ export default function VinDecoderPage() {
       }
 
       const result = await res.json();
-      const taskId = isDemoMode() ? result.taskId : result.kie_task_id;
 
-      const asset: GeneratedAsset = isDemoMode()
-        ? {
-            id: `vin-${Date.now()}`,
-            dealership_id: dealership.id,
-            created_by: null,
-            vehicle_id: null,
-            content_type: "vehicle-spotlight",
-            channel,
-            prompt,
-            image_url: null,
-            storage_path: null,
-            aspect_ratio: aspectRatio,
-            resolution,
-            kie_task_id: taskId,
-            status: "processing",
-            metadata: { vin: decoded.vin },
-            is_favorite: false,
-            campaign: `VIN: ${decoded.vin}`,
-            created_at: new Date().toISOString(),
-          }
-        : result;
-
+      // Poll by asset ID (not kie_task_id) — the poll route looks up by asset ID
+      const asset: GeneratedAsset = result;
       setGeneratedAsset(asset);
       addAsset(asset);
-      pollResult(asset, taskId || result.id);
+      pollResult(asset, result.id);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Generation failed";
       toast.error(message);
@@ -229,6 +240,7 @@ export default function VinDecoderPage() {
     const poll = async () => {
       attempts++;
       try {
+        // Demo mode: id is a KIE task ID; production: id is the asset UUID
         const url = isDemoMode()
           ? `/api/demo-generate?taskId=${id}`
           : `/api/generate/${id}`;
