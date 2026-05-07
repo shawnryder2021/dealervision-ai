@@ -49,6 +49,20 @@ export async function POST(request: Request) {
         .eq("id", body.vehicle_id)
         .single();
       vehicle = v;
+    } else if (body.inline_vehicle) {
+      const iv = body.inline_vehicle;
+      vehicle = {
+        id: null,
+        dealership_id: profile.dealership_id,
+        year: iv.year ?? null,
+        make: iv.make ?? null,
+        model: iv.model ?? null,
+        trim: iv.trim ?? null,
+        price: null, mileage: null, vin: null, stock_number: null,
+        status: "available", photos: [], tags: [], details: {},
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
     }
 
     const prompt = buildPrompt({
@@ -71,6 +85,7 @@ export async function POST(request: Request) {
       custom_prompt: body.custom_prompt,
       include_vehicle_year: body.include_vehicle_year,
       include_vehicle_model: body.include_vehicle_model,
+      scene_location: body.scene_location,
     });
 
     const aspectRatio = getAspectRatioForChannel(body.channel);

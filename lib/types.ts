@@ -134,6 +134,13 @@ export interface GenerateRequest {
   scene_location?: string;
   /** Reference image URLs (user-uploaded photos). Logo URL is added automatically server-side. */
   image_input?: string[];
+  /** Inline vehicle data when the user picked a "preset:" common model not in their DB. */
+  inline_vehicle?: {
+    year?: number;
+    make?: string;
+    model?: string;
+    trim?: string;
+  };
 }
 
 export interface KieCreateTaskResponse {

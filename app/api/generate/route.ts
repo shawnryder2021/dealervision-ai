@@ -73,7 +73,8 @@ export async function POST(request: NextRequest) {
       useCredits = !!quota.useCredits;
     }
 
-    // Fetch vehicle if specified
+    // Fetch vehicle if specified, or build a synthetic one from inline_vehicle
+    // (used when the user picked a "common" preset that isn't in their DB).
     let vehicle = null;
     if (body.vehicle_id) {
       const { data: v } = await supabase
@@ -82,6 +83,20 @@ export async function POST(request: NextRequest) {
         .eq("id", body.vehicle_id)
         .single();
       vehicle = v;
+    } else if (body.inline_vehicle) {
+      const iv = body.inline_vehicle;
+      vehicle = {
+        id: null,
+        dealership_id: effectiveDealershipId,
+        year: iv.year ?? null,
+        make: iv.make ?? null,
+        model: iv.model ?? null,
+        trim: iv.trim ?? null,
+        price: null, mileage: null, vin: null, stock_number: null,
+        status: "available", photos: [], tags: [], details: {},
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
     }
 
     // Build the prompt
