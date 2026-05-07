@@ -211,10 +211,12 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
     const scene = getSceneBlock(ctx);
     const hasScene = !!scene;
     const defaultScene = hasScene ? "" : "Clean, neutral background with soft gradient. Professional three-point automotive studio lighting. Slight ground-plane reflection beneath the vehicle.";
+    const yearStr = vehicle?.year ? `${vehicle.year} ` : "";
 
     return [
       `Professional commercial automotive photography, ${getChannelFormatting(ctx.channel)}.`,
       `Hero shot of a ${vehicleDesc}. ${accuracy}`,
+      vehicle?.year ? `This is a ${yearStr}model year vehicle — the year ${vehicle.year} must be clearly visible as styled text in the image.` : "",
       scene || defaultScene,
       `Photography style: ${ctx.style}.`,
       ctx.headline ? `Typography overlay — main headline: "${ctx.headline}".` : "",
@@ -429,10 +431,14 @@ export function buildPrompt(context: PromptContext): string {
     includeParts.push(`vehicle model "${context.include_vehicle_model}"`);
   }
 
-  const includePrompt =
-    includeParts.length > 0
-      ? `Include ${includeParts.join(" and ")} in the visible creative text or scene details if it naturally fits the layout.`
-      : "";
+  // Build mandatory text-overlay instructions for year / model
+  let includePrompt = "";
+  if (context.include_vehicle_year) {
+    includePrompt += ` MANDATORY: Display the vehicle model year "${context.include_vehicle_year}" as a clearly legible, prominently styled text element in the image — do not omit it.`;
+  }
+  if (context.include_vehicle_model) {
+    includePrompt += ` MANDATORY: Display the vehicle model name "${context.include_vehicle_model}" as a clearly legible text element in the image — do not omit it.`;
+  }
 
   const rendered = template ? template(context) : TEMPLATES.custom(context);
   const base = `${rendered} ${includePrompt}`.replace(/\s+/g, " ").trim();
