@@ -42,10 +42,13 @@ export function VehicleSelector({
         value={value || "none"}
         onValueChange={(v) => onChange(v === "none" || v == null ? undefined : v)}
       >
-        <SelectTrigger>
+        <SelectTrigger className="w-full">
           <SelectValue placeholder="Choose a vehicle..." />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent
+          alignItemWithTrigger={false}
+          className="!w-auto min-w-[340px] max-w-[480px]"
+        >
           <SelectItem value="none">
             <span className="text-muted-foreground">No specific vehicle</span>
           </SelectItem>
