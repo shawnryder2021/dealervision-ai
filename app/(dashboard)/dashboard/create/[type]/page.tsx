@@ -31,6 +31,7 @@ import { useAppStore } from "@/lib/store";
 import { createClient } from "@/lib/supabase/client";
 import { isDemoMode } from "@/lib/demo-data";
 import { buildPrompt, getAspectRatioForChannel, getResolutionForChannel } from "@/lib/prompt-templates";
+import { COMMON_VEHICLE_PRESETS } from "@/lib/common-vehicle-presets";
 import { CONTENT_TYPES, CHANNEL_PRESETS } from "@/lib/constants";
 import type { Vehicle, GeneratedAsset } from "@/lib/types";
 import { useWebhook } from "@/lib/use-webhook";
@@ -110,25 +111,28 @@ export default function GenerateTypePage() {
     loadVehicles();
   }, [dealership, storeVehicles]);
 
-  const availableYears = useMemo(
-    () =>
-      Array.from(new Set(vehicles.map((v) => v.year).filter((y): y is number => y != null)))
-        .sort((a, b) => b - a)
-        .map(String),
-    [vehicles]
-  );
+  const availableYears = useMemo(() => {
+    const fromInventory = vehicles
+      .map((v) => v.year)
+      .filter((y): y is number => y != null);
+    const fromPresets = COMMON_VEHICLE_PRESETS.map((p) => p.year);
+    // Always include the current year ± a couple so the picker is usable
+    const now = new Date().getFullYear();
+    const evergreen = [now + 1, now, now - 1, now - 2];
+    return Array.from(new Set([...fromInventory, ...fromPresets, ...evergreen]))
+      .sort((a, b) => b - a)
+      .map(String);
+  }, [vehicles]);
 
-  const availableModels = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          vehicles
-            .map((v) => v.model?.trim())
-            .filter((model): model is string => Boolean(model))
-        )
-      ).sort((a, b) => a.localeCompare(b)),
-    [vehicles]
-  );
+  const availableModels = useMemo(() => {
+    const fromInventory = vehicles
+      .map((v) => v.model?.trim())
+      .filter((m): m is string => Boolean(m));
+    const fromPresets = COMMON_VEHICLE_PRESETS.map((p) => p.model);
+    return Array.from(new Set([...fromInventory, ...fromPresets])).sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }, [vehicles]);
 
   const handlePreviewPrompt = useCallback(async () => {
     if (isDemoMode() && dealership) {
