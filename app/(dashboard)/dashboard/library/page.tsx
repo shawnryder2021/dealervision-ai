@@ -52,33 +52,69 @@ export default function LibraryPage() {
   const [isZipping, setIsZipping] = useState(false);
   const [zipProgress, setZipProgress] = useState({ current: 0, total: 0 });
 
-  useEffect(() => {
-    async function loadAssets() {
-      if (!dealership) return;
-
-      if (isDemoMode()) {
-        setAssets(recentAssets);
-        return;
+  async function refreshStuckAssets(silent = true) {
+    if (isDemoMode()) return;
+    try {
+      const res = await fetch("/api/generate/refresh-stuck", { method: "POST" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.updated > 0 && !silent) {
+        toast.success(`${data.updated} stuck asset(s) refreshed`);
       }
-
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("generated_assets")
-        .select("*")
-        .eq("dealership_id", dealership.id)
-        .order("created_at", { ascending: false });
-
-      if (data) {
-        // Merge in any store assets not yet in the DB result
-        // (e.g. items just saved from BG swap / batch before this query ran)
-        const dbAssets = data as GeneratedAsset[];
-        const dbIds = new Set(dbAssets.map((asset) => asset.id));
-        const storeOnly = recentAssets.filter((a) => !dbIds.has(a.id));
-        setAssets([...storeOnly, ...dbAssets]);
-      }
+      return data.updated > 0;
+    } catch {
+      return false;
     }
-    loadAssets();
+  }
+
+  async function loadAssets() {
+    if (!dealership) return;
+
+    if (isDemoMode()) {
+      setAssets(recentAssets);
+      return;
+    }
+
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("generated_assets")
+      .select("*")
+      .eq("dealership_id", dealership.id)
+      .order("created_at", { ascending: false });
+
+    if (data) {
+      const dbAssets = data as GeneratedAsset[];
+      const dbIds = new Set(dbAssets.map((asset) => asset.id));
+      const storeOnly = recentAssets.filter((a) => !dbIds.has(a.id));
+      setAssets([...storeOnly, ...dbAssets]);
+    }
+  }
+
+  useEffect(() => {
+    async function init() {
+      await loadAssets();
+      // After initial load, refresh any stuck assets in background
+      const updated = await refreshStuckAssets(true);
+      if (updated) await loadAssets();
+    }
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dealership, recentAssets]);
+
+  // Auto-refresh stuck assets every 15s while the library is open
+  useEffect(() => {
+    if (isDemoMode()) return;
+    const hasStuck = assets.some(
+      (a) => a.status === "processing" || a.status === "pending"
+    );
+    if (!hasStuck) return;
+    const interval = setInterval(async () => {
+      const updated = await refreshStuckAssets(true);
+      if (updated) await loadAssets();
+    }, 15000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assets]);
 
   const filteredAssets = useMemo(() => {
     let result = [...assets];
@@ -270,17 +306,32 @@ export default function LibraryPage() {
             {assets.length} generated visual{assets.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <Button
-          variant={selectMode ? "default" : "outline"}
-          size="sm"
-          onClick={() => {
-            setSelectMode(!selectMode);
-            if (selectMode) setSelectedIds(new Set());
-          }}
-        >
-          <CheckSquare className="h-4 w-4 mr-1.5" />
-          {selectMode ? "Done" : "Select"}
-        </Button>
+        <div className="flex items-center gap-2">
+          {assets.some((a) => a.status === "processing" || a.status === "pending") && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                const updated = await refreshStuckAssets(false);
+                if (updated) await loadAssets();
+                else toast.info("No assets ready yet");
+              }}
+            >
+              Refresh
+            </Button>
+          )}
+          <Button
+            variant={selectMode ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setSelectMode(!selectMode);
+              if (selectMode) setSelectedIds(new Set());
+            }}
+          >
+            <CheckSquare className="h-4 w-4 mr-1.5" />
+            {selectMode ? "Done" : "Select"}
+          </Button>
+        </div>
       </div>
 
       {selectMode && (
