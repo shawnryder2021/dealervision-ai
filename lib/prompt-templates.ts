@@ -104,53 +104,72 @@ function getVehicleAccuracyPrompt(vehicle: Vehicle): string {
 function getBrandContext(dealership: Dealership): string {
   const colors = dealership.brand_colors;
   const c = dealership.contact ?? {};
+  const hasLogo = !!dealership.logo_url;
 
   const colorStr = `Brand colors: primary ${colors.primary}, secondary ${colors.secondary}, accent ${colors.accent}.`;
   const taglineStr = dealership.tagline ? ` Tagline: "${dealership.tagline}".` : "";
 
-  // Build the contact footer overlay text
-  const footerParts: string[] = [dealership.name];
+  // Footer contact info — when a logo is in the top-left, the dealership name
+  // is already shown there, so don't repeat it in the footer. Just contact details.
+  const footerParts: string[] = [];
+  if (!hasLogo) footerParts.push(dealership.name);
   if (c.phone) footerParts.push(c.phone);
   if (c.website) footerParts.push(c.website.replace(/^https?:\/\//, ""));
   if (c.address) footerParts.push(c.address);
 
   const footerText = footerParts.join("  |  ");
 
-  // Also collect any social handles for optional display
   const socialParts: string[] = [];
   if (c.social?.instagram) socialParts.push(`IG: ${c.social.instagram}`);
   if (c.social?.facebook) socialParts.push(`FB: ${c.social.facebook}`);
   const socialStr =
     socialParts.length > 0
-      ? ` Social handles to display if space allows: ${socialParts.join(", ")}.`
+      ? ` Social handles (small text, footer-right): ${socialParts.join(", ")}.`
       : "";
 
-  const contactStr =
-    footerParts.length > 1
-      ? ` IMPORTANT: Include a clean professional footer bar at the bottom of the image with this text displayed clearly and legibly: "${footerText}".${socialStr}`
-      : "";
+  // ─── Layout zones ──────────────────────────────────────────────
+  // Hard-locked structure so the AI never duplicates the logo or
+  // hides it behind text. Three zones: HEADER → HERO → FOOTER.
+  // ───────────────────────────────────────────────────────────────
+  const layoutZones = `
+    ═══ STRICT LAYOUT ZONES — DO NOT DEVIATE ═══
+    The image must be composed in three clearly separated horizontal zones:
 
-  // Logo handling — the actual logo URL is passed as image_input to the provider.
-  // Tell the AI to use it rather than inventing one. If no logo, suppress logo invention.
-  const logoStr = dealership.logo_url
-    ? ` ════════════════════════════════════════
-       CRITICAL LOGO RULE — MUST BE FOLLOWED EXACTLY:
-       The official ${dealership.name} dealership logo has been provided as a reference image input.
-       1. USE ONLY THE PROVIDED LOGO. Do NOT invent, redraw, redesign, stylize, animate, or modify a logo. Do NOT generate any new logo, emblem, badge, monogram, or brand mark of any kind.
-       2. Place the provided logo as a flat overlay onto the image — preserve its exact shape, colors, proportions, and typography.
-       3. PLACEMENT MUST BE LEGIBLE: position the logo where it is clearly visible — typically a corner (top-left, top-right, or bottom-right) or in a dedicated header/footer band. Never place the logo over busy background detail, the vehicle's grille/wheels/windshield, or text overlays.
-       4. CONTRAST GUARANTEE: place the logo on a clean, contrasting area. If the underlying area is busy or low-contrast, render the logo inside a simple solid or semi-transparent rectangular plate (white plate for dark logos, dark/brand-color plate for light logos) with at least 16px of padding around the logo on all sides. The plate must have rounded corners and a subtle drop shadow so the logo reads as a polished, intentional design element — never floating awkwardly.
-       5. SIZE: the logo should occupy roughly 8-15% of the image width — large enough to be unmistakably visible, small enough to not dominate the composition.
-       6. NO OTHER LOGOS in the image. Do not add manufacturer logos, social-media icons, certification badges, or any decorative emblems unless they are part of the provided logo image itself.
+    [ZONE A — HEADER, top ~12% of image]
+      ${hasLogo
+        ? `Place the PROVIDED dealership logo here, in the TOP-LEFT corner only. Render it on a clean white rounded-corner plate (16px padding, soft drop shadow) so it is unmistakably legible. Plate is ~20-25% of image width.`
+        : `Display the dealership name "${dealership.name}" as clean bold typography in the brand color, top-left. NO logo box, NO emblem, NO invented brand mark.`}
+      The right side of the header zone is reserved for the marketing headline only.
+
+    [ZONE B — HERO, middle ~73% of image]
+      The vehicle photograph fills this zone. Headline / sub-headline / price overlays may sit on the right side of this zone over a clean part of the background.
+      ABSOLUTELY NO logo, emblem, or brand mark of any kind in this zone. NO repeated dealership branding here.
+
+    [ZONE C — FOOTER, bottom ~10% of image]
+      A solid full-width brand-colored bar containing only the contact text below, in clean white sans-serif typography, vertically centered and with safe margins:
+      "${footerText || dealership.name}"${socialStr}
+      ABSOLUTELY NO logo image, NO logo plate, NO brand mark, NO icon in this footer. TEXT ONLY.
+    ═══════════════════════════════════════════════
+  `.trim();
+
+  // ─── Logo rules ────────────────────────────────────────────────
+  const logoRules = hasLogo
+    ? ` ═══ LOGO RULES — CRITICAL ═══
+       1. EXACTLY ONE logo appears in the entire image — the provided ${dealership.name} logo, in Zone A top-left only.
+       2. USE ONLY THE PROVIDED LOGO. Do NOT invent, redraw, recreate, restyle, animate, or hand-letter any logo. Do NOT generate any new emblem, monogram, globe icon, shield, ribbon, or brand mark.
+       3. Copy the provided logo as a faithful flat overlay — preserve its exact shape, color, and typography.
+       4. The logo plate is a clean rounded-corner white rectangle with ≥16px padding on all sides and a subtle drop shadow. Logo never floats on busy background.
+       5. ZERO logos anywhere outside Zone A. No logo in Zone B (hero). No logo in Zone C (footer). No logo on the vehicle. No logo as watermark. No mini-logo, no thumbnail logo, no transparent ghost logo.
+       6. NO manufacturer logos (Toyota/Ford/etc are allowed only as they naturally appear on the actual vehicle's grille/badging in the photograph — never added as overlays).
+       7. NO social media icons, certification badges, or decorative emblems unless part of the provided logo image itself.
        ════════════════════════════════════════`
-    : ` ════════════════════════════════════════
-       NO LOGO PROVIDED — DO NOT INVENT ONE:
-       1. Do NOT generate, draw, or invent any dealership logo, emblem, badge, monogram, or brand mark.
-       2. Display the dealership name "${dealership.name}" as clean professional typography only — a clear, readable text setting in the brand color, with no surrounding logo-like graphics.
-       3. The dealership name text must be on a high-contrast area or backed by a simple solid plate so it is clearly readable.
+    : ` ═══ NO LOGO — DO NOT INVENT ONE ═══
+       1. NO dealership logo, emblem, badge, monogram, shield, globe, ribbon, or invented brand mark anywhere in the image.
+       2. The only branding in the entire image is the dealership name "${dealership.name}" rendered as clean typography in Zone A top-left.
+       3. ZERO logo-like graphics in any zone.
        ════════════════════════════════════════`;
 
-  return `Dealership: ${dealership.name}.${taglineStr} ${colorStr}${contactStr}${logoStr}${getLocalContext(dealership)} Use primary color ${colors.primary} as the dominant brand color in overlays, banners, and accents.`;
+  return `Dealership: ${dealership.name}.${taglineStr} ${colorStr}${layoutZones}${logoRules}${getLocalContext(dealership)} Use primary color ${colors.primary} as the dominant brand color in overlays, banners, and accents.`;
 }
 
 function getManufacturerStyleGuidance(make?: string): string {
@@ -198,16 +217,6 @@ function getLocalContext(dealership: Dealership): string {
   return ` Local market context: ${parts.join("; ")}.`;
 }
 
-/** Builds a concise "contact footer" string for use inside individual templates */
-function getContactLine(dealership: Dealership): string {
-  const c = dealership.contact ?? {};
-  const parts: string[] = [];
-  if (c.phone) parts.push(c.phone);
-  if (c.website) parts.push(c.website.replace(/^https?:\/\//, ""));
-  if (c.address) parts.push(c.address);
-  return parts.length > 0 ? parts.join("  |  ") : "";
-}
-
 /** Returns the scene block for a context — handles local-landmark fallback */
 function getSceneBlock(ctx: PromptContext): string {
   const landmark = ctx.dealership.local_context?.landmarks;
@@ -227,7 +236,6 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
     const vehicleDesc = vehicle ? getVehicleDescription(vehicle) : "featured vehicle";
     const price = vehicle?.price ? `$${vehicle.price.toLocaleString()}` : "";
     const accuracy = vehicle ? getVehicleAccuracyPrompt(vehicle) : "";
-    const contactLine = getContactLine(ctx.dealership);
     const scene = getSceneBlock(ctx);
     const hasScene = !!scene;
     const defaultScene = hasScene ? "" : "Clean, neutral background with soft gradient. Professional three-point automotive studio lighting. Slight ground-plane reflection beneath the vehicle.";
@@ -243,7 +251,6 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
       price ? `Display sale price prominently: "${price}".` : "",
       ctx.subheadline ? `Secondary text overlay: "${ctx.subheadline}".` : "",
       ctx.cta ? `Call-to-action button text: "${ctx.cta}".` : "",
-      contactLine ? `Dealership info bar at the bottom of the image: "${contactLine}".` : "",
       getBrandContext(ctx.dealership),
       PHOTO_QUALITY,
       "All text overlays must be razor-sharp, fully legible, and positioned within safe margins.",
@@ -252,7 +259,6 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
 
   "sales-event": (ctx) => {
     const accuracy = ctx.vehicle ? getVehicleAccuracyPrompt(ctx.vehicle) : "";
-    const contactLine = getContactLine(ctx.dealership);
     const scene = getSceneBlock(ctx);
 
     return [
@@ -266,7 +272,6 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
       scene,
       `Visual style: ${ctx.style}, high-energy, bold typography, attention-commanding.`,
       ctx.cta ? `Call-to-action: "${ctx.cta}".` : "",
-      contactLine ? `Footer contact bar: "${contactLine}".` : "",
       getBrandContext(ctx.dealership),
       PHOTO_QUALITY,
       "All text must be crisp and fully legible.",
@@ -277,7 +282,6 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
     const vehicle = ctx.vehicle;
     const vehicleDesc = vehicle ? getVehicleDescription(vehicle) : "new vehicle";
     const accuracy = vehicle ? getVehicleAccuracyPrompt(vehicle) : "";
-    const contactLine = getContactLine(ctx.dealership);
     const scene = getSceneBlock(ctx);
     const defaultScene = scene || "Dramatic studio with a cool-toned gradient sweep background. Spotlights emphasize the new paint and clean body lines. Ground reflection visible below.";
 
@@ -289,7 +293,6 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
       vehicle?.price ? `Price overlay: "$${vehicle.price.toLocaleString()}".` : "",
       ctx.subheadline ? `Subtext: "${ctx.subheadline}".` : "",
       ctx.cta ? `CTA: "${ctx.cta}".` : "",
-      contactLine ? `Footer contact info: "${contactLine}".` : "",
       `Style: ${ctx.style}, fresh, exciting, premium.`,
       getBrandContext(ctx.dealership),
       PHOTO_QUALITY,
@@ -301,7 +304,6 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
     const vehicle = ctx.vehicle;
     const vehicleDesc = vehicle ? getVehicleDescription(vehicle) : "select vehicle";
     const accuracy = vehicle ? getVehicleAccuracyPrompt(vehicle) : "";
-    const contactLine = getContactLine(ctx.dealership);
     const scene = getSceneBlock(ctx);
 
     return [
@@ -311,7 +313,6 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
       ctx.headline ? `Bold attention-grabbing headline: "${ctx.headline}".` : '"PRICE REDUCED!" bold headline text.',
       ctx.offer_details ? `New price prominently displayed: "${ctx.offer_details}".` : "",
       ctx.cta ? `CTA: "${ctx.cta}".` : "",
-      contactLine ? `Dealership contact bar: "${contactLine}".` : "",
       `Style: ${ctx.style}, urgent, bold, high-contrast typography.`,
       getBrandContext(ctx.dealership),
       PHOTO_QUALITY,
@@ -320,7 +321,6 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
   },
 
   "inventory-showcase": (ctx) => {
-    const contactLine = getContactLine(ctx.dealership);
     const scene = getSceneBlock(ctx);
 
     return [
@@ -329,14 +329,12 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
       scene || "Clean neutral background. Multiple vehicles arranged in an organized, visually appealing composition.",
       `Style: ${ctx.style}, organized grid or artistic collage layout.`,
       ctx.cta ? `CTA: "${ctx.cta}".` : "",
-      contactLine ? `Footer contact bar: "${contactLine}".` : "",
       getBrandContext(ctx.dealership),
       "Ultra-high-resolution commercial photography. Each vehicle clearly visible with accurate colour and detail. No clutter. Modern, professional automotive advertising design. All text legible.",
     ].filter(Boolean).join(" ");
   },
 
   "brand-post": (ctx) => {
-    const contactLine = getContactLine(ctx.dealership);
     const scene = getSceneBlock(ctx);
 
     return [
@@ -346,7 +344,6 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
         : `Showcase ${ctx.dealership.name} as a trusted, community-focused automotive destination.`,
       ctx.subheadline ? `Supporting text: "${ctx.subheadline}".` : "",
       scene || "Welcoming dealership environment with vehicles tastefully displayed.",
-      contactLine ? `Include dealership contact info: "${contactLine}".` : "",
       `Style: ${ctx.style}, warm, professional, trustworthy. Community-oriented.`,
       getBrandContext(ctx.dealership),
       "Photo-realistic commercial photography. People and environment feel genuine, not stock-photo generic. All text sharp and legible.",
@@ -354,7 +351,6 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
   },
 
   testimonial: (ctx) => {
-    const contactLine = getContactLine(ctx.dealership);
 
     return [
       `Customer testimonial spotlight graphic, ${getChannelFormatting(ctx.channel)}.`,
@@ -362,7 +358,6 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
         ? `Customer review quote: "${ctx.testimonial_text}"${ctx.testimonial_author ? ` — ${ctx.testimonial_author}` : ""}.`
         : "Glowing customer review highlight.",
       `${ctx.rating ?? 5}-star rating displayed with gold star icons.`,
-      contactLine ? `Dealership footer info: "${contactLine}".` : "",
       `Style: ${ctx.style}, trustworthy, clean, authentic.`,
       getBrandContext(ctx.dealership),
       "Elegant design. Quote displayed in a stylish callout box with clear typography. Gold stars prominent. All text sharp and legible.",
@@ -370,7 +365,6 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
   },
 
   "service-promo": (ctx) => {
-    const contactLine = getContactLine(ctx.dealership);
 
     return [
       `Automotive service department promotional graphic, ${getChannelFormatting(ctx.channel)}.`,
@@ -382,7 +376,6 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
         : "Special service offer.",
       ctx.service_details ? `Offer details: "${ctx.service_details}".` : "",
       ctx.cta ? `CTA: "${ctx.cta}".` : "",
-      contactLine ? `Footer contact bar: "${contactLine}".` : "",
       `Style: ${ctx.style}, clean, trustworthy.`,
       getBrandContext(ctx.dealership),
       "Include a realistic automotive service scene — professional technician in branded uniform working on a vehicle, or clean service bay environment. High-resolution. All text crisp and fully legible.",
@@ -391,7 +384,6 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
 
   financing: (ctx) => {
     const accuracy = ctx.vehicle ? getVehicleAccuracyPrompt(ctx.vehicle) : "";
-    const contactLine = getContactLine(ctx.dealership);
     const scene = getSceneBlock(ctx);
 
     return [
@@ -401,7 +393,6 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
       ctx.vehicle ? `Featured vehicle: ${getVehicleDescription(ctx.vehicle)}. ${accuracy}` : "",
       scene,
       ctx.cta ? `CTA: "${ctx.cta}".` : "",
-      contactLine ? `Footer contact bar: "${contactLine}".` : "",
       `Style: ${ctx.style}, bold, clear numbers, trustworthy.`,
       getBrandContext(ctx.dealership),
       PHOTO_QUALITY,
@@ -410,13 +401,11 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
   },
 
   holiday: (ctx) => {
-    const contactLine = getContactLine(ctx.dealership);
 
     return [
       `Branded holiday greeting post for automotive dealership, ${getChannelFormatting(ctx.channel)}.`,
       ctx.headline ? `Message: "${ctx.headline}".` : "Warm, heartfelt holiday greeting.",
       ctx.subheadline ? `Subtext: "${ctx.subheadline}".` : "",
-      contactLine ? `Dealership contact info: "${contactLine}".` : "",
       `Style: ${ctx.style}, festive, warm, on-brand.`,
       getBrandContext(ctx.dealership),
       "Tasteful seasonal design — not overly busy. Professional, polished, celebratory feel. All text elegant and legible.",
@@ -424,14 +413,12 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
   },
 
   custom: (ctx) => {
-    const contactLine = getContactLine(ctx.dealership);
     const scene = getSceneBlock(ctx);
 
     return [
       ctx.custom_prompt || ctx.headline || "Professional automotive marketing visual.",
       `${getChannelFormatting(ctx.channel)}.`,
       scene,
-      contactLine ? `Dealership info: "${contactLine}".` : "",
       `Style: ${ctx.style}.`,
       getBrandContext(ctx.dealership),
       "Professional quality, photo-realistic, all text crisp and legible, modern design.",
