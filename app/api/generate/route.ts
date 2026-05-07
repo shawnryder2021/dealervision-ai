@@ -128,8 +128,17 @@ export async function POST(request: NextRequest) {
 
     // Read image model directly from the already-fetched dealership object
     const globalDefaultModel = await getGlobalImageModel(supabase);
-    const imageModel: ImageModelOption =
+    let imageModel: ImageModelOption =
       (dealership.image_model as ImageModelOption) || globalDefaultModel;
+
+    // If the dealership has a logo and the configured model is gpt-image-2,
+    // force-switch to nano-banana-2 — only nano-banana-2 actually uses
+    // image_input as a reference. gpt-image-2-text-to-image silently
+    // ignores the logo, leading to the AI inventing a similar-looking one.
+    if (dealership.logo_url && imageModel === "openai-gpt-image-2") {
+      console.log("[generate] dealership has logo — switching from gpt-image-2 to nano-banana-2 for image-to-image support");
+      imageModel = "kie-nano-banana";
+    }
 
     // Create asset record
     const { data: asset, error: assetError } = await supabase

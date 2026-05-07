@@ -155,20 +155,23 @@ function getLogoLockdown(dealership: Dealership): string {
   const hasLogo = !!dealership.logo_url;
   if (hasLogo) {
     return [
-      "█████ ABSOLUTE RULE — READ FIRST █████",
-      `EXACTLY ONE LOGO must appear in the entire output image: the official ${dealership.name} logo provided as image_input, placed once in the top-left header.`,
-      "ZERO additional logos may appear ANYWHERE else in the image.",
-      "FORBIDDEN: any second copy, smaller copy, watermark, ghost copy, transparent copy, footer copy, corner stamp, or recreation of the dealership logo. FORBIDDEN: any invented logo, globe icon, monogram, ribbon, badge, emblem, shield, or made-up brand mark anywhere.",
-      "FORBIDDEN: drawing the dealership name as logo art outside the header. The dealership name appears as a logo image ONCE in the header. Outside the header it may only appear as plain text inside the bottom contact bar — never as logo art, never with an icon next to it, never inside a box.",
-      "FORBIDDEN: putting any logo, icon, brand mark, emblem, or graphic element inside the bottom footer bar. The footer is text-only (phone number, address). If your output has a logo of any kind in the footer, the output is WRONG.",
-      "Use the provided logo image faithfully — copy its shape and colors exactly. Do not redraw it.",
+      "█████ ABSOLUTE RULES — READ FIRST █████",
+      "An attached image (image_input) contains the official dealership logo. You MUST copy this exact attached image into the top-left header of the output — preserve its shape, colors, icon, and typography exactly as in the attached file. Do NOT interpret it, do NOT recreate it, do NOT redraw it from memory.",
+      "EXACTLY ONE logo appears in the entire output: the attached logo image, placed ONCE in the top-left.",
+      "ABSOLUTELY FORBIDDEN throughout the rest of the image:",
+      "- A second copy, smaller copy, watermark, ghost copy, transparent copy, or footer copy of the dealership logo.",
+      "- Any invented logo, globe icon, monogram, ribbon, badge, emblem, shield, or hand-drawn brand mark.",
+      "- The dealership name rendered as logo art outside the header (it should not appear at all elsewhere unless explicitly listed in the contact text).",
+      "- Any logo, icon, graphic, or brand mark inside the bottom footer bar. Footer is contact text only — phone, address, period.",
+      "- Any duplicate of the logo in any corner.",
+      "If you find yourself generating a small version of the logo near contact text, STOP — that is the failure mode. The footer is plain text only, vertically centered, no graphics.",
       "█████████████████████████████████████",
       "",
     ].join(" ");
   }
   return [
-    "█████ ABSOLUTE RULE — READ FIRST █████",
-    `NO dealership logo, emblem, badge, globe icon, monogram, shield, ribbon, or invented brand mark anywhere in the image.`,
+    "█████ ABSOLUTE RULES — READ FIRST █████",
+    "NO dealership logo, emblem, badge, globe icon, monogram, shield, ribbon, or invented brand mark anywhere in the image.",
     `The dealership name "${dealership.name}" may appear ONCE as plain typography in the top-left header, and ONCE as plain text in the contact footer bar. Nowhere else. NEVER as logo art with surrounding icons, plates, or graphics.`,
     "FORBIDDEN: putting any logo, icon, brand mark, emblem, or graphic element inside the footer. Footer is text-only.",
     "█████████████████████████████████████",
