@@ -160,6 +160,8 @@ export default function LibraryPage() {
   }
 
   async function handleDelete(id: string) {
+    if (!confirm("Delete this asset? This cannot be undone.")) return;
+
     if (isDemoMode()) {
       setAssets((prev) => prev.filter((a) => a.id !== id));
       toast.success("Asset deleted (demo)");
@@ -176,7 +178,8 @@ export default function LibraryPage() {
       setAssets((prev) => prev.filter((a) => a.id !== id));
       toast.success("Asset deleted");
     } else {
-      toast.error("Failed to delete asset");
+      console.error("Delete error:", error);
+      toast.error(`Failed to delete asset: ${error.message}`);
     }
   }
 

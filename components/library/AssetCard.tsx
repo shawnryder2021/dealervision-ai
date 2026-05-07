@@ -72,11 +72,25 @@ export function AssetCard({
             className="h-full w-full object-cover transition-transform group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full items-center justify-center">
+          <div className="flex h-full flex-col items-center justify-center gap-2">
             {asset.status === "processing" || asset.status === "pending" ? (
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <>
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <p className="text-xs text-muted-foreground">Processing…</p>
+              </>
             ) : (
-              <p className="text-xs text-muted-foreground">Failed</p>
+              <>
+                <p className="text-xs text-muted-foreground">Failed</p>
+              </>
+            )}
+            {/* Always show delete button on no-image cards so they can be cleaned up */}
+            {onDelete && (
+              <button
+                className="mt-1 flex items-center gap-1 rounded px-2 py-1 text-[10px] text-destructive hover:bg-destructive/10 transition-colors"
+                onClick={(e) => { e.stopPropagation(); onDelete(asset.id); }}
+              >
+                <Trash2 className="h-3 w-3" /> Delete
+              </button>
             )}
           </div>
         )}
