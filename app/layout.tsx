@@ -21,6 +21,16 @@ export default function RootLayout({
       className="h-full antialiased"
       suppressHydrationWarning
     >
+      <head>
+        <script
+          data-host="https://shawnryder.site"
+          data-dnt="false"
+          src="https://shawnryder.site/js/script.js"
+          id="ZwSg9rf6GA"
+          async
+          defer
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
           {children}
