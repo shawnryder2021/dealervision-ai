@@ -38,71 +38,100 @@ export async function compositeLogoOntoImage(opts: CompositeOptions): Promise<Bu
     paddingFraction = 0.12,
   } = opts;
 
+  console.log(`[compositor] starting composite: baseUrl=${baseImageUrl}, logoUrl=${logoUrl}`);
+
   // Fetch both images in parallel
+  console.log("[compositor] fetching base image and logo...");
   const [baseRes, logoRes] = await Promise.all([
-    fetch(baseImageUrl),
-    fetch(logoUrl),
+    fetch(baseImageUrl).catch((e) => {
+      throw new Error(`Failed to fetch base image: ${e.message}`);
+    }),
+    fetch(logoUrl).catch((e) => {
+      throw new Error(`Failed to fetch logo: ${e.message}`);
+    }),
   ]);
-  if (!baseRes.ok) throw new Error(`Failed to fetch base image: ${baseRes.status}`);
-  if (!logoRes.ok) throw new Error(`Failed to fetch logo: ${logoRes.status}`);
+
+  if (!baseRes.ok) throw new Error(`Failed to fetch base image: ${baseRes.status} ${baseRes.statusText}`);
+  if (!logoRes.ok) throw new Error(`Failed to fetch logo: ${logoRes.status} ${logoRes.statusText}`);
 
   const [baseBuf, logoBuf] = await Promise.all([
     baseRes.arrayBuffer(),
     logoRes.arrayBuffer(),
   ]);
+  console.log(`[compositor] fetched: baseImage=${baseBuf.byteLength} bytes, logo=${logoBuf.byteLength} bytes`);
 
   const base = sharp(Buffer.from(baseBuf));
   const baseMeta = await base.metadata();
   const baseWidth = baseMeta.width ?? 1024;
   const baseHeight = baseMeta.height ?? 1024;
+  console.log(`[compositor] base image dimensions: ${baseWidth}×${baseHeight}, format=${baseMeta.format}`);
 
   // Plate dimensions
   const plateWidth = Math.round(baseWidth * plateWidthFraction);
   const padding = Math.round(plateWidth * paddingFraction);
   const margin = Math.round(baseWidth * marginFraction);
+  console.log(`[compositor] plate calculations: plateWidth=${plateWidth}, padding=${padding}, margin=${margin}`);
 
   // Resize logo to fit inside plate (minus padding on both sides), preserve aspect ratio
   const logoTargetWidth = plateWidth - padding * 2;
+  console.log(`[compositor] resizing logo to targetWidth=${logoTargetWidth}...`);
   const resizedLogoMeta = await sharp(Buffer.from(logoBuf))
     .resize({ width: logoTargetWidth, withoutEnlargement: false })
     .png()
     .toBuffer({ resolveWithObject: true });
   const logoHeight = resizedLogoMeta.info.height;
   const plateHeight = logoHeight + padding * 2;
+  console.log(`[compositor] resized logo: ${logoTargetWidth}×${logoHeight}, plate will be ${plateWidth}×${plateHeight}`);
 
   // Build a white rounded-corner plate with a soft drop shadow as SVG
   const cornerRadius = Math.round(plateWidth * 0.06);
-  const shadowOffset = Math.round(plateWidth * 0.015);
-  const shadowBlur = Math.round(plateWidth * 0.025);
-  const plateSvg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${plateWidth + shadowOffset * 2}" height="${plateHeight + shadowOffset * 2}">
-      <defs>
-        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur in="SourceAlpha" stdDeviation="${shadowBlur}"/>
-          <feOffset dx="0" dy="${shadowOffset}" result="offsetblur"/>
-          <feComponentTransfer><feFuncA type="linear" slope="0.25"/></feComponentTransfer>
-          <feMerge>
-            <feMergeNode/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-      </defs>
-      <rect x="${shadowOffset}" y="0" width="${plateWidth}" height="${plateHeight}" rx="${cornerRadius}" ry="${cornerRadius}" fill="#ffffff" filter="url(#shadow)"/>
-    </svg>
-  `;
-  const plateBuf = await sharp(Buffer.from(plateSvg)).png().toBuffer();
+  const shadowOffset = Math.round(plateWidth * 0.02);
+  const shadowBlur = Math.round(plateWidth * 0.03);
+  const plateSvg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${plateWidth + shadowOffset * 2}" height="${plateHeight + shadowOffset * 2}" viewBox="0 0 ${plateWidth + shadowOffset * 2} ${plateHeight + shadowOffset * 2}">
+  <defs>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="${shadowBlur}"/>
+      <feOffset dx="0" dy="${shadowOffset}" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode in="offsetblur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect x="${shadowOffset}" y="${shadowOffset}" width="${plateWidth}" height="${plateHeight}" rx="${cornerRadius}" ry="${cornerRadius}" fill="#ffffff" filter="url(#shadow)"/>
+</svg>`;
+  const plateBuf = Buffer.from(plateSvg, "utf8");
+  const platePng = await sharp(plateBuf, { density: 300 })
+    .resize({ width: plateWidth + shadowOffset * 2, height: plateHeight + shadowOffset * 2 })
+    .png()
+    .toBuffer();
 
   // Composite: base image → white plate at (margin, margin) → logo centered inside plate
   const compositeX = margin;
   const compositeY = margin;
   const logoX = compositeX + padding;
   const logoY = compositeY + padding;
+  console.log(`[compositor] compositing: plate at (${compositeX}, ${compositeY}), logo at (${logoX}, ${logoY})`);
 
-  return base
-    .composite([
-      { input: plateBuf, left: compositeX, top: compositeY },
-      { input: resizedLogoMeta.data, left: logoX, top: logoY },
-    ])
-    .png()
-    .toBuffer();
+  try {
+    const result = await base
+      .composite([
+        { input: platePng, left: compositeX, top: compositeY },
+        { input: resizedLogoMeta.data, left: logoX, top: logoY },
+      ])
+      .png()
+      .toBuffer();
+    console.log(`[compositor] composite succeeded, result size: ${result.length} bytes`);
+    return result;
+  } catch (e) {
+    console.error(
+      "[compositor] composite operation failed:",
+      e instanceof Error ? e.message : String(e),
+    );
+    throw e;
+  }
 }

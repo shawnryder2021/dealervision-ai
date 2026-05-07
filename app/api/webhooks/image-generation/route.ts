@@ -175,39 +175,59 @@ async function processImageInBackground(
 
     if (logoUrl) {
       try {
+        console.log(`[image-webhook] compositing logo for asset ${assetId}: baseImage=${imageUrl}, logo=${logoUrl}`);
         const composited = await compositeLogoOntoImage({
           baseImageUrl: imageUrl,
           logoUrl,
         });
+        console.log(`[image-webhook] composite succeeded, uploading ${composited.length} bytes to ImgBB`);
         const imgbb = await uploadBufferToImgBB(composited);
         finalUrl = imgbb.url;
+        console.log(`[image-webhook] composite image hosted at ${finalUrl}`);
       } catch (e) {
-        console.error("[image-webhook] logo composite failed, falling back to base image:", e);
+        console.error(
+          `[image-webhook] logo composite failed for asset ${assetId}:`,
+          e instanceof Error ? e.message : String(e),
+        );
         // Fall back to re-hosting the original AI image without the overlay
         try {
+          console.log(`[image-webhook] falling back to re-hosting original image`);
           const imgbb = await uploadToImgBB(imageUrl);
           finalUrl = imgbb.url;
+          console.log(`[image-webhook] fallback image hosted at ${finalUrl}`);
         } catch (e2) {
-          console.error("[image-webhook] fallback ImgBB upload failed:", e2);
+          console.error(
+            "[image-webhook] fallback ImgBB upload failed:",
+            e2 instanceof Error ? e2.message : String(e2),
+          );
         }
       }
     } else {
       // No logo to overlay — just re-host the original
       try {
+        console.log(`[image-webhook] no logo for asset ${assetId}, re-hosting original image`);
         const imgbb = await uploadToImgBB(imageUrl);
         finalUrl = imgbb.url;
+        console.log(`[image-webhook] original image hosted at ${finalUrl}`);
       } catch (e) {
-        console.error("[image-webhook] ImgBB upload failed:", e);
+        console.error(
+          "[image-webhook] ImgBB upload failed:",
+          e instanceof Error ? e.message : String(e),
+        );
       }
     }
 
     if (finalUrl !== imageUrl) {
+      console.log(`[image-webhook] updating asset ${assetId} with final URL: ${finalUrl}`);
       await supabase
         .from("generated_assets")
         .update({ image_url: finalUrl })
         .eq("id", assetId);
     }
   } catch (e) {
-    console.error("[image-webhook] processImageInBackground error:", e);
+    console.error(
+      "[image-webhook] processImageInBackground error:",
+      e instanceof Error ? e.message : String(e),
+    );
   }
 }

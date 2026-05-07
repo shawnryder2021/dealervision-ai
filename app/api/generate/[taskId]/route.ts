@@ -73,28 +73,35 @@ export async function GET(
               let finalUrl = originalUrl;
               if (dealership?.logo_url) {
                 try {
+                  console.log(`[poll] compositing logo for asset ${asset.id}: baseImage=${originalUrl}, logo=${dealership.logo_url}`);
                   const composited = await compositeLogoOntoImage({
                     baseImageUrl: originalUrl,
                     logoUrl: dealership.logo_url,
                   });
+                  console.log(`[poll] composite succeeded, uploading ${composited.length} bytes to ImgBB`);
                   const imgbb = await uploadBufferToImgBB(composited);
                   finalUrl = imgbb.url;
+                  console.log(`[poll] composite image hosted at ${finalUrl}`);
                 } catch (e) {
-                  console.error("[poll] composite failed, falling back:", e);
+                  console.error("[poll] composite failed, falling back:", e instanceof Error ? e.message : String(e));
                   const imgbb = await uploadToImgBB(originalUrl);
                   finalUrl = imgbb.url;
+                  console.log(`[poll] fallback image hosted at ${finalUrl}`);
                 }
               } else {
+                console.log(`[poll] no logo for asset ${asset.id}, re-hosting original image`);
                 const imgbb = await uploadToImgBB(originalUrl);
                 finalUrl = imgbb.url;
+                console.log(`[poll] original image hosted at ${finalUrl}`);
               }
 
+              console.log(`[poll] updating asset ${asset.id} with final URL: ${finalUrl}`);
               await adminSupabase
                 .from("generated_assets")
                 .update({ image_url: finalUrl })
                 .eq("id", asset.id);
             } catch (e) {
-              console.error("[poll] background processing failed:", e);
+              console.error("[poll] background processing failed:", e instanceof Error ? e.message : String(e));
             }
           })();
 
