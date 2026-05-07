@@ -70,7 +70,10 @@ export async function compositeLogoOntoImage(opts: CompositeOptions): Promise<Bu
   const plateWidth = Math.round(baseWidth * plateWidthFraction);
   const padding = Math.round(plateWidth * paddingFraction);
   const margin = Math.round(baseWidth * marginFraction);
-  console.log(`[compositor] plate calculations: plateWidth=${plateWidth}, padding=${padding}, margin=${margin}`);
+  console.log(`[compositor] plate calculations:
+    baseWidth=${baseWidth}, plateWidthFraction=${plateWidthFraction} → plateWidth=${plateWidth}
+    padding=${padding} (paddingFraction=${paddingFraction})
+    margin=${margin} (marginFraction=${marginFraction})`);
 
   // Resize logo to fit inside plate (minus padding on both sides), preserve aspect ratio
   const logoTargetWidth = plateWidth - padding * 2;
@@ -105,17 +108,23 @@ export async function compositeLogoOntoImage(opts: CompositeOptions): Promise<Bu
   <rect x="${shadowOffset}" y="${shadowOffset}" width="${plateWidth}" height="${plateHeight}" rx="${cornerRadius}" ry="${cornerRadius}" fill="#ffffff" filter="url(#shadow)"/>
 </svg>`;
   const plateBuf = Buffer.from(plateSvg, "utf8");
+  console.log(`[compositor] SVG plate created: ${plateBuf.length} bytes`);
   const platePng = await sharp(plateBuf, { density: 300 })
     .resize({ width: plateWidth + shadowOffset * 2, height: plateHeight + shadowOffset * 2 })
     .png()
     .toBuffer();
+  console.log(`[compositor] SVG plate rendered to PNG: ${platePng.length} bytes`);
 
   // Composite: base image → white plate at (margin, margin) → logo centered inside plate
   const compositeX = margin;
   const compositeY = margin;
   const logoX = compositeX + padding;
   const logoY = compositeY + padding;
-  console.log(`[compositor] compositing: plate at (${compositeX}, ${compositeY}), logo at (${logoX}, ${logoY})`);
+  console.log(`[compositor] COMPOSITE POSITIONS:
+    Plate (white rounded rect): LEFT=${compositeX}, TOP=${compositeY}, WIDTH=${plateWidth}, HEIGHT=${plateHeight}
+    Logo (inside plate): LEFT=${logoX}, TOP=${logoY}, WIDTH=${logoTargetWidth}, HEIGHT=${logoHeight}
+    Image dimensions: ${baseWidth}×${baseHeight}
+    Expected result: Logo in TOP-LEFT corner (around position 53,53 in a 1024px image)`);
 
   try {
     const result = await base

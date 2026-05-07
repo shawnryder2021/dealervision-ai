@@ -125,9 +125,11 @@ export async function POST(request: Request) {
       // Fetch the dealership to see if a logo overlay is needed
       const { data: dealership } = await supabase
         .from("dealerships")
-        .select("logo_url")
+        .select("logo_url, name")
         .eq("id", asset.dealership_id)
         .single();
+
+      console.log(`[image-webhook] fetched dealership: name=${dealership?.name}, logo_url=${dealership?.logo_url ? "SET" : "NOT SET"}`);
 
       // Background processing: composite logo (if any) and re-host to ImgBB
       processImageInBackground(asset.id, imageUrl, dealership?.logo_url || null, supabase);
