@@ -132,44 +132,48 @@ function getBrandContext(dealership: Dealership): string {
   // hides it behind text. Three zones: HEADER → HERO → FOOTER.
   // ───────────────────────────────────────────────────────────────
   const layoutZones = `
-    ═══ STRICT LAYOUT ZONES — DO NOT DEVIATE ═══
-    The image must be composed in three clearly separated horizontal zones:
-
-    [ZONE A — HEADER, top ~12% of image]
-      ${hasLogo
-        ? `Place the PROVIDED dealership logo here, in the TOP-LEFT corner only. Render it on a clean white rounded-corner plate (16px padding, soft drop shadow) so it is unmistakably legible. Plate is ~20-25% of image width.`
-        : `Display the dealership name "${dealership.name}" as clean bold typography in the brand color, top-left. NO logo box, NO emblem, NO invented brand mark.`}
-      The right side of the header zone is reserved for the marketing headline only.
-
-    [ZONE B — HERO, middle ~73% of image]
-      The vehicle photograph fills this zone. Headline / sub-headline / price overlays may sit on the right side of this zone over a clean part of the background.
-      ABSOLUTELY NO logo, emblem, or brand mark of any kind in this zone. NO repeated dealership branding here.
-
-    [ZONE C — FOOTER, bottom ~10% of image]
-      A solid full-width brand-colored bar containing only the contact text below, in clean white sans-serif typography, vertically centered and with safe margins:
-      "${footerText || dealership.name}"${socialStr}
-      ABSOLUTELY NO logo image, NO logo plate, NO brand mark, NO icon in this footer. TEXT ONLY.
-    ═══════════════════════════════════════════════
+    ═══ LAYOUT ZONES (mandatory) ═══
+    [ZONE A — HEADER, top ~12%] ${hasLogo
+      ? `Provided ${dealership.name} logo on a clean white rounded plate, top-left only.`
+      : `Dealership name "${dealership.name}" as clean typography, top-left only.`} Headline goes top-right.
+    [ZONE B — HERO, middle ~73%] Vehicle photo + price/headline overlays only. NO logos here.
+    [ZONE C — FOOTER, bottom ~10%] Solid brand-color bar, TEXT ONLY: "${footerText}"${socialStr}
+       The footer is a PHONE NUMBER + ADDRESS bar — that is its only purpose. NO logo image, NO logo plate, NO globe icon, NO brand mark, NO watermark, NO emblem, NO repeated dealership name graphic here. Just the contact text, centered.
+    ═══════════════════════════════════
   `.trim();
 
-  // ─── Logo rules ────────────────────────────────────────────────
-  const logoRules = hasLogo
-    ? ` ═══ LOGO RULES — CRITICAL ═══
-       1. EXACTLY ONE logo appears in the entire image — the provided ${dealership.name} logo, in Zone A top-left only.
-       2. USE ONLY THE PROVIDED LOGO. Do NOT invent, redraw, recreate, restyle, animate, or hand-letter any logo. Do NOT generate any new emblem, monogram, globe icon, shield, ribbon, or brand mark.
-       3. Copy the provided logo as a faithful flat overlay — preserve its exact shape, color, and typography.
-       4. The logo plate is a clean rounded-corner white rectangle with ≥16px padding on all sides and a subtle drop shadow. Logo never floats on busy background.
-       5. ZERO logos anywhere outside Zone A. No logo in Zone B (hero). No logo in Zone C (footer). No logo on the vehicle. No logo as watermark. No mini-logo, no thumbnail logo, no transparent ghost logo.
-       6. NO manufacturer logos (Toyota/Ford/etc are allowed only as they naturally appear on the actual vehicle's grille/badging in the photograph — never added as overlays).
-       7. NO social media icons, certification badges, or decorative emblems unless part of the provided logo image itself.
-       ════════════════════════════════════════`
-    : ` ═══ NO LOGO — DO NOT INVENT ONE ═══
-       1. NO dealership logo, emblem, badge, monogram, shield, globe, ribbon, or invented brand mark anywhere in the image.
-       2. The only branding in the entire image is the dealership name "${dealership.name}" rendered as clean typography in Zone A top-left.
-       3. ZERO logo-like graphics in any zone.
-       ════════════════════════════════════════`;
+  return `Dealership context: ${dealership.name}.${taglineStr} ${colorStr}${layoutZones}${getLocalContext(dealership)} Use primary color ${colors.primary} as the dominant brand color in overlays, banners, and accents.`;
+}
 
-  return `Dealership: ${dealership.name}.${taglineStr} ${colorStr}${layoutZones}${logoRules}${getLocalContext(dealership)} Use primary color ${colors.primary} as the dominant brand color in overlays, banners, and accents.`;
+/**
+ * Logo lockdown — prepended to EVERY prompt as the very first instruction
+ * so the AI processes it before anything else. This is the strongest
+ * statement of the no-duplicate-logo rule because we've seen the AI
+ * still invent a watermark logo in the footer despite earlier rules.
+ */
+function getLogoLockdown(dealership: Dealership): string {
+  const hasLogo = !!dealership.logo_url;
+  if (hasLogo) {
+    return [
+      "█████ ABSOLUTE RULE — READ FIRST █████",
+      `EXACTLY ONE LOGO must appear in the entire output image: the official ${dealership.name} logo provided as image_input, placed once in the top-left header.`,
+      "ZERO additional logos may appear ANYWHERE else in the image.",
+      "FORBIDDEN: any second copy, smaller copy, watermark, ghost copy, transparent copy, footer copy, corner stamp, or recreation of the dealership logo. FORBIDDEN: any invented logo, globe icon, monogram, ribbon, badge, emblem, shield, or made-up brand mark anywhere.",
+      "FORBIDDEN: drawing the dealership name as logo art outside the header. The dealership name appears as a logo image ONCE in the header. Outside the header it may only appear as plain text inside the bottom contact bar — never as logo art, never with an icon next to it, never inside a box.",
+      "FORBIDDEN: putting any logo, icon, brand mark, emblem, or graphic element inside the bottom footer bar. The footer is text-only (phone number, address). If your output has a logo of any kind in the footer, the output is WRONG.",
+      "Use the provided logo image faithfully — copy its shape and colors exactly. Do not redraw it.",
+      "█████████████████████████████████████",
+      "",
+    ].join(" ");
+  }
+  return [
+    "█████ ABSOLUTE RULE — READ FIRST █████",
+    `NO dealership logo, emblem, badge, globe icon, monogram, shield, ribbon, or invented brand mark anywhere in the image.`,
+    `The dealership name "${dealership.name}" may appear ONCE as plain typography in the top-left header, and ONCE as plain text in the contact footer bar. Nowhere else. NEVER as logo art with surrounding icons, plates, or graphics.`,
+    "FORBIDDEN: putting any logo, icon, brand mark, emblem, or graphic element inside the footer. Footer is text-only.",
+    "█████████████████████████████████████",
+    "",
+  ].join(" ");
 }
 
 function getManufacturerStyleGuidance(make?: string): string {
@@ -448,7 +452,11 @@ export function buildPrompt(context: PromptContext): string {
   }
 
   const rendered = template ? template(context) : TEMPLATES.custom(context);
-  const base = `${rendered} ${includePrompt}`.replace(/\s+/g, " ").trim();
+  // Logo lockdown is the FIRST thing the AI reads — before the photography,
+  // headline, or scene description — so the no-duplicate-logo rule has
+  // maximum priority in attention.
+  const lockdown = getLogoLockdown(context.dealership);
+  const base = `${lockdown}${rendered} ${includePrompt}`.replace(/\s+/g, " ").trim();
 
   const ext = context.dealership as Dealership & {
     oem_brand?: OemBrandKey | null;
@@ -457,6 +465,13 @@ export function buildPrompt(context: PromptContext): string {
   let final = base;
   if (ext.oem_brand) final += buildOemComplianceBlock(ext.oem_brand);
   if (ext.state_code) final += buildStateDisclaimerBlock(ext.state_code);
+  // Reinforce at the END too — bookend the prompt so the rule is the last
+  // thing the AI reads as well as the first.
+  if (context.dealership.logo_url) {
+    final += " FINAL CHECK: Confirm the output image has exactly ONE dealership logo, in the top-left header only. No logo, icon, or brand mark in the footer or anywhere else. Footer is text-only.";
+  } else {
+    final += " FINAL CHECK: Confirm the output image has NO logo, emblem, badge, or invented brand mark anywhere. Dealership name appears only as plain typography.";
+  }
   return final;
 }
 
