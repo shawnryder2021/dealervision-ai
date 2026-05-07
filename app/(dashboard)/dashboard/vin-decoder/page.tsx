@@ -157,10 +157,14 @@ export default function VinDecoderPage() {
         vehicle,
         headline,
         style,
+        // Always include the year as visible text in the visual
+        include_vehicle_year: decoded.year ? String(decoded.year) : undefined,
       });
-      const prompt = color
-        ? `${basePrompt} The vehicle color is ${color}.`
-        : basePrompt;
+      // Strongly specify the paint color so the AI renders it accurately
+      const colorBlock = color
+        ? ` VEHICLE PAINT COLOR: The exterior paint is ${color}. Render the vehicle with precisely this ${color} paint finish — accurate paint color is critical to this image.`
+        : "";
+      const prompt = `${basePrompt}${colorBlock}`;
 
       const aspectRatio = getAspectRatioForChannel(channel);
       const resolution = getResolutionForChannel(channel);
@@ -403,8 +407,27 @@ export default function VinDecoderPage() {
                     <Paintbrush className="h-4 w-4" />
                     Vehicle Color
                   </CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    VIN doesn&apos;t include paint color — select it here so the AI renders the correct color.
+                  </p>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
+                  {/* Color swatch preview */}
+                  {color && (() => {
+                    const selected = VEHICLE_COLORS.find((c) => c.value === color);
+                    return selected ? (
+                      <div className="flex items-center gap-3 p-3 rounded-md border bg-muted/30">
+                        <span
+                          className="inline-block h-8 w-8 rounded-md border border-border shadow-sm flex-shrink-0"
+                          style={{ backgroundColor: selected.hex }}
+                        />
+                        <div>
+                          <p className="text-sm font-medium">{selected.label}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{selected.hex}</p>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
                   <Select
                     value={color || "none"}
                     onValueChange={(v) => setColor(v === "none" || v == null ? "" : v)}
