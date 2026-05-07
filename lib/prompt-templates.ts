@@ -134,11 +134,11 @@ function getBrandContext(dealership: Dealership): string {
   const layoutZones = `
     ═══ LAYOUT ZONES (mandatory) ═══
     [ZONE A — HEADER, top ~12%] ${hasLogo
-      ? `Provided ${dealership.name} logo on a clean white rounded plate, top-left only.`
-      : `Dealership name "${dealership.name}" as clean typography, top-left only.`} Headline goes top-right.
-    [ZONE B — HERO, middle ~73%] Vehicle photo + price/headline overlays only. NO logos here.
+      ? `RESERVE top-left area clean and empty — no text, no graphics, no logo here. The dealership logo will be added by a separate process AFTER generation. Headline text goes top-right only.`
+      : `Dealership name "${dealership.name}" as clean typography, top-left only. Headline goes top-right.`}
+    [ZONE B — HERO, middle ~73%] Vehicle photo + price/headline overlays only. NO logos, NO branding graphics here.
     [ZONE C — FOOTER, bottom ~10%] Solid brand-color bar, TEXT ONLY: "${footerText}"${socialStr}
-       The footer is a PHONE NUMBER + ADDRESS bar — that is its only purpose. NO logo image, NO logo plate, NO globe icon, NO brand mark, NO watermark, NO emblem, NO repeated dealership name graphic here. Just the contact text, centered.
+       The footer is a PHONE NUMBER + ADDRESS bar — that is its only purpose. NO logo, NO logo plate, NO globe icon, NO brand mark, NO watermark, NO emblem, NO icon, NO repeated dealership name graphic here. Just clean contact text, centered.
     ═══════════════════════════════════
   `.trim();
 
@@ -472,11 +472,9 @@ export function buildPrompt(context: PromptContext): string {
   if (ext.state_code) final += buildStateDisclaimerBlock(ext.state_code);
   // Reinforce at the END too — bookend the prompt so the rule is the last
   // thing the AI reads as well as the first.
-  if (context.dealership.logo_url) {
-    final += " FINAL CHECK: Confirm the output image has exactly ONE dealership logo, in the top-left header only. No logo, icon, or brand mark in the footer or anywhere else. Footer is text-only.";
-  } else {
-    final += " FINAL CHECK: Confirm the output image has NO logo, emblem, badge, or invented brand mark anywhere. Dealership name appears only as plain typography.";
-  }
+  // NOTE: When logo_url is set, the server composites it AFTER generation.
+  // The AI should NEVER render any logo, even when one is configured.
+  final += " FINAL CHECK: Confirm the output image has NO logo, emblem, badge, watermark, globe icon, or any invented brand mark ANYWHERE — not in the header, not in the footer, not in corners, nowhere. The top-left area must be clean and empty if a logo is configured (server will add it). Footer is text-only.";
   return final;
 }
 
