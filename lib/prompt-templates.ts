@@ -260,7 +260,7 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
     return [
       `Professional commercial automotive photography, ${getChannelFormatting(ctx.channel)}.`,
       `Hero shot of a ${vehicleDesc}. ${accuracy}`,
-      vehicle?.year ? `This is a ${yearStr}model year vehicle — the year ${vehicle.year} must be clearly visible as styled text in the image.` : "",
+      vehicle?.year ? `MODEL YEAR REQUIRED: The number "${vehicle.year}" must appear as bold, prominent styled typography in the upper portion of the image — this is mandatory. The vehicle is a ${yearStr}model year.` : "",
       scene || defaultScene,
       `Photography style: ${ctx.style}.`,
       ctx.headline ? `Typography overlay — main headline: "${ctx.headline}".` : "",

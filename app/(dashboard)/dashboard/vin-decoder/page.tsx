@@ -358,18 +358,23 @@ export default function VinDecoderPage() {
 
           {/* Decoded Vehicle Info */}
           {decoded && (
-            <Card className="glass">
-              <CardHeader>
+            <Card className="glass border-primary/30">
+              <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Car className="h-4 w-4" />
                   {vehicleTitle}
                 </CardTitle>
+                {/* Prominent year badge */}
+                {decoded.year && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-primary text-primary-foreground">
+                      {decoded.year} Model Year
+                    </span>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {decoded.year && (
-                    <InfoItem label="Year" value={String(decoded.year)} />
-                  )}
                   {decoded.make && (
                     <InfoItem label="Make" value={decoded.make} />
                   )}

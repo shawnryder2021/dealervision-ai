@@ -34,6 +34,36 @@ const VARIABLE_MAP: Record<string, keyof DecodedVehicle> = {
 };
 
 /**
+ * Decode the model year from VIN position 10 (standard ISO 3779).
+ * NHTSA sometimes omits this field, so we derive it as a fallback.
+ */
+export function decodeYearFromVin(vin: string): number | null {
+  const char = vin[9]?.toUpperCase(); // position 10 is index 9
+  if (!char) return null;
+
+  // Model year encoding per SAE J17/ISO 3779
+  // Letters skip I, O, Q, U, Z
+  const table: Record<string, number[]> = {
+    A: [1980, 2010], B: [1981, 2011], C: [1982, 2012], D: [1983, 2013],
+    E: [1984, 2014], F: [1985, 2015], G: [1986, 2016], H: [1987, 2017],
+    J: [1988, 2018], K: [1989, 2019], L: [1990, 2020], M: [1991, 2021],
+    N: [1992, 2022], P: [1993, 2023], R: [1994, 2024], S: [1995, 2025],
+    T: [1996, 2026], V: [1997, 2027], W: [1998, 2028], X: [1999, 2029],
+    Y: [2000, 2030],
+    "1": [2001], "2": [2002], "3": [2003], "4": [2004], "5": [2005],
+    "6": [2006], "7": [2007], "8": [2008], "9": [2009],
+  };
+
+  const options = table[char];
+  if (!options) return null;
+  if (options.length === 1) return options[0];
+
+  // Pick the most plausible year: prefer years ≤ current year + 1
+  const currentYear = new Date().getFullYear();
+  return options.filter((y) => y <= currentYear + 1).at(-1) ?? options[0];
+}
+
+/**
  * Decode a VIN using the free NHTSA Vehicle API.
  */
 export async function decodeVIN(vin: string): Promise<DecodedVehicle> {
@@ -61,9 +91,13 @@ export async function decodeVIN(vin: string): Promise<DecodedVehicle> {
     results["Engine Model"] || null,
   ].filter(Boolean);
 
+  // Year: prefer NHTSA value, fall back to VIN position 10 calculation
+  const nthsaYear = results["Model Year"] ? parseInt(results["Model Year"], 10) : null;
+  const year = nthsaYear || decodeYearFromVin(cleanVin);
+
   const decoded: DecodedVehicle = {
     vin: cleanVin,
-    year: results["Model Year"] ? parseInt(results["Model Year"], 10) : null,
+    year,
     make: results["Make"] || null,
     model: results["Model"] || null,
     trim: results["Trim"] || null,
