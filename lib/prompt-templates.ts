@@ -134,11 +134,10 @@ function getBrandContext(dealership: Dealership): string {
   const layoutZones = `
     ═══ LAYOUT ZONES (mandatory) ═══
     [ZONE A — HEADER, top ~12%] ${hasLogo
-      ? `RESERVE top-left area clean and empty — no text, no graphics, no logo here. The dealership logo will be added by a separate process AFTER generation. Headline text goes top-right only.`
+      ? `TOP-LEFT: leave completely empty — no text, no graphics, no logo whatsoever. Logo is added later by a separate system. TOP-RIGHT: headline text only.`
       : `Dealership name "${dealership.name}" as clean typography, top-left only. Headline goes top-right.`}
-    [ZONE B — HERO, middle ~73%] Vehicle photo + price/headline overlays only. NO logos, NO branding graphics here.
-    [ZONE C — FOOTER, bottom ~10%] Solid brand-color bar, TEXT ONLY: "${footerText}"${socialStr}
-       The footer is a PHONE NUMBER + ADDRESS bar — that is its only purpose. NO logo, NO logo plate, NO globe icon, NO brand mark, NO watermark, NO emblem, NO icon, NO repeated dealership name graphic here. Just clean contact text, centered.
+    [ZONE B — HERO, middle ~73%] Vehicle photo + price/headline overlays only. Zero logos or brand marks.
+    [ZONE C — FOOTER, bottom ~10%] Solid ${colors.primary} bar. The ONLY content allowed in this bar is this exact text: "${footerText}"${socialStr} — centered, white typography. THE FOOTER MUST CONTAIN NOTHING ELSE. No logo. No globe. No icon. No brand mark. No company symbol. No graphic of any kind. Just the text above on a solid color bar. Any graphic element in the footer is strictly forbidden.
     ═══════════════════════════════════
   `.trim();
 
@@ -165,8 +164,11 @@ function getLogoLockdown(dealership: Dealership): string {
       "- The text 'dealership name' rendered as logo art with surrounding icons or graphics.",
       "- Any logo-shaped graphic, even decorative, in any corner or in the footer.",
       "- Any small icon-with-text combination that resembles a dealership identifier.",
-      "Manufacturer logos (Toyota, Honda, Ford, etc.) are allowed ONLY where they naturally appear on the actual vehicle's grille and badging in the photograph — never added as overlays.",
-      "If you are tempted to add a small branded watermark, mini-logo, or globe-icon-with-text near a corner — DO NOT. The image must be clean of all dealer branding so the real logo can be cleanly composited on top.",
+      "- A globe icon with text next to it in any position.",
+      "- Any brand name rendered with an icon or symbol beside it.",
+      "THE FOOTER BAR IS TEXT-ONLY. No globe, no icon, no logo, no brand symbol in the footer — only the contact text specified.",
+      "Manufacturer logos (Toyota, Honda, Ford, etc.) are allowed ONLY where they naturally appear on the actual vehicle's grille and badging — never added as overlays anywhere.",
+      "If you are tempted to add a small branded watermark, mini-logo, or globe-icon-with-text near a corner or in the footer — DO NOT. The image must be completely clean of all dealer branding.",
       "█████████████████████████████████████████",
       "",
     ].join(" ");

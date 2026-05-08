@@ -1,11 +1,6 @@
 /**
- * Server-side image compositing — overlays the dealership logo onto a
- * clean rounded plate in the top-left of an AI-generated image.
- *
- * This guarantees the dealership's actual logo file is used (pixel-perfect)
- * regardless of whether the AI model honored image_input or not. It also
- * eliminates the duplicate-watermark failure mode entirely because the AI
- * generates an image with NO branding and we composite the logo afterward.
+ * Server-side image compositing — overlays the dealership logo directly
+ * onto the top-left corner of an AI-generated image (no white plate).
  *
  * Uses sharp (native deps, bundled with Next.js for Image optimization).
  */
@@ -17,38 +12,37 @@ interface CompositeOptions {
   baseImageUrl: string;
   /** URL of the dealership logo */
   logoUrl: string;
-  /** Width of the plate as a fraction of the base image width. Default 0.22 (22%). */
-  plateWidthFraction?: number;
-  /** Distance of the plate from the top-left corner, as fraction of base width. Default 0.025. */
+  /**
+   * Logo width as a fraction of the base image width.
+   * Default 0.30 (30%) — covers a good chunk of the top-left.
+   */
+  logoWidthFraction?: number;
+  /**
+   * Distance from the top-left corner as a fraction of base image width.
+   * Default 0.02 (2%).
+   */
   marginFraction?: number;
-  /** Padding inside the plate around the logo, as fraction of plate width. Default 0.12. */
-  paddingFraction?: number;
 }
 
 /**
- * Fetches the base image and logo, composites a white rounded plate
- * with the logo onto the top-left, and returns the result as a Buffer.
+ * Fetches the base image and logo, resizes the logo to logoWidthFraction of
+ * the image width, and composites it directly onto the top-left corner.
+ * No white background plate — the logo sits directly on the image.
  */
 export async function compositeLogoOntoImage(opts: CompositeOptions): Promise<Buffer> {
   const {
     baseImageUrl,
     logoUrl,
-    plateWidthFraction = 0.22,
-    marginFraction = 0.025,
-    paddingFraction = 0.12,
+    logoWidthFraction = 0.30,
+    marginFraction = 0.02,
   } = opts;
 
   console.log(`[compositor] starting composite: baseUrl=${baseImageUrl}, logoUrl=${logoUrl}`);
 
   // Fetch both images in parallel
-  console.log("[compositor] fetching base image and logo...");
   const [baseRes, logoRes] = await Promise.all([
-    fetch(baseImageUrl).catch((e) => {
-      throw new Error(`Failed to fetch base image: ${e.message}`);
-    }),
-    fetch(logoUrl).catch((e) => {
-      throw new Error(`Failed to fetch logo: ${e.message}`);
-    }),
+    fetch(baseImageUrl).catch((e) => { throw new Error(`Failed to fetch base image: ${e.message}`); }),
+    fetch(logoUrl).catch((e) => { throw new Error(`Failed to fetch logo: ${e.message}`); }),
   ]);
 
   if (!baseRes.ok) throw new Error(`Failed to fetch base image: ${baseRes.status} ${baseRes.statusText}`);
@@ -64,83 +58,40 @@ export async function compositeLogoOntoImage(opts: CompositeOptions): Promise<Bu
   const baseMeta = await base.metadata();
   const baseWidth = baseMeta.width ?? 1024;
   const baseHeight = baseMeta.height ?? 1024;
-  console.log(`[compositor] base image dimensions: ${baseWidth}×${baseHeight}, format=${baseMeta.format}`);
+  console.log(`[compositor] base image: ${baseWidth}×${baseHeight}, format=${baseMeta.format}`);
 
-  // Plate dimensions
-  const plateWidth = Math.round(baseWidth * plateWidthFraction);
-  const padding = Math.round(plateWidth * paddingFraction);
+  // Calculate logo target size
+  const logoTargetWidth = Math.round(baseWidth * logoWidthFraction);
   const margin = Math.round(baseWidth * marginFraction);
-  console.log(`[compositor] plate calculations:
-    baseWidth=${baseWidth}, plateWidthFraction=${plateWidthFraction} → plateWidth=${plateWidth}
-    padding=${padding} (paddingFraction=${paddingFraction})
-    margin=${margin} (marginFraction=${marginFraction})`);
+  console.log(`[compositor] logo target width=${logoTargetWidth}px, margin=${margin}px`);
 
-  // Resize logo to fit inside plate (minus padding on both sides), preserve aspect ratio
-  const logoTargetWidth = plateWidth - padding * 2;
-  console.log(`[compositor] resizing logo to targetWidth=${logoTargetWidth}...`);
-  const resizedLogoMeta = await sharp(Buffer.from(logoBuf))
+  // Resize logo, preserving aspect ratio, with transparency support
+  const resizedLogo = await sharp(Buffer.from(logoBuf))
     .resize({ width: logoTargetWidth, withoutEnlargement: false })
     .png()
     .toBuffer({ resolveWithObject: true });
-  const logoHeight = resizedLogoMeta.info.height;
-  const plateHeight = logoHeight + padding * 2;
-  console.log(`[compositor] resized logo: ${logoTargetWidth}×${logoHeight}, plate will be ${plateWidth}×${plateHeight}`);
 
-  // Build a white rounded-corner plate with a soft drop shadow as SVG
-  const cornerRadius = Math.round(plateWidth * 0.06);
-  const shadowOffset = Math.round(plateWidth * 0.02);
-  const shadowBlur = Math.round(plateWidth * 0.03);
-  const plateSvg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${plateWidth + shadowOffset * 2}" height="${plateHeight + shadowOffset * 2}" viewBox="0 0 ${plateWidth + shadowOffset * 2} ${plateHeight + shadowOffset * 2}">
-  <defs>
-    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="${shadowBlur}"/>
-      <feOffset dx="0" dy="${shadowOffset}" result="offsetblur"/>
-      <feComponentTransfer>
-        <feFuncA type="linear" slope="0.3"/>
-      </feComponentTransfer>
-      <feMerge>
-        <feMergeNode in="offsetblur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-  </defs>
-  <rect x="${shadowOffset}" y="${shadowOffset}" width="${plateWidth}" height="${plateHeight}" rx="${cornerRadius}" ry="${cornerRadius}" fill="#ffffff" filter="url(#shadow)"/>
-</svg>`;
-  const plateBuf = Buffer.from(plateSvg, "utf8");
-  console.log(`[compositor] SVG plate created: ${plateBuf.length} bytes`);
-  const platePng = await sharp(plateBuf, { density: 300 })
-    .resize({ width: plateWidth + shadowOffset * 2, height: plateHeight + shadowOffset * 2 })
-    .png()
-    .toBuffer();
-  console.log(`[compositor] SVG plate rendered to PNG: ${platePng.length} bytes`);
-
-  // Composite: base image → white plate at (margin, margin) → logo centered inside plate
-  const compositeX = margin;
-  const compositeY = margin;
-  const logoX = compositeX + padding;
-  const logoY = compositeY + padding;
-  console.log(`[compositor] COMPOSITE POSITIONS:
-    Plate (white rounded rect): LEFT=${compositeX}, TOP=${compositeY}, WIDTH=${plateWidth}, HEIGHT=${plateHeight}
-    Logo (inside plate): LEFT=${logoX}, TOP=${logoY}, WIDTH=${logoTargetWidth}, HEIGHT=${logoHeight}
-    Image dimensions: ${baseWidth}×${baseHeight}
-    Expected result: Logo in TOP-LEFT corner (around position 53,53 in a 1024px image)`);
+  const logoHeight = resizedLogo.info.height;
+  console.log(`[compositor] resized logo: ${logoTargetWidth}×${logoHeight}`);
+  console.log(`[compositor] placing logo at (${margin}, ${margin})`);
 
   try {
     const result = await base
       .composite([
-        { input: platePng, left: compositeX, top: compositeY },
-        { input: resizedLogoMeta.data, left: logoX, top: logoY },
+        {
+          input: resizedLogo.data,
+          left: margin,
+          top: margin,
+          blend: "over",
+        },
       ])
       .png()
       .toBuffer();
+
     console.log(`[compositor] composite succeeded, result size: ${result.length} bytes`);
     return result;
   } catch (e) {
-    console.error(
-      "[compositor] composite operation failed:",
-      e instanceof Error ? e.message : String(e),
-    );
+    console.error("[compositor] composite operation failed:", e instanceof Error ? e.message : String(e));
     throw e;
   }
 }
