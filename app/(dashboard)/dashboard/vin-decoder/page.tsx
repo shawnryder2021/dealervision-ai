@@ -80,7 +80,9 @@ export default function VinDecoderPage() {
   const [color, setColor] = useState("");
   const [sceneLocation, setSceneLocation] = useState<string>("");
   const [includePrice, setIncludePrice] = useState(false);
+  const [price, setPrice] = useState("");
   const [includeMileage, setIncludeMileage] = useState(false);
+  const [mileage, setMileage] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedAsset, setGeneratedAsset] = useState<GeneratedAsset | null>(null);
 
@@ -124,8 +126,8 @@ export default function VinDecoderPage() {
       make: d.make,
       model: d.model,
       trim: d.trim,
-      price: null,
-      mileage: null,
+      price: includePrice && price ? parseInt(price) : null,
+      mileage: includeMileage && mileage ? parseInt(mileage) : null,
       vin: d.vin,
       stock_number: null,
       status: "available",
@@ -520,26 +522,48 @@ export default function VinDecoderPage() {
                 <CardHeader>
                   <CardTitle className="text-base">Display Options</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="include-price"
-                      checked={includePrice}
-                      onCheckedChange={(checked: boolean | "indeterminate") => setIncludePrice(checked as boolean)}
-                    />
-                    <Label htmlFor="include-price" className="text-sm font-normal cursor-pointer">
-                      Show price on image
-                    </Label>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="include-price"
+                        checked={includePrice}
+                        onCheckedChange={(checked: boolean | "indeterminate") => setIncludePrice(checked as boolean)}
+                      />
+                      <Label htmlFor="include-price" className="text-sm font-normal cursor-pointer">
+                        Show price on image
+                      </Label>
+                    </div>
+                    {includePrice && (
+                      <Input
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value.replace(/\D/g, ""))}
+                        placeholder="Enter price (e.g., 18995)"
+                        type="number"
+                        className="ml-6"
+                      />
+                    )}
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="include-mileage"
-                      checked={includeMileage}
-                      onCheckedChange={(checked: boolean | "indeterminate") => setIncludeMileage(checked as boolean)}
-                    />
-                    <Label htmlFor="include-mileage" className="text-sm font-normal cursor-pointer">
-                      Show mileage on image
-                    </Label>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="include-mileage"
+                        checked={includeMileage}
+                        onCheckedChange={(checked: boolean | "indeterminate") => setIncludeMileage(checked as boolean)}
+                      />
+                      <Label htmlFor="include-mileage" className="text-sm font-normal cursor-pointer">
+                        Show mileage on image
+                      </Label>
+                    </div>
+                    {includeMileage && (
+                      <Input
+                        value={mileage}
+                        onChange={(e) => setMileage(e.target.value.replace(/\D/g, ""))}
+                        placeholder="Enter mileage (e.g., 45230)"
+                        type="number"
+                        className="ml-6"
+                      />
+                    )}
                   </div>
                 </CardContent>
               </Card>
