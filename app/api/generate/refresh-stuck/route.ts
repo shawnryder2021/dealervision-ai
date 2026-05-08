@@ -80,35 +80,37 @@ export async function POST() {
               .eq("id", asset.dealership_id)
               .single();
 
-            // Background composite + upload (don't await to keep this endpoint fast)
-            (async () => {
-              try {
-                let finalUrl = originalUrl;
-                if (dealership?.logo_url) {
-                  try {
-                    const composited = await compositeLogoOntoImage({
-                      baseImageUrl: originalUrl,
-                      logoUrl: dealership.logo_url,
-                    });
-                    const imgbb = await uploadBufferToImgBB(composited);
-                    finalUrl = imgbb.url;
-                  } catch (e) {
-                    console.error("[refresh-stuck] composite failed, using base:", e);
-                    const imgbb = await uploadToImgBB(originalUrl);
-                    finalUrl = imgbb.url;
-                  }
-                } else {
+            // Run composite + ImgBB upload SYNCHRONOUSLY — fire-and-forget is
+            // killed by serverless (Netlify) before it completes.
+            try {
+              let finalUrl = originalUrl;
+              if (dealership?.logo_url) {
+                try {
+                  const composited = await compositeLogoOntoImage({
+                    baseImageUrl: originalUrl,
+                    logoUrl: dealership.logo_url,
+                  });
+                  const imgbb = await uploadBufferToImgBB(composited);
+                  finalUrl = imgbb.url;
+                  console.log(`[refresh-stuck] composite succeeded for asset ${asset.id}: ${finalUrl}`);
+                } catch (e) {
+                  console.error("[refresh-stuck] composite failed, using base:", e instanceof Error ? e.message : String(e));
                   const imgbb = await uploadToImgBB(originalUrl);
                   finalUrl = imgbb.url;
                 }
+              } else {
+                const imgbb = await uploadToImgBB(originalUrl);
+                finalUrl = imgbb.url;
+              }
+              if (finalUrl !== originalUrl) {
                 await adminSupabase
                   .from("generated_assets")
                   .update({ image_url: finalUrl })
                   .eq("id", asset.id);
-              } catch (e) {
-                console.error("[refresh-stuck] background processing failed:", e);
               }
-            })();
+            } catch (e) {
+              console.error("[refresh-stuck] processing failed:", e instanceof Error ? e.message : String(e));
+            }
           } else if (result.status === "failed") {
             await adminSupabase
               .from("generated_assets")

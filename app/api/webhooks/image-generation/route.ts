@@ -116,7 +116,7 @@ export async function POST(request: Request) {
     }
 
     if (status === "completed" && imageUrl) {
-      // Save with original URL immediately so the user sees something fast
+      // Save with original URL first so status flips to completed immediately
       await supabase
         .from("generated_assets")
         .update({ status: "completed", image_url: imageUrl })
@@ -131,8 +131,9 @@ export async function POST(request: Request) {
 
       console.log(`[image-webhook] fetched dealership: name=${dealership?.name}, logo_url=${dealership?.logo_url ? "SET" : "NOT SET"}`);
 
-      // Background processing: composite logo (if any) and re-host to ImgBB
-      processImageInBackground(asset.id, imageUrl, dealership?.logo_url || null, supabase);
+      // Run composite + ImgBB upload SYNCHRONOUSLY — fire-and-forget tasks are
+      // killed in serverless (Netlify) before they complete.
+      await processImageInBackground(asset.id, imageUrl, dealership?.logo_url || null, supabase);
     } else if (status === "failed") {
       await supabase
         .from("generated_assets")

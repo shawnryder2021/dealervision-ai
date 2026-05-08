@@ -4,6 +4,68 @@ import { getImageProvider } from "@/lib/image-providers";
 import { uploadToImgBB, uploadBufferToImgBB } from "@/lib/imgbb";
 import { compositeLogoOntoImage } from "@/lib/image-compositor";
 
+/**
+ * Composite logo onto image and re-host to ImgBB — runs synchronously
+ * so it completes before the serverless function returns.
+ */
+async function processAndHostImage(
+  assetId: string,
+  originalUrl: string,
+  dealershipId: string,
+): Promise<string> {
+  const adminSupabase = await createServiceClient();
+  const { data: dealership } = await adminSupabase
+    .from("dealerships")
+    .select("logo_url")
+    .eq("id", dealershipId)
+    .single();
+
+  let finalUrl = originalUrl;
+
+  if (dealership?.logo_url) {
+    try {
+      console.log(`[poll] compositing logo for asset ${assetId}: logo=${dealership.logo_url}`);
+      const composited = await compositeLogoOntoImage({
+        baseImageUrl: originalUrl,
+        logoUrl: dealership.logo_url,
+      });
+      console.log(`[poll] composite succeeded (${composited.length} bytes), uploading to ImgBB`);
+      const imgbb = await uploadBufferToImgBB(composited);
+      finalUrl = imgbb.url;
+      console.log(`[poll] composite hosted at ${finalUrl}`);
+    } catch (e) {
+      console.error("[poll] composite failed, falling back to plain re-host:", e instanceof Error ? e.message : String(e));
+      try {
+        const imgbb = await uploadToImgBB(originalUrl);
+        finalUrl = imgbb.url;
+        console.log(`[poll] fallback image hosted at ${finalUrl}`);
+      } catch (e2) {
+        console.error("[poll] ImgBB fallback also failed:", e2 instanceof Error ? e2.message : String(e2));
+      }
+    }
+  } else {
+    console.log(`[poll] no logo for asset ${assetId}, re-hosting original`);
+    try {
+      const imgbb = await uploadToImgBB(originalUrl);
+      finalUrl = imgbb.url;
+      console.log(`[poll] original hosted at ${finalUrl}`);
+    } catch (e) {
+      console.error("[poll] ImgBB upload failed:", e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  // Update the DB with the final permanent URL
+  if (finalUrl !== originalUrl) {
+    console.log(`[poll] updating asset ${assetId} → ${finalUrl}`);
+    await adminSupabase
+      .from("generated_assets")
+      .update({ image_url: finalUrl })
+      .eq("id", assetId);
+  }
+
+  return finalUrl;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ taskId: string }> }
@@ -38,8 +100,6 @@ export async function GET(
     // Poll the appropriate image provider for status
     if (asset.kie_task_id) {
       try {
-        // Determine which provider to use
-        // Prefer the model stored in metadata, fall back to dealership's configured model
         const metadata = asset.metadata as Record<string, unknown> || {};
         const modelUsed = (metadata.model as string) || "openai-gpt-image-2";
         const provider = getImageProvider(modelUsed as "kie-nano-banana" | "openai-gpt-image-2");
@@ -49,63 +109,24 @@ export async function GET(
         if (providerResult.status === "completed" && providerResult.output?.image_url) {
           const originalUrl = providerResult.output.image_url;
 
-          // Update asset with original URL immediately so user sees the image fast
-          const { data: updated } = await supabase
+          // Mark completed with original URL first so status is visible immediately
+          await supabase
             .from("generated_assets")
-            .update({
-              status: "completed",
-              image_url: originalUrl,
-            })
-            .eq("id", asset.id)
-            .select()
-            .single();
+            .update({ status: "completed", image_url: originalUrl })
+            .eq("id", asset.id);
 
-          // Fire-and-forget: composite logo (if any) + upload to ImgBB in background
-          (async () => {
-            try {
-              const adminSupabase = await createServiceClient();
-              const { data: dealership } = await adminSupabase
-                .from("dealerships")
-                .select("logo_url")
-                .eq("id", asset.dealership_id)
-                .single();
+          // Run composite + ImgBB upload SYNCHRONOUSLY before returning — this
+          // is required in serverless (Netlify) because fire-and-forget tasks are
+          // killed the moment the response is sent.
+          const finalUrl = await processAndHostImage(
+            asset.id,
+            originalUrl,
+            asset.dealership_id,
+          );
 
-              let finalUrl = originalUrl;
-              if (dealership?.logo_url) {
-                try {
-                  console.log(`[poll] compositing logo for asset ${asset.id}: baseImage=${originalUrl}, logo=${dealership.logo_url}`);
-                  const composited = await compositeLogoOntoImage({
-                    baseImageUrl: originalUrl,
-                    logoUrl: dealership.logo_url,
-                  });
-                  console.log(`[poll] composite succeeded, uploading ${composited.length} bytes to ImgBB`);
-                  const imgbb = await uploadBufferToImgBB(composited);
-                  finalUrl = imgbb.url;
-                  console.log(`[poll] composite image hosted at ${finalUrl}`);
-                } catch (e) {
-                  console.error("[poll] composite failed, falling back:", e instanceof Error ? e.message : String(e));
-                  const imgbb = await uploadToImgBB(originalUrl);
-                  finalUrl = imgbb.url;
-                  console.log(`[poll] fallback image hosted at ${finalUrl}`);
-                }
-              } else {
-                console.log(`[poll] no logo for asset ${asset.id}, re-hosting original image`);
-                const imgbb = await uploadToImgBB(originalUrl);
-                finalUrl = imgbb.url;
-                console.log(`[poll] original image hosted at ${finalUrl}`);
-              }
-
-              console.log(`[poll] updating asset ${asset.id} with final URL: ${finalUrl}`);
-              await adminSupabase
-                .from("generated_assets")
-                .update({ image_url: finalUrl })
-                .eq("id", asset.id);
-            } catch (e) {
-              console.error("[poll] background processing failed:", e instanceof Error ? e.message : String(e));
-            }
-          })();
-
-          return NextResponse.json(updated || asset);
+          // Return the asset with the final (composited) URL
+          const finalAsset = { ...asset, status: "completed", image_url: finalUrl };
+          return NextResponse.json(finalAsset);
         }
 
         if (providerResult.status === "failed") {
