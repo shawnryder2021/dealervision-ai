@@ -64,7 +64,6 @@ export default function GenerateTypePage() {
   const [customPrompt, setCustomPrompt] = useState("");
   const [campaign, setCampaign] = useState("");
   const [referencePhotos, setReferencePhotos] = useState<{ url: string; display_url: string; thumbnail_url: string }[]>([]);
-  const [watermarkEnabled, setWatermarkEnabled] = useState(true);
   const [includeVehicleYear, setIncludeVehicleYear] = useState<string | undefined>();
   const [includeVehicleModel, setIncludeVehicleModel] = useState<string | undefined>();
   const [sceneLocation, setSceneLocation] = useState<string | undefined>();
@@ -359,7 +358,6 @@ export default function GenerateTypePage() {
           include_vehicle_model: includeVehicleModel,
           scene_location: sceneLocation,
           image_input: prodImageInput.length > 0 ? prodImageInput : undefined,
-          watermark: watermarkEnabled,
         }),
       });
 
@@ -471,74 +469,13 @@ export default function GenerateTypePage() {
     if (!generatedAsset?.image_url) return;
 
     try {
-      // Proxy through server to avoid CORS issues
+      // The server-side composite already baked the dealership logo into the
+      // image_url — download it as-is, no canvas manipulation needed.
       const proxyUrl = `/api/download-proxy?url=${encodeURIComponent(generatedAsset.image_url)}`;
       const res = await fetch(proxyUrl);
       if (!res.ok) throw new Error("Download failed");
       const imageBlob = await res.blob();
 
-      // If watermark enabled and logo exists, overlay it via canvas
-      if (watermarkEnabled && dealership?.logo_url) {
-        try {
-          const blobUrl = URL.createObjectURL(imageBlob);
-          const img = new Image();
-          img.src = blobUrl;
-          await new Promise<void>((resolve, reject) => {
-            img.onload = () => resolve();
-            img.onerror = () => reject(new Error("Failed to load image"));
-          });
-          URL.revokeObjectURL(blobUrl);
-
-          const canvas = document.createElement("canvas");
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) throw new Error("Canvas not supported");
-
-          ctx.drawImage(img, 0, 0);
-
-          // Overlay dealership logo in bottom-right corner
-          const logoProxyUrl = `/api/download-proxy?url=${encodeURIComponent(dealership.logo_url)}`;
-          const logoRes = await fetch(logoProxyUrl);
-          if (logoRes.ok) {
-            const logoBlob = await logoRes.blob();
-            const logoBlobUrl = URL.createObjectURL(logoBlob);
-            const logo = new Image();
-            logo.src = logoBlobUrl;
-            await new Promise<void>((resolve) => {
-              logo.onload = () => resolve();
-              logo.onerror = () => resolve();
-            });
-            URL.revokeObjectURL(logoBlobUrl);
-
-            if (logo.width > 0) {
-              const logoHeight = Math.max(30, Math.floor(img.height / 12));
-              const logoWidth = (logo.width / logo.height) * logoHeight;
-              const padding = Math.floor(img.width / 40);
-              const logoX = canvas.width - padding - logoWidth;
-              const logoY = canvas.height - padding - logoHeight;
-              ctx.globalAlpha = 0.5;
-              ctx.drawImage(logo, logoX, logoY, logoWidth, logoHeight);
-              ctx.globalAlpha = 1;
-            }
-          }
-
-          canvas.toBlob((blob) => {
-            if (!blob) return;
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `${contentType}-${channel}-${Date.now()}.png`;
-            a.click();
-            URL.revokeObjectURL(url);
-          }, "image/png");
-          return;
-        } catch {
-          // Fallback to direct blob download
-        }
-      }
-
-      // Direct download (no logo overlay needed)
       const url = URL.createObjectURL(imageBlob);
       const a = document.createElement("a");
       a.href = url;
@@ -819,19 +756,6 @@ export default function GenerateTypePage() {
 
               <Separator />
 
-              {/* Watermark Toggle */}
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Logo Watermark</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Overlay your dealership logo on downloaded images
-                  </p>
-                </div>
-                <Switch
-                  checked={watermarkEnabled}
-                  onCheckedChange={setWatermarkEnabled}
-                />
-              </div>
             </CardContent>
           </Card>
 
