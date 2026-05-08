@@ -207,6 +207,115 @@ export const SCENE_PRESETS: ScenePreset[] = [
     promptBlock:
       "Parked on a clean, freshly-detailed dealership forecourt. The dealer's showroom building visible in the soft background (slightly blurred). Perfect lot-prep condition — tyres dressed, paint polished, windows gleaming. Midday sunlight from a slight overhead angle showing the vehicle's full colour depth. Shot from a 3/4 front angle at hood height. Professional new-car delivery photography.",
   },
+
+  // ── Additional Urban & Location Varieties ──────────────────────────────────────
+  {
+    id: "upscale-neighborhood",
+    label: "Upscale Neighborhood",
+    emoji: "🏘️",
+    category: "Lifestyle",
+    description: "Tree-lined residential street with modern homes",
+    promptBlock:
+      "Parked on a tree-lined upscale residential street. Modern contemporary homes with manicured lawns visible on either side. Mature oak or maple trees creating dappled shade. Clean asphalt, fresh curbs, neighborhood ambiance. Soft afternoon light. Camera angle from a slight elevation showing the vehicle in its neighborhood context. Aspirational suburban lifestyle photography.",
+  },
+  {
+    id: "luxury-shopping-district",
+    label: "Luxury Shopping District",
+    emoji: "🛍️",
+    category: "Urban",
+    description: "High-end shopping street with boutiques",
+    promptBlock:
+      "Parked on an upscale boutique shopping street. Modern storefronts with designer windows and tasteful lighting in the background (blurred). Polished street finishes, planters with flowers. Bright, clean, well-lit environment. Daytime lighting showing the vehicle's premium finish. 3/4 front angle at street level. Luxury automotive in sophisticated urban setting.",
+  },
+  {
+    id: "industrial-brick",
+    label: "Industrial Warehouse District",
+    emoji: "🏭",
+    category: "Urban",
+    description: "Modern industrial brick and metal backdrop",
+    promptBlock:
+      "Positioned in front of a modern industrial brick warehouse or converted loft building. Raw architectural elements — exposed red brick, large arched windows, metal framework. Clean concrete ground with artistic patterns. Cool overhead lighting. The vehicle's sleek lines contrast with the industrial backdrop. Modern, edgy automotive photography.",
+  },
+  {
+    id: "marina-waterfront",
+    label: "Marina Waterfront",
+    emoji: "⛵",
+    category: "Lifestyle",
+    description: "Yacht marina with sailboats and calm water",
+    promptBlock:
+      "Parked on the marina boardwalk overlooking calm waters dotted with sailboats and yachts. Luxury boats visible in the background with gentle reflections in the water. Clean wood docks and nautical finishes. Soft water-reflecting light creates sparkles. Late afternoon golden hour on the water. Premium lifestyle automotive photography.",
+  },
+  {
+    id: "vineyard-estate",
+    label: "Vineyard Estate",
+    emoji: "🍇",
+    category: "Lifestyle",
+    description: "Winery grounds with rolling vines",
+    promptBlock:
+      "Parked on a winding path through a picturesque wine estate. Rolling vineyard rows visible in soft focus on both sides, mountains in the distance. Stone winery building visible as architectural element. Golden afternoon light, warm tones on the vehicle. Harvest-season ambiance. Premium lifestyle automotive in wine country setting.",
+  },
+  {
+    id: "airport-tarmac",
+    label: "Airport Tarmac",
+    emoji: "✈️",
+    category: "Urban",
+    description: "Jet-setting lifestyle, aircraft in background",
+    promptBlock:
+      "Parked on clean airport tarmac with private aircraft visible in the background. Open, minimalist scene with horizon line. Clear sky, excellent visibility. Professional lighting showing the vehicle's premium finish. Shot from a low 3/4 angle emphasizing elegance and high-end lifestyle. Jet-setter, luxury travel aesthetic.",
+  },
+  {
+    id: "mansion-driveway",
+    label: "Luxury Estate Driveway",
+    emoji: "🏰",
+    category: "Lifestyle",
+    description: "Grand entrance to high-end residential estate",
+    promptBlock:
+      "Parked on a circular driveway of a grand luxury estate. Modern or traditional architectural style mansion visible softly in the background. Manicured circular driveway with elegant lighting fixtures. Upscale landscaping with fountain or sculptural elements. Premium finishes and materials. Golden evening light. Exclusive, aspirational lifestyle photography.",
+  },
+  {
+    id: "downtown-high-rise",
+    label: "Downtown High-Rise Garage",
+    emoji: "🏢",
+    category: "Urban",
+    description: "Modern downtown parking structure, urban elegance",
+    promptBlock:
+      "Parked in a contemporary downtown high-rise parking garage. Modern polished concrete, contemporary painted lines, sleek architectural lighting. Floor-to-floor glass windows showing city skyline and traffic below. The vehicle is spotlit by modern LED structure lighting. Urban contemporary aesthetic, premium urban lifestyle.",
+  },
+  {
+    id: "golf-course",
+    label: "Golf Course Club House",
+    emoji: "⛳",
+    category: "Lifestyle",
+    description: "Prestigious golf club, manicured fairways",
+    promptBlock:
+      "Parked at the entrance of an exclusive golf club. Manicured championship fairways visible in the background with flag poles and pristine greens. Club house architecture visible softly. Perfect lawn conditions. Afternoon light catching the vehicle's details. Premium sports and lifestyle aesthetic. Exclusive country club ambiance.",
+  },
+  {
+    id: "historic-downtown",
+    label: "Historic Downtown District",
+    emoji: "🏛️",
+    category: "Urban",
+    description: "Classical architecture, heritage district",
+    promptBlock:
+      "Parked on a historic district street with beautiful period architecture — classical stonework, ornate street lamps, heritage building facades. Character and nostalgia blended with modern luxury. Warm golden light from vintage-style street lighting. 3/4 front angle showing the vehicle in cultural context. Sophisticated urban heritage setting.",
+  },
+  {
+    id: "ski-resort",
+    label: "Ski Resort Base",
+    emoji: "🎿",
+    category: "Nature",
+    description: "Alpine ski resort, snowy peaks",
+    promptBlock:
+      "Parked at a premium alpine ski resort base. Snow-covered mountain peaks towering in the background. Chairlifts visible ascending the slopes. Crisp winter Alpine air, pristine snow on terrain. Clear crisp light from thin mountain air. The vehicle shows full colour contrast against white snow. Adventure sports luxury lifestyle photography.",
+  },
+];
+
+export const SCENE_CATEGORIES: ScenePreset["category"][] = [
+  "Studio",
+  "Urban",
+  "Nature",
+  "Lifestyle",
+  "Local",
 ];
 
 /** Returns the scene preset by ID, or undefined if not found */
@@ -234,12 +343,3 @@ export function buildSceneBlock(
 
   return ` SCENE/LOCATION: ${preset.promptBlock}`;
 }
-
-/** Category order for display */
-export const SCENE_CATEGORIES: ScenePreset["category"][] = [
-  "Studio",
-  "Urban",
-  "Nature",
-  "Lifestyle",
-  "Local",
-];

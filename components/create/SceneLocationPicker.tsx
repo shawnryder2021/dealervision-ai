@@ -29,7 +29,7 @@ export function SceneLocationPicker({ value, onChange, hasLocalLandmark }: Props
         <span>Auto — let AI choose the best scene</span>
       </button>
 
-      {SCENE_CATEGORIES.map((category) => {
+      {SCENE_CATEGORIES.map((category: string) => {
         const presets = SCENE_PRESETS.filter(
           (p) => p.category === category &&
             // hide local-landmark if no landmark is configured

@@ -26,6 +26,10 @@ interface PromptContext {
   include_vehicle_model?: string;
   /** ID from SCENE_PRESETS — sets where/how the vehicle is photographed */
   scene_location?: string;
+  /** Only show price if explicitly requested (default: false) */
+  include_price?: boolean;
+  /** Only show mileage if explicitly requested (default: false) */
+  include_mileage?: boolean;
 }
 
 function getChannelFormatting(channelId: string): string {
@@ -245,9 +249,10 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
   "vehicle-spotlight": (ctx) => {
     const vehicle = ctx.vehicle;
     const vehicleDesc = vehicle ? getVehicleDescription(vehicle) : "featured vehicle";
-    const price = vehicle?.price ? `$${vehicle.price.toLocaleString()}` : "";
+    const price = ctx.include_price && vehicle?.price ? `$${vehicle.price.toLocaleString()}` : "";
+    const mileage = ctx.include_mileage && vehicle?.mileage ? `${vehicle.mileage.toLocaleString()} mi` : "";
     const accuracy = vehicle ? getVehicleAccuracyPrompt(vehicle) : "";
-    const scene = getSceneBlock(ctx);
+    const scene = buildSceneBlock(ctx.scene_location);
     const hasScene = !!scene;
     const defaultScene = hasScene ? "" : "Clean, neutral background with soft gradient. Professional three-point automotive studio lighting. Slight ground-plane reflection beneath the vehicle.";
     const yearStr = vehicle?.year ? `${vehicle.year} ` : "";
@@ -260,6 +265,7 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
       `Photography style: ${ctx.style}.`,
       ctx.headline ? `Typography overlay — main headline: "${ctx.headline}".` : "",
       price ? `Display sale price prominently: "${price}".` : "",
+      mileage ? `Display mileage: "${mileage}".` : "",
       ctx.subheadline ? `Secondary text overlay: "${ctx.subheadline}".` : "",
       ctx.cta ? `Call-to-action button text: "${ctx.cta}".` : "",
       getBrandContext(ctx.dealership),

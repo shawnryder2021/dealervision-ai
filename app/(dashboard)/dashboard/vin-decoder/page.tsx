@@ -14,12 +14,14 @@ import {
   Gauge,
   DoorOpen,
   Paintbrush,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -32,6 +34,7 @@ import { StyleOptions } from "@/components/create/StyleOptions";
 import { useAppStore } from "@/lib/store";
 import { isDemoMode } from "@/lib/demo-data";
 import { buildPrompt, getAspectRatioForChannel, getResolutionForChannel } from "@/lib/prompt-templates";
+import { SCENE_PRESETS, SCENE_CATEGORIES } from "@/lib/scene-presets";
 import type { DecodedVehicle } from "@/lib/vin-decoder";
 import type { GeneratedAsset, Vehicle } from "@/lib/types";
 import { toast } from "sonner";
@@ -75,6 +78,9 @@ export default function VinDecoderPage() {
   const [style, setStyle] = useState("photorealistic");
   const [headline, setHeadline] = useState("");
   const [color, setColor] = useState("");
+  const [sceneLocation, setSceneLocation] = useState<string>("");
+  const [includePrice, setIncludePrice] = useState(false);
+  const [includeMileage, setIncludeMileage] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedAsset, setGeneratedAsset] = useState<GeneratedAsset | null>(null);
 
@@ -159,6 +165,9 @@ export default function VinDecoderPage() {
         style,
         // Always include the year as visible text in the visual
         include_vehicle_year: decoded.year ? String(decoded.year) : undefined,
+        scene_location: sceneLocation || undefined,
+        include_price: includePrice,
+        include_mileage: includeMileage,
       });
       // Strongly specify the paint color so the AI renders it accurately
       const colorBlock = color
@@ -463,6 +472,75 @@ export default function VinDecoderPage() {
                   <ChannelPicker value={channel} onChange={setChannel} />
                   <Separator />
                   <StyleOptions value={style} onChange={setStyle} />
+                </CardContent>
+              </Card>
+
+              <Card className="glass">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Background Location
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Choose where the vehicle is photographed
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {SCENE_CATEGORIES.map((category: string) => {
+                    const scenesInCategory = SCENE_PRESETS.filter((s) => s.category === category);
+                    if (scenesInCategory.length === 0) return null;
+
+                    return (
+                      <div key={category}>
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">{category}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {scenesInCategory.map((scene) => (
+                            <button
+                              key={scene.id}
+                              onClick={() => setSceneLocation(scene.id)}
+                              className={`p-2 rounded-md text-xs text-left transition-colors ${
+                                sceneLocation === scene.id
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted hover:bg-muted/80"
+                              }`}
+                              title={scene.description}
+                            >
+                              <span className="mr-1">{scene.emoji}</span>
+                              {scene.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+
+              <Card className="glass">
+                <CardHeader>
+                  <CardTitle className="text-base">Display Options</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="include-price"
+                      checked={includePrice}
+                      onCheckedChange={(checked: boolean | "indeterminate") => setIncludePrice(checked as boolean)}
+                    />
+                    <Label htmlFor="include-price" className="text-sm font-normal cursor-pointer">
+                      Show price on image
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="include-mileage"
+                      checked={includeMileage}
+                      onCheckedChange={(checked: boolean | "indeterminate") => setIncludeMileage(checked as boolean)}
+                    />
+                    <Label htmlFor="include-mileage" className="text-sm font-normal cursor-pointer">
+                      Show mileage on image
+                    </Label>
+                  </div>
                 </CardContent>
               </Card>
 
