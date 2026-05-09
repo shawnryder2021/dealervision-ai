@@ -425,14 +425,6 @@ export default function LibraryPage() {
                   <Badge variant="outline">{selectedAsset.campaign}</Badge>
                 )}
               </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">
-                  Prompt
-                </p>
-                <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 font-mono">
-                  {selectedAsset.prompt}
-                </p>
-              </div>
               <div className="flex gap-2">
                 <Button
                   size="sm"
