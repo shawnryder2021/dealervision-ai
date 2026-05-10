@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Settings, CheckCircle, AlertCircle } from "lucide-react";
+import { Settings, CheckCircle, AlertCircle, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 interface StripeConfig {
@@ -18,6 +18,8 @@ interface StripeConfig {
   configured_by: string;
   last_tested_at: string | null;
   last_test_status: string | null;
+  /** True when a secret key is already stored (key value is never returned) */
+  has_secret_key: boolean;
 }
 
 export default function StripeConfigPage() {
@@ -56,8 +58,14 @@ export default function StripeConfigPage() {
   };
 
   const handleSave = async () => {
-    if (!secretKey || !publishableKey || !webhookSecret) {
-      toast.error("All fields are required");
+    // Secret key is only required when there's no existing saved key
+    const secretKeyRequired = !config?.has_secret_key;
+    if ((secretKeyRequired && !secretKey) || !publishableKey || !webhookSecret) {
+      toast.error(
+        secretKeyRequired
+          ? "All fields are required"
+          : "Publishable key and webhook secret are required"
+      );
       return;
     }
 
@@ -67,7 +75,8 @@ export default function StripeConfigPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          secret_key: secretKey,
+          // Only send secret_key when the user typed a new one
+          ...(secretKey ? { secret_key: secretKey } : {}),
           publishable_key: publishableKey,
           webhook_secret: webhookSecret,
           test_mode: testMode,
@@ -76,7 +85,7 @@ export default function StripeConfigPage() {
 
       if (res.ok) {
         toast.success("Stripe configuration saved");
-        setSecretKey("");
+        setSecretKey(""); // clear input — the key is now stored; has_secret_key will confirm it
         await fetchConfig();
       } else {
         const data = await res.json();
@@ -208,14 +217,21 @@ export default function StripeConfigPage() {
             <label className="text-sm font-medium mb-2 block">Secret Key</label>
             <Input
               type="password"
-              placeholder="sk_test_..."
+              placeholder={config?.has_secret_key ? "Leave blank to keep current key" : "sk_test_..."}
               value={secretKey}
               onChange={(e) => setSecretKey(e.target.value)}
               className="font-mono"
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              From Stripe Dashboard → API Keys
-            </p>
+            {config?.has_secret_key ? (
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
+                <ShieldCheck className="h-3 w-3" />
+                Secret key is configured — enter a new value to replace it
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-1">
+                From Stripe Dashboard → API Keys
+              </p>
+            )}
           </div>
 
           <div>

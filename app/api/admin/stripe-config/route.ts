@@ -35,13 +35,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Mask the webhook secret for display
+    // Mask the webhook secret for display; has_secret_key already computed in getStripeConfig
     const maskedConfig = {
       ...config,
       webhook_secret:
-        config.webhook_secret.substring(0, 10) +
-        "..." +
-        config.webhook_secret.substring(config.webhook_secret.length - 5),
+        config.webhook_secret.length > 15
+          ? config.webhook_secret.substring(0, 10) +
+            "..." +
+            config.webhook_secret.substring(config.webhook_secret.length - 5)
+          : config.webhook_secret,
     };
 
     return NextResponse.json({ config: maskedConfig });
@@ -103,10 +105,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Otherwise, update the configuration
+    // Otherwise, update the configuration.
+    // Only include secret_key if the caller actually provided a non-empty value —
+    // otherwise the existing stored key is preserved.
     const config = await updateStripeConfig(
       {
-        secret_key,
+        ...(secret_key ? { secret_key } : {}),
         publishable_key,
         webhook_secret,
         test_mode: test_mode ?? true,

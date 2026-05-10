@@ -100,22 +100,24 @@ export interface StripeConfigMasked {
   configured_by: string;
   last_tested_at: string | null;
   last_test_status: string | null;
+  /** True if a secret key is stored — never returns the key itself */
+  has_secret_key: boolean;
 }
 
 /**
- * Get current Stripe configuration (masked for security)
+ * Get current Stripe configuration (masked for security).
+ * Uses getStripeConfigFull internally to compute has_secret_key,
+ * but never exposes the secret key value.
  */
 export async function getStripeConfig(): Promise<StripeConfigMasked | null> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("stripe_config")
-    .select("id, publishable_key, webhook_secret, account_id, test_mode, configured_at, configured_by, last_tested_at, last_test_status")
-    .order("configured_at", { ascending: false })
-    .limit(1)
-    .single();
-
-  if (error) return null;
-  return data as StripeConfigMasked;
+  const full = await getStripeConfigFull();
+  if (!full) return null;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { secret_key, ...rest } = full;
+  return {
+    ...rest,
+    has_secret_key: !!secret_key,
+  };
 }
 
 /**
@@ -146,25 +148,29 @@ export interface StripeConfigUpdate {
 }
 
 /**
- * Update Stripe configuration
+ * Update Stripe configuration.
+ * Fetches the existing row's id so the upsert updates in-place
+ * rather than inserting a duplicate row each time.
  */
 export async function updateStripeConfig(
   config: StripeConfigUpdate,
   configuredBy: string
 ): Promise<StripeConfig | null> {
   const supabase = await createClient();
+
+  // Fetch the existing row id so we update the same row every time
+  const existing = await getStripeConfigFull();
+
+  const upsertPayload = {
+    ...(existing?.id ? { id: existing.id } : {}),
+    ...config,
+    configured_by: configuredBy,
+    configured_at: new Date().toISOString(),
+  };
+
   const { data, error } = await supabase
     .from("stripe_config")
-    .upsert(
-      {
-        ...config,
-        configured_by: configuredBy,
-        configured_at: new Date().toISOString(),
-      },
-      {
-        onConflict: "id",
-      }
-    )
+    .upsert(upsertPayload, { onConflict: "id" })
     .select()
     .single();
 
