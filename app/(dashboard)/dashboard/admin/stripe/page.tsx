@@ -100,7 +100,8 @@ export default function StripeConfigPage() {
   };
 
   const handleTest = async () => {
-    if (!secretKey) {
+    // Allow test when a key is already stored (secretKey input may be blank)
+    if (!secretKey && !config?.has_secret_key) {
       toast.error("Enter Secret Key to test");
       return;
     }
@@ -112,7 +113,8 @@ export default function StripeConfigPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "test",
-          secret_key: secretKey,
+          // Only send secret_key if the user typed a new one; otherwise server uses stored key
+          ...(secretKey ? { secret_key: secretKey } : {}),
         }),
       });
 

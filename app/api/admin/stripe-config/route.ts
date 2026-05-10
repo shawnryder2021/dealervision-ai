@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   isSuperAdmin,
   getStripeConfig,
+  getStripeConfigFull,
   updateStripeConfig,
   recordStripeTest,
 } from "@/lib/db/admin";
@@ -74,8 +75,19 @@ export async function POST(request: NextRequest) {
 
     // If action is "test", test the connection
     if (action === "test") {
+      // Use the provided key, or fall back to the stored key
+      const keyToTest =
+        secret_key || (await getStripeConfigFull())?.secret_key || null;
+
+      if (!keyToTest) {
+        return NextResponse.json(
+          { error: "No Stripe secret key configured. Enter a key to test." },
+          { status: 400 }
+        );
+      }
+
       try {
-        const stripe = new Stripe(secret_key, {
+        const stripe = new Stripe(keyToTest, {
           apiVersion: "2025-02-24.acacia",
         });
 
