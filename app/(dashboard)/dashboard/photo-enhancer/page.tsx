@@ -135,7 +135,8 @@ export default function PhotoEnhancerPage() {
           prompt: preset.prompt,
           image_url: sourceUrl,
           image_size: "16:9",
-          model: dealership?.image_model || "kie-nano-banana",
+          // Image editing is KIE.ai-only — OpenAI gpt-image-2 only supports generation
+          model: "kie-nano-banana",
         }),
       });
       if (!start.ok) throw new Error((await start.json()).error || "Failed to start");

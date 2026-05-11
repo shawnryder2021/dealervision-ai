@@ -23,8 +23,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Source image is required" }, { status: 400 });
     }
 
-    // Use the specified model or default to KIE.ai
-    const imageModel = (model || "kie-nano-banana") as "kie-nano-banana" | "openai-gpt-image-2";
+    // Image editing is KIE.ai-only — OpenAI gpt-image-2 only supports generation.
+    // Always force KIE.ai for edit tasks regardless of the requested model.
+    const imageModel = "kie-nano-banana" as const;
     const provider = getImageProvider(imageModel);
 
     // Uses the provider's edit task (e.g., google/nano-banana-edit for KIE.ai)
@@ -50,13 +51,12 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const taskId = searchParams.get("taskId");
-    const model = searchParams.get("model") || "kie-nano-banana";
-
     if (!taskId) {
       return NextResponse.json({ error: "taskId required" }, { status: 400 });
     }
 
-    const provider = getImageProvider(model as "kie-nano-banana" | "openai-gpt-image-2");
+    // Edit tasks always use KIE.ai — ignore any model param
+    const provider = getImageProvider("kie-nano-banana");
     const result = await provider.getTaskStatus(taskId);
 
     // Return the image immediately — upload to ImgBB in background (don't block)
