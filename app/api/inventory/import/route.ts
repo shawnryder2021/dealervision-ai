@@ -123,24 +123,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     result.syncLogId = syncLog.id;
 
     try {
-      // Scrape and extract — HTML first, then sitemap fallback for JS-rendered sites.
-      // Use a short timeout for the HTML attempt so we fail fast and get to the
-      // sitemap strategy quickly (many modern dealer sites render inventory via JS).
+      // Scrape and extract — HTML first (fast fail), then sitemap fallback for
+      // JS-rendered sites. Use short timeouts so we have time left for DB writes
+      // within the serverless function limit (~10 s on Netlify).
       let scrapeResult = await scrapeAndExtract(
         sourceUrl,
         dealershipId,
         fieldMapping || sourceData.field_mapping,
-        { timeout: 8000 }
+        { timeout: 5000 }
       );
 
       if (!scrapeResult) {
-        // Sitemap strategy: fetch every vehicle detail page for full data.
-        // detailBudgetMs stops gracefully before the serverless limit so partial
-        // results are saved rather than timing out with nothing.
+        // Sitemap strategy: save URL-slug data immediately for every vehicle,
+        // then opportunistically enrich with detail-page data within budget.
+        // Keeping the budget tight (3 s) guarantees the function completes —
+        // any vehicle whose detail page wasn't fetched still gets year/make/model
+        // from its URL slug, and can be enriched later.
         scrapeResult = await scrapeViaSitemap(sourceUrl, dealershipId, {
           fetchDetails: "all",
-          maxVehicles: 150,
-          detailBudgetMs: 18_000,
+          maxVehicles: 200,
+          detailBudgetMs: 3000,
         });
       }
 
@@ -151,93 +153,102 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const vehicles = scrapeResult.vehicles;
       const errors: Array<{ row: number; error: string }> = [];
 
-      // Process each vehicle
-      for (let i = 0; i < vehicles.length; i++) {
-        try {
-          const vehicle = vehicles[i];
+      // Build the vehicle records (filtering invalid ones first)
+      type VehicleRecord = {
+        index: number;
+        externalId: string;
+        data: ReturnType<typeof buildVehicleData>;
+        raw: Record<string, unknown>;
+      };
 
-          // Validate required fields
-          if (!vehicle.make || !vehicle.model) {
-            errors.push({
-              error: `Make and Model are required`,
-              row: i + 1,
-            });
-            result.failed++;
-            continue;
-          }
+      function buildVehicleData(vehicle: typeof vehicles[number]) {
+        return {
+          dealership_id: dealershipId,
+          year: vehicle.year || null,
+          make: vehicle.make,
+          model: vehicle.model,
+          trim: vehicle.trim || null,
+          price: vehicle.price || null,
+          mileage: vehicle.mileage || null,
+          vin: vehicle.vin || null,
+          stock_number: vehicle.stock_number || null,
+          status: vehicle.status || "available",
+          photos: vehicle.photos || [],
+          tags: [] as string[],
+          details: vehicle.raw || {},
+        };
+      }
 
-          // Generate external ID (VIN > stock number > combination)
-          const externalId =
-            vehicle.vin || vehicle.stock_number || `${vehicle.make}-${vehicle.model}-${i}`;
-
-          // Check if this vehicle already exists from this source
-          const importRecord = await getImportRecord(sourceData.id, externalId);
-
-          // Insert or update vehicle
-          const vehicleData = {
-            dealership_id: dealershipId,
-            year: vehicle.year || null,
-            make: vehicle.make,
-            model: vehicle.model,
-            trim: vehicle.trim || null,
-            price: vehicle.price || null,
-            mileage: vehicle.mileage || null,
-            vin: vehicle.vin || null,
-            stock_number: vehicle.stock_number || null,
-            status: vehicle.status || "available",
-            photos: vehicle.photos || [],
-            tags: [] as string[],
-            details: vehicle.raw || {},
-          };
-
-          if (importRecord) {
-            // Update existing vehicle
-            const { error: updateError } = await supabase
-              .from("vehicles")
-              .update(vehicleData)
-              .eq("id", importRecord.vehicle_id)
-              .select()
-              .single();
-
-            if (updateError) {
-              throw new Error(updateError.message);
-            }
-
-            result.success++;
-            result.importedIds.push(importRecord.vehicle_id);
-          } else {
-            // Create new vehicle
-            const { data: insertedVehicle, error: insertError } = await supabase
-              .from("vehicles")
-              .insert(vehicleData)
-              .select()
-              .single();
-
-            if (insertError) {
-              throw new Error(insertError.message);
-            }
-
-            if (insertedVehicle) {
-              result.importedIds.push(insertedVehicle.id);
-              result.success++;
-
-              // Create import record
-              await createVehicleImportRecord(
-                insertedVehicle.id,
-                sourceData.id,
-                dealershipId,
-                externalId,
-                vehicle.raw || {}
-              );
-            }
-          }
-        } catch (err) {
+      const records: VehicleRecord[] = [];
+      vehicles.forEach((vehicle, i) => {
+        if (!vehicle.make || !vehicle.model) {
+          errors.push({ error: "Make and Model are required", row: i + 1 });
           result.failed++;
-          errors.push({
-            error: err instanceof Error ? err.message : "Unknown error",
-            row: i + 1,
-          });
+          return;
         }
+        const externalId =
+          vehicle.vin || vehicle.stock_number || `${vehicle.make}-${vehicle.model}-${i}`;
+        records.push({
+          index: i,
+          externalId,
+          data: buildVehicleData(vehicle),
+          raw: vehicle.raw || {},
+        });
+      });
+
+      // Look up existing import records in one round-trip (parallel)
+      const existingImports = await Promise.all(
+        records.map((r) => getImportRecord(sourceData.id, r.externalId))
+      );
+
+      // Process inserts/updates in parallel batches of 20.
+      // Sequential awaits for 95 vehicles took 5-10 s by themselves — this
+      // brings DB-write time down to ~1-2 s.
+      const BATCH = 20;
+      for (let i = 0; i < records.length; i += BATCH) {
+        const batch = records.slice(i, i + BATCH);
+        const batchExisting = existingImports.slice(i, i + BATCH);
+        await Promise.all(
+          batch.map(async (record, j) => {
+            const existing = batchExisting[j];
+            try {
+              if (existing) {
+                const { error: updateError } = await supabase
+                  .from("vehicles")
+                  .update(record.data)
+                  .eq("id", existing.vehicle_id);
+                if (updateError) throw new Error(updateError.message);
+                result.success++;
+                result.importedIds.push(existing.vehicle_id);
+              } else {
+                const { data: insertedVehicle, error: insertError } = await supabase
+                  .from("vehicles")
+                  .insert(record.data)
+                  .select("id")
+                  .single();
+                if (insertError) throw new Error(insertError.message);
+                if (insertedVehicle) {
+                  result.importedIds.push(insertedVehicle.id);
+                  result.success++;
+                  // Fire-and-forget the import record (not blocking the response)
+                  createVehicleImportRecord(
+                    insertedVehicle.id,
+                    sourceData.id,
+                    dealershipId,
+                    record.externalId,
+                    record.raw
+                  ).catch(() => { /* logged in DB layer */ });
+                }
+              }
+            } catch (err) {
+              result.failed++;
+              errors.push({
+                error: err instanceof Error ? err.message : "Unknown error",
+                row: record.index + 1,
+              });
+            }
+          })
+        );
       }
 
       // Update sync log with results
