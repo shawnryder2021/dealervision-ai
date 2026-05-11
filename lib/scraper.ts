@@ -533,11 +533,11 @@ const DEFAULT_HEADERS = {
 export async function findSitemapUrl(baseUrl: string): Promise<string | null> {
   const origin = new URL(baseUrl).origin;
 
-  // 1. Check robots.txt
+  // 1. Check robots.txt (most common case — fail fast)
   try {
     const res = await fetch(`${origin}/robots.txt`, {
       headers: DEFAULT_HEADERS,
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(3000),
     });
     if (res.ok) {
       const text = await res.text();
@@ -546,28 +546,27 @@ export async function findSitemapUrl(baseUrl: string): Promise<string | null> {
     }
   } catch { /* ignore */ }
 
-  // 2. Common paths
-  const candidates = [
-    "/sitemap.xml",
-    "/sitemap_index.xml",
-    "/en/sitemap-xml",
-    "/en/sitemap.xml",
-    "/fr/sitemap-xml",
-    "/sitemap/sitemap.xml",
-  ];
-  for (const path of candidates) {
-    try {
-      const url = `${origin}${path}`;
-      const res = await fetch(url, {
-        headers: DEFAULT_HEADERS,
-        signal: AbortSignal.timeout(6000),
-      });
-      if (res.ok) {
+  // 2. Probe 3 most-common paths in parallel (one round-trip total instead of sequential)
+  const candidates = ["/sitemap.xml", "/sitemap_index.xml", "/en/sitemap-xml"];
+  try {
+    const results = await Promise.allSettled(
+      candidates.map(async (path) => {
+        const url = `${origin}${path}`;
+        const res = await fetch(url, {
+          headers: DEFAULT_HEADERS,
+          signal: AbortSignal.timeout(2500),
+        });
+        if (!res.ok) throw new Error("not ok");
         const text = await res.text();
-        if (text.includes("<urlset") || text.includes("<sitemapindex")) return url;
-      }
-    } catch { /* ignore */ }
-  }
+        if (!text.includes("<urlset") && !text.includes("<sitemapindex"))
+          throw new Error("not xml");
+        return url;
+      })
+    );
+    for (const r of results) {
+      if (r.status === "fulfilled") return r.value;
+    }
+  } catch { /* ignore */ }
   return null;
 }
 
@@ -580,7 +579,7 @@ export async function extractVehicleUrlsFromSitemap(
 ): Promise<string[]> {
   const res = await fetch(sitemapUrl, {
     headers: DEFAULT_HEADERS,
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(5000),
   });
   if (!res.ok) return [];
   const text = await res.text();
@@ -660,7 +659,7 @@ async function fetchVehicleDetail(
   try {
     const res = await fetch(url, {
       headers: DEFAULT_HEADERS,
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.timeout(3000),
     });
     if (!res.ok) return null;
     const html = await res.text();

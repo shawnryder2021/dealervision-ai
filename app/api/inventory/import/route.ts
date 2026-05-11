@@ -196,59 +196,85 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         });
       });
 
-      // Look up existing import records in one round-trip (parallel)
-      const existingImports = await Promise.all(
-        records.map((r) => getImportRecord(sourceData.id, r.externalId))
-      );
+      // For new sources (the common case), skip the existing-record lookup —
+      // there can't be any existing records to update. This saves ~95 parallel
+      // DB queries (1-3s) on the critical path.
+      const isResync = !!sourceId;
+      const existingByExternalId = new Map<string, string>(); // externalId -> vehicle_id
 
-      // Process inserts/updates in parallel batches of 20.
-      // Sequential awaits for 95 vehicles took 5-10 s by themselves — this
-      // brings DB-write time down to ~1-2 s.
-      const BATCH = 20;
-      for (let i = 0; i < records.length; i += BATCH) {
-        const batch = records.slice(i, i + BATCH);
-        const batchExisting = existingImports.slice(i, i + BATCH);
-        await Promise.all(
-          batch.map(async (record, j) => {
-            const existing = batchExisting[j];
-            try {
-              if (existing) {
+      if (isResync) {
+        const results = await Promise.all(
+          records.map(async (r) => ({
+            externalId: r.externalId,
+            existing: await getImportRecord(sourceData.id, r.externalId),
+          }))
+        );
+        for (const { externalId, existing } of results) {
+          if (existing) existingByExternalId.set(externalId, existing.vehicle_id);
+        }
+      }
+
+      // Split into updates (existing) and inserts (new)
+      const toUpdate = records.filter((r) => existingByExternalId.has(r.externalId));
+      const toInsert = records.filter((r) => !existingByExternalId.has(r.externalId));
+
+      // BULK INSERT: one DB round-trip for all new vehicles, instead of 95.
+      // This is the single biggest perf win.
+      if (toInsert.length > 0) {
+        const { data: inserted, error: insertError } = await supabase
+          .from("vehicles")
+          .insert(toInsert.map((r) => r.data))
+          .select("id");
+
+        if (insertError) {
+          // If bulk insert fails, surface the error rather than partial state
+          errors.push({ error: `Bulk insert failed: ${insertError.message}`, row: 0 });
+          result.failed += toInsert.length;
+        } else if (inserted) {
+          // Map results back to records by order (Supabase preserves insert order)
+          inserted.forEach((row, i) => {
+            if (i < toInsert.length) {
+              result.importedIds.push(row.id);
+              result.success++;
+              // Fire-and-forget import record creation (off the critical path)
+              createVehicleImportRecord(
+                row.id,
+                sourceData.id,
+                dealershipId,
+                toInsert[i].externalId,
+                toInsert[i].raw
+              ).catch(() => { /* DB layer logs */ });
+            }
+          });
+        }
+      }
+
+      // Updates: parallel batches of 20 (rare path — only for resyncs)
+      if (toUpdate.length > 0) {
+        const BATCH = 20;
+        for (let i = 0; i < toUpdate.length; i += BATCH) {
+          const batch = toUpdate.slice(i, i + BATCH);
+          await Promise.all(
+            batch.map(async (record) => {
+              const vehicleId = existingByExternalId.get(record.externalId)!;
+              try {
                 const { error: updateError } = await supabase
                   .from("vehicles")
                   .update(record.data)
-                  .eq("id", existing.vehicle_id);
+                  .eq("id", vehicleId);
                 if (updateError) throw new Error(updateError.message);
                 result.success++;
-                result.importedIds.push(existing.vehicle_id);
-              } else {
-                const { data: insertedVehicle, error: insertError } = await supabase
-                  .from("vehicles")
-                  .insert(record.data)
-                  .select("id")
-                  .single();
-                if (insertError) throw new Error(insertError.message);
-                if (insertedVehicle) {
-                  result.importedIds.push(insertedVehicle.id);
-                  result.success++;
-                  // Fire-and-forget the import record (not blocking the response)
-                  createVehicleImportRecord(
-                    insertedVehicle.id,
-                    sourceData.id,
-                    dealershipId,
-                    record.externalId,
-                    record.raw
-                  ).catch(() => { /* logged in DB layer */ });
-                }
+                result.importedIds.push(vehicleId);
+              } catch (err) {
+                result.failed++;
+                errors.push({
+                  error: err instanceof Error ? err.message : "Unknown error",
+                  row: record.index + 1,
+                });
               }
-            } catch (err) {
-              result.failed++;
-              errors.push({
-                error: err instanceof Error ? err.message : "Unknown error",
-                row: record.index + 1,
-              });
-            }
-          })
-        );
+            })
+          );
+        }
       }
 
       // Update sync log with results
