@@ -723,19 +723,34 @@ async function fetchVehicleDetail(
 /**
  * Fetch vehicle detail pages in parallel batches, respecting a concurrency limit.
  */
+/**
+ * Fetch vehicle detail pages in parallel batches.
+ * Returns one entry per URL — null if the fetch failed — preserving index alignment.
+ */
 async function batchFetchDetails(
   urls: string[],
-  { concurrency = 8, delayMs = 200 }: { concurrency?: number; delayMs?: number } = {}
-): Promise<ScrapedVehicle[]> {
-  const results: ScrapedVehicle[] = [];
+  {
+    concurrency = 10,
+    delayMs = 100,
+    deadlineMs,
+  }: { concurrency?: number; delayMs?: number; deadlineMs?: number } = {}
+): Promise<Array<ScrapedVehicle | null>> {
+  // null-preserving: result[i] corresponds to urls[i]
+  const results: Array<ScrapedVehicle | null> = new Array(urls.length).fill(null);
+  const deadline = deadlineMs ? Date.now() + deadlineMs : Infinity;
 
   for (let i = 0; i < urls.length; i += concurrency) {
+    // Stop gracefully if we're running out of time
+    if (Date.now() >= deadline) break;
+
     const batch = urls.slice(i, i + concurrency);
     const settled = await Promise.allSettled(batch.map(fetchVehicleDetail));
-    for (const s of settled) {
-      if (s.status === "fulfilled" && s.value) results.push(s.value);
-    }
-    if (i + concurrency < urls.length && delayMs > 0) {
+    settled.forEach((s, batchIdx) => {
+      results[i + batchIdx] =
+        s.status === "fulfilled" && s.value ? s.value : null;
+    });
+
+    if (i + concurrency < urls.length && delayMs > 0 && Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, delayMs));
     }
   }
@@ -744,63 +759,81 @@ async function batchFetchDetails(
 }
 
 export interface SitemapScrapeOptions {
-  /** If false (default for detect), only parse URL slugs — no per-vehicle HTTP requests. */
-  fetchDetails?: boolean;
-  /** Max vehicles to import when fetchDetails=true. Default: 200. */
+  /**
+   * "none"   — URL-slug parsing only (instant, year/make/model only). Default for detect.
+   * "sample" — fetch the first 5 detail pages for a rich detect preview.
+   * "all"    — fetch every detail page (for import). May take 20-30 s.
+   */
+  fetchDetails?: "none" | "sample" | "all";
+  /** Max vehicles to process. Default: 150. */
   maxVehicles?: number;
+  /** Time budget in ms for detail fetching. Partial results returned if exceeded. */
+  detailBudgetMs?: number;
 }
 
 /**
- * Sitemap-based scraping strategy for JS-rendered inventory sites.
+ * Sitemap-based scraping strategy for JS-rendered inventory sites (SM360, CDK, etc.).
  * 1. Find the sitemap via robots.txt or common paths.
  * 2. Extract vehicle detail page URLs from the sitemap.
- * 3a. (detect mode) Parse year/make/model from URL slugs — no per-page requests.
- * 3b. (import mode) Fetch each vehicle detail page for full data.
+ * 3. Depending on fetchDetails mode, enrich with data from detail pages.
+ *
+ * Index-alignment guarantee: every URL in the sitemap always produces a vehicle
+ * record (filled from URL slug when the detail page fetch fails or is skipped).
  */
 export async function scrapeViaSitemap(
   url: string,
   dealershipId: string,
   opts: SitemapScrapeOptions = {}
 ): Promise<{ vehicles: ScrapedVehicle[]; detectionInfo: any } | null> {
-  const { fetchDetails = false, maxVehicles = 200 } = opts;
+  const {
+    fetchDetails = "none",
+    maxVehicles = 150,
+    detailBudgetMs = 20_000,
+  } = opts;
 
   // 1. Find sitemap
   const sitemapUrl = await findSitemapUrl(url);
-  if (!sitemapUrl) {
-    console.log("scrapeViaSitemap: no sitemap found for", url);
-    return null;
-  }
+  if (!sitemapUrl) return null;
 
   // 2. Extract vehicle URLs
   const vehicleUrls = await extractVehicleUrlsFromSitemap(sitemapUrl);
-  if (vehicleUrls.length === 0) {
-    console.log("scrapeViaSitemap: no vehicle URLs found in sitemap", sitemapUrl);
-    return null;
-  }
+  if (vehicleUrls.length === 0) return null;
 
   const limited = vehicleUrls.slice(0, maxVehicles);
 
-  let vehicles: ScrapedVehicle[];
+  // Base vehicles from URL slugs (always available, instant)
+  const fromUrls: ScrapedVehicle[] = limited.map((u) => ({
+    ...parseBasicFromUrl(u),
+    status: "available" as const,
+  }));
 
-  if (fetchDetails) {
-    // 3b. Full import — fetch every detail page
-    const rawVehicles = await batchFetchDetails(limited, { concurrency: 8, delayMs: 150 });
-    // For any missing fields, fill in from the URL slug
-    vehicles = rawVehicles.map((v, i) => {
-      const fromUrl = parseBasicFromUrl(limited[i] || "");
-      return {
-        ...fromUrl,
-        ...v, // detail page wins if it has the field
-        status: "available" as const,
-      };
+  let detailResults: Array<ScrapedVehicle | null> = new Array(limited.length).fill(null);
+
+  if (fetchDetails === "sample") {
+    // Fetch first 5 detail pages for a rich preview
+    const sampleUrls = limited.slice(0, 5);
+    const sampleResults = await batchFetchDetails(sampleUrls, {
+      concurrency: 5,
+      delayMs: 0,
+      deadlineMs: 12_000,
     });
-  } else {
-    // 3a. Detect/preview — URL slug parsing only (instant)
-    vehicles = limited.map((u) => ({
-      ...parseBasicFromUrl(u),
-      status: "available" as const,
-    }));
+    sampleResults.forEach((v, i) => { detailResults[i] = v; });
+  } else if (fetchDetails === "all") {
+    // Fetch all detail pages within the time budget
+    detailResults = await batchFetchDetails(limited, {
+      concurrency: 10,
+      delayMs: 100,
+      deadlineMs: detailBudgetMs,
+    });
   }
+
+  // Merge: URL-slug data as base, detail page data on top (wins if present)
+  const vehicles: ScrapedVehicle[] = fromUrls.map((base, i) => {
+    const detail = detailResults[i];
+    if (!detail) return base;
+    // Merge field-by-field — non-null detail values win over URL slug
+    return mergeDefined(base, detail) as ScrapedVehicle;
+  });
 
   // Require at least make or year
   const valid = vehicles.filter((v) => v.make || v.year);
@@ -815,7 +848,7 @@ export async function scrapeViaSitemap(
       sitemapUrl,
       itemCount: vehicleUrls.length,
       vehiclesExtracted: valid.length,
-      strategy: fetchDetails ? "sitemap+detail-pages" : "sitemap+url-slugs",
+      strategy: `sitemap+${fetchDetails}`,
     },
   };
 }

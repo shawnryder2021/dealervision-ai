@@ -104,7 +104,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<DetectRes
       // Fallback: many modern dealer sites (SM360, CDK, Dealer.com) render inventory
       // via JavaScript. Their sitemap contains individual vehicle URLs we can parse.
       result = await scrapeViaSitemap(sourceUrl, dealershipId, {
-        fetchDetails: false, // URL-slug parse only for the fast detect preview
+        fetchDetails: "sample", // fetch 5 detail pages for a rich preview (price/mileage/VIN)
       });
     }
 

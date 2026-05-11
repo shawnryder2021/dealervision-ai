@@ -134,8 +134,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       if (!scrapeResult) {
         // Sitemap strategy: fetch every vehicle detail page for full data
         scrapeResult = await scrapeViaSitemap(sourceUrl, dealershipId, {
-          fetchDetails: true,
-          maxVehicles: 200,
+          fetchDetails: "all",
+          maxVehicles: 150,
+          detailBudgetMs: 22_000, // leave headroom for DB writes inside the 26s function limit
         });
       }
 
