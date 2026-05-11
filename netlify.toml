@@ -2,10 +2,5 @@
   command = "npm run build"
   publish = ".next"
 
-[functions]
-  # Extend serverless function timeout for inventory import (fetches many vehicle detail pages)
-  # Maximum allowed by Netlify: 26 seconds
-  timeout = 26
-
 [[plugins]]
   package = "@netlify/plugin-nextjs"

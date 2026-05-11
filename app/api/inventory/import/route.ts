@@ -123,20 +123,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     result.syncLogId = syncLog.id;
 
     try {
-      // Scrape and extract — HTML first, then sitemap fallback for JS-rendered sites
+      // Scrape and extract — HTML first, then sitemap fallback for JS-rendered sites.
+      // Use a short timeout for the HTML attempt so we fail fast and get to the
+      // sitemap strategy quickly (many modern dealer sites render inventory via JS).
       let scrapeResult = await scrapeAndExtract(
         sourceUrl,
         dealershipId,
         fieldMapping || sourceData.field_mapping,
-        { timeout: 30000 }
+        { timeout: 8000 }
       );
 
       if (!scrapeResult) {
-        // Sitemap strategy: fetch every vehicle detail page for full data
+        // Sitemap strategy: fetch every vehicle detail page for full data.
+        // detailBudgetMs stops gracefully before the serverless limit so partial
+        // results are saved rather than timing out with nothing.
         scrapeResult = await scrapeViaSitemap(sourceUrl, dealershipId, {
           fetchDetails: "all",
           maxVehicles: 150,
-          detailBudgetMs: 22_000, // leave headroom for DB writes inside the 26s function limit
+          detailBudgetMs: 18_000,
         });
       }
 

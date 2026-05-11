@@ -95,9 +95,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<DetectRes
       );
     }
 
-    // Scrape and extract — try HTML first, then sitemap fallback for JS-rendered sites
+    // Scrape and extract — try HTML first (short timeout), then sitemap fallback.
+    // Many modern dealer sites serve an HTML shell with no vehicle data — fail
+    // fast so we reach the sitemap strategy without burning the full 30 s.
     let result = await scrapeAndExtract(sourceUrl, dealershipId, fieldMapping, {
-      timeout: 30000,
+      timeout: 8000,
     });
 
     if (!result) {
