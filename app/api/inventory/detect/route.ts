@@ -6,7 +6,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { scrapeAndExtract } from "@/lib/scraper";
+import { scrapeAndExtract, scrapeViaSitemap } from "@/lib/scraper";
 import {
   detectFields,
   validateMapping,
@@ -95,22 +95,25 @@ export async function POST(request: NextRequest): Promise<NextResponse<DetectRes
       );
     }
 
-    // Scrape and extract
-    const result = await scrapeAndExtract(
-      sourceUrl,
-      dealershipId,
-      fieldMapping,
-      {
-        timeout: 30000,
-      }
-    );
+    // Scrape and extract — try HTML first, then sitemap fallback for JS-rendered sites
+    let result = await scrapeAndExtract(sourceUrl, dealershipId, fieldMapping, {
+      timeout: 30000,
+    });
+
+    if (!result) {
+      // Fallback: many modern dealer sites (SM360, CDK, Dealer.com) render inventory
+      // via JavaScript. Their sitemap contains individual vehicle URLs we can parse.
+      result = await scrapeViaSitemap(sourceUrl, dealershipId, {
+        fetchDetails: false, // URL-slug parse only for the fast detect preview
+      });
+    }
 
     if (!result) {
       return NextResponse.json(
         {
           success: false,
           error:
-            "Failed to scrape URL. The page may not contain inventory data or may be blocking automated access.",
+            "Unable to read inventory from this page. The site may render inventory via JavaScript. Try importing via CSV instead, or contact support.",
         },
         { status: 400 }
       );

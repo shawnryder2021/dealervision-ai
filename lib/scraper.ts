@@ -518,6 +518,308 @@ export function normalizeVehicle(
   };
 }
 
+// ─── Sitemap-based strategy (for JS-rendered sites like SM360, CDK, etc.) ────
+
+const DEFAULT_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.9",
+};
+
+/**
+ * Read robots.txt to find the Sitemap: directive, then fall back to common paths.
+ */
+export async function findSitemapUrl(baseUrl: string): Promise<string | null> {
+  const origin = new URL(baseUrl).origin;
+
+  // 1. Check robots.txt
+  try {
+    const res = await fetch(`${origin}/robots.txt`, {
+      headers: DEFAULT_HEADERS,
+      signal: AbortSignal.timeout(8000),
+    });
+    if (res.ok) {
+      const text = await res.text();
+      const m = text.match(/^Sitemap:\s*(\S+)/im);
+      if (m) return m[1].trim();
+    }
+  } catch { /* ignore */ }
+
+  // 2. Common paths
+  const candidates = [
+    "/sitemap.xml",
+    "/sitemap_index.xml",
+    "/en/sitemap-xml",
+    "/en/sitemap.xml",
+    "/fr/sitemap-xml",
+    "/sitemap/sitemap.xml",
+  ];
+  for (const path of candidates) {
+    try {
+      const url = `${origin}${path}`;
+      const res = await fetch(url, {
+        headers: DEFAULT_HEADERS,
+        signal: AbortSignal.timeout(6000),
+      });
+      if (res.ok) {
+        const text = await res.text();
+        if (text.includes("<urlset") || text.includes("<sitemapindex")) return url;
+      }
+    } catch { /* ignore */ }
+  }
+  return null;
+}
+
+/**
+ * Fetch a sitemap XML and return all vehicle detail page URLs.
+ * Matches URLs that include a 4-digit year and a recognizable inventory path.
+ */
+export async function extractVehicleUrlsFromSitemap(
+  sitemapUrl: string
+): Promise<string[]> {
+  const res = await fetch(sitemapUrl, {
+    headers: DEFAULT_HEADERS,
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) return [];
+  const text = await res.text();
+
+  const allLocs = [...text.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) =>
+    m[1].trim()
+  );
+
+  // Handle sitemap index — recurse into child sitemaps
+  if (text.includes("<sitemapindex")) {
+    const child = allLocs.find(
+      (u) => /inventory|vehicle|cars?|catalog/i.test(u)
+    ) || allLocs[0];
+    if (child && child !== sitemapUrl) {
+      return extractVehicleUrlsFromSitemap(child);
+    }
+    return [];
+  }
+
+  // Filter to vehicle detail pages:
+  // Must contain a 4-digit year AND match an inventory-like pattern
+  return allLocs.filter((url) => {
+    const path = new URL(url).pathname;
+    const hasYear = /\/(19|20)\d{2}[-/]/.test(path);
+    const hasInventory =
+      /\/(used|new|certified|pre-owned|inventory|vehicles?|cars?|usados?)\//i.test(
+        path
+      );
+    const hasId = /-id\d+/.test(path); // SM360 pattern
+    return hasYear || (hasInventory && path.split("/").length >= 4) || hasId;
+  });
+}
+
+/**
+ * Extract year/make/model from a vehicle detail page URL slug.
+ * Works for SM360 (/make/model/YYYY-make-model-idXXX) and generic patterns.
+ */
+function parseBasicFromUrl(url: string): Partial<ScrapedVehicle> {
+  try {
+    const segments = new URL(url).pathname
+      .split("/")
+      .filter(Boolean);
+    const last = segments[segments.length - 1] || "";
+
+    // Extract year from the start of the last segment
+    const yearMatch = last.match(/^((?:19|20)\d{2})[-_]/);
+    if (!yearMatch) return {};
+    const year = parseInt(yearMatch[1]);
+
+    // SM360 pattern: /make-slug/model-slug/YYYY-make-model-idXXX
+    // Segments: [..., 'toyota', 'rav4', '2024-toyota-rav4-id38073033']
+    const makeSeg = segments.length >= 3 ? segments[segments.length - 3] : "";
+    const modelSeg = segments.length >= 2 ? segments[segments.length - 2] : "";
+
+    const capitalize = (s: string) =>
+      s
+        .split("-")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+
+    const make = makeSeg ? capitalize(makeSeg) : undefined;
+    const model = modelSeg ? capitalize(modelSeg) : undefined;
+
+    return { year, make, model };
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Fetch a single vehicle detail page and return its data via JSON-LD Car schema.
+ * Falls back to heuristic extraction if JSON-LD is missing.
+ */
+async function fetchVehicleDetail(
+  url: string
+): Promise<ScrapedVehicle | null> {
+  try {
+    const res = await fetch(url, {
+      headers: DEFAULT_HEADERS,
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+
+    // Prefer @type Car in JSON-LD
+    const ldBlocks = [
+      ...html.matchAll(
+        /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
+      ),
+    ].map((m) => m[1]);
+
+    for (const block of ldBlocks) {
+      try {
+        const data = JSON.parse(block.trim());
+        const type = data["@type"];
+        if (type === "Car" || type === "Vehicle") {
+          // Mileage: mileageFromOdometer.value (in KM or MI)
+          const mileageVal = data.mileageFromOdometer?.value;
+          const mileage = mileageVal ? parseInt(String(mileageVal)) : undefined;
+
+          // Price from offers
+          const priceStr = data.offers?.price;
+          const price = priceStr
+            ? parseFloat(String(priceStr).replace(/[^0-9.]/g, ""))
+            : undefined;
+
+          // Photos
+          const photos: string[] = Array.isArray(data.image)
+            ? data.image.filter((i: unknown) => typeof i === "string")
+            : typeof data.image === "string"
+            ? [data.image]
+            : [];
+
+          return {
+            year:
+              data.modelDate || data.vehicleModelDate
+                ? parseInt(data.modelDate || data.vehicleModelDate)
+                : parseYearFromName(data.name || ""),
+            make: data.brand || data.manufacturer || undefined,
+            model: data.model || data.name || undefined,
+            trim: data.vehicleConfiguration || undefined,
+            vin: data.vehicleIdentificationNumber || undefined,
+            price: price || undefined,
+            mileage: mileage || undefined,
+            photos,
+            status: "available",
+          };
+        }
+      } catch { /* skip malformed */ }
+    }
+
+    // Fallback: heuristic on the detail page
+    const $ = load(html);
+    return extractByHeuristics($, $("body")) as ScrapedVehicle;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch vehicle detail pages in parallel batches, respecting a concurrency limit.
+ */
+async function batchFetchDetails(
+  urls: string[],
+  { concurrency = 8, delayMs = 200 }: { concurrency?: number; delayMs?: number } = {}
+): Promise<ScrapedVehicle[]> {
+  const results: ScrapedVehicle[] = [];
+
+  for (let i = 0; i < urls.length; i += concurrency) {
+    const batch = urls.slice(i, i + concurrency);
+    const settled = await Promise.allSettled(batch.map(fetchVehicleDetail));
+    for (const s of settled) {
+      if (s.status === "fulfilled" && s.value) results.push(s.value);
+    }
+    if (i + concurrency < urls.length && delayMs > 0) {
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+
+  return results;
+}
+
+export interface SitemapScrapeOptions {
+  /** If false (default for detect), only parse URL slugs — no per-vehicle HTTP requests. */
+  fetchDetails?: boolean;
+  /** Max vehicles to import when fetchDetails=true. Default: 200. */
+  maxVehicles?: number;
+}
+
+/**
+ * Sitemap-based scraping strategy for JS-rendered inventory sites.
+ * 1. Find the sitemap via robots.txt or common paths.
+ * 2. Extract vehicle detail page URLs from the sitemap.
+ * 3a. (detect mode) Parse year/make/model from URL slugs — no per-page requests.
+ * 3b. (import mode) Fetch each vehicle detail page for full data.
+ */
+export async function scrapeViaSitemap(
+  url: string,
+  dealershipId: string,
+  opts: SitemapScrapeOptions = {}
+): Promise<{ vehicles: ScrapedVehicle[]; detectionInfo: any } | null> {
+  const { fetchDetails = false, maxVehicles = 200 } = opts;
+
+  // 1. Find sitemap
+  const sitemapUrl = await findSitemapUrl(url);
+  if (!sitemapUrl) {
+    console.log("scrapeViaSitemap: no sitemap found for", url);
+    return null;
+  }
+
+  // 2. Extract vehicle URLs
+  const vehicleUrls = await extractVehicleUrlsFromSitemap(sitemapUrl);
+  if (vehicleUrls.length === 0) {
+    console.log("scrapeViaSitemap: no vehicle URLs found in sitemap", sitemapUrl);
+    return null;
+  }
+
+  const limited = vehicleUrls.slice(0, maxVehicles);
+
+  let vehicles: ScrapedVehicle[];
+
+  if (fetchDetails) {
+    // 3b. Full import — fetch every detail page
+    const rawVehicles = await batchFetchDetails(limited, { concurrency: 8, delayMs: 150 });
+    // For any missing fields, fill in from the URL slug
+    vehicles = rawVehicles.map((v, i) => {
+      const fromUrl = parseBasicFromUrl(limited[i] || "");
+      return {
+        ...fromUrl,
+        ...v, // detail page wins if it has the field
+        status: "available" as const,
+      };
+    });
+  } else {
+    // 3a. Detect/preview — URL slug parsing only (instant)
+    vehicles = limited.map((u) => ({
+      ...parseBasicFromUrl(u),
+      status: "available" as const,
+    }));
+  }
+
+  // Require at least make or year
+  const valid = vehicles.filter((v) => v.make || v.year);
+  if (valid.length === 0) return null;
+
+  const normalized = valid.map((v) => normalizeVehicle(v, dealershipId));
+
+  return {
+    vehicles: normalized as ScrapedVehicle[],
+    detectionInfo: {
+      selector: "sitemap",
+      sitemapUrl,
+      itemCount: vehicleUrls.length,
+      vehiclesExtracted: valid.length,
+      strategy: fetchDetails ? "sitemap+detail-pages" : "sitemap+url-slugs",
+    },
+  };
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function scrapeUrl(

@@ -6,7 +6,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { scrapeAndExtract, normalizeVehicle } from "@/lib/scraper";
+import { scrapeAndExtract, scrapeViaSitemap, normalizeVehicle } from "@/lib/scraper";
 import {
   createInventorySource,
   updateSourceSyncStatus,
@@ -123,8 +123,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     result.syncLogId = syncLog.id;
 
     try {
-      // Scrape and extract
-      const scrapeResult = await scrapeAndExtract(
+      // Scrape and extract — HTML first, then sitemap fallback for JS-rendered sites
+      let scrapeResult = await scrapeAndExtract(
         sourceUrl,
         dealershipId,
         fieldMapping || sourceData.field_mapping,
@@ -132,7 +132,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
 
       if (!scrapeResult) {
-        throw new Error("Failed to scrape URL");
+        // Sitemap strategy: fetch every vehicle detail page for full data
+        scrapeResult = await scrapeViaSitemap(sourceUrl, dealershipId, {
+          fetchDetails: true,
+          maxVehicles: 200,
+        });
+      }
+
+      if (!scrapeResult) {
+        throw new Error("Failed to scrape URL. The site may render inventory via JavaScript — try the sitemap strategy or CSV import.");
       }
 
       const vehicles = scrapeResult.vehicles;
