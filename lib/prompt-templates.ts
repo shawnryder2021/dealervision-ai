@@ -353,6 +353,7 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
 
   "brand-post": (ctx) => {
     const scene = getSceneBlock(ctx);
+    const priceRequested = ctx.include_price && ctx.vehicle?.price;
 
     return [
       `Professional automotive dealership brand awareness post, ${getChannelFormatting(ctx.channel)}.`,
@@ -363,6 +364,9 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
       scene || "Welcoming dealership environment with vehicles tastefully displayed.",
       `Style: ${ctx.style}, warm, professional, trustworthy. Community-oriented.`,
       getBrandContext(ctx.dealership),
+      priceRequested
+        ? `Display price: "$${ctx.vehicle!.price!.toLocaleString()}".`
+        : "BRAND POST RULE — NO PRICING: Do not show any dollar amounts, price tags, MSRP, monthly payment figures, percentage offers, APR, or savings callouts anywhere in the image. Keep the composition clean and brand-focused. No price stickers, price bursts, or financial overlays of any kind.",
       "Photo-realistic commercial photography. People and environment feel genuine, not stock-photo generic. All text sharp and legible.",
     ].filter(Boolean).join(" ");
   },
