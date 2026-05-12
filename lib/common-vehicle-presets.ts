@@ -88,3 +88,53 @@ export function isPresetId(id: string | undefined): boolean {
 export function getPresetById(id: string): CommonVehiclePreset | undefined {
   return COMMON_VEHICLE_PRESETS.find((p) => p.id === id);
 }
+
+export interface InlineVehicleData {
+  year?: number;
+  make: string;
+  model: string;
+  trim?: string;
+}
+
+/**
+ * Build a synthetic vehicle id from a manual Year / Make / Model selection.
+ * Format: "manual:<year>|<make>|<model>" — year may be empty.
+ */
+export function buildManualVehicleId(
+  year: string | number | undefined,
+  make: string,
+  model: string
+): string {
+  const y = year != null && String(year).trim() ? String(year).trim() : "";
+  return `manual:${y}|${make}|${model}`;
+}
+
+/**
+ * Parse a synthetic vehicle id back into inline vehicle data.
+ * Handles both the legacy "preset:<slug>" form and the new
+ * "manual:<year>|<make>|<model>" form. Returns null for real DB ids
+ * (UUIDs from a dealership's inventory) or anything unrecognised.
+ */
+export function parseInlineVehicleId(id: string | undefined): InlineVehicleData | null {
+  if (!id) return null;
+  if (id.startsWith("preset:")) {
+    const p = getPresetById(id);
+    return p ? { year: p.year, make: p.make, model: p.model, trim: p.trim } : null;
+  }
+  if (id.startsWith("manual:")) {
+    const [yearPart = "", make = "", model = ""] = id.slice("manual:".length).split("|");
+    if (!make.trim() || !model.trim()) return null;
+    const parsedYear = yearPart.trim() ? parseInt(yearPart.trim(), 10) : NaN;
+    return {
+      year: Number.isFinite(parsedYear) ? parsedYear : undefined,
+      make: make.trim(),
+      model: model.trim(),
+    };
+  }
+  return null;
+}
+
+/** True for synthetic ids (preset: or manual:) that aren't real DB rows. */
+export function isInlineVehicleId(id: string | undefined): boolean {
+  return !!id && (id.startsWith("preset:") || id.startsWith("manual:"));
+}

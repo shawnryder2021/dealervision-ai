@@ -396,7 +396,7 @@ export default function LibraryPage() {
         open={!!selectedAsset}
         onOpenChange={(open) => !open && setSelectedAsset(null)}
       >
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="capitalize">
               {selectedAsset?.content_type.replace(/-/g, " ")}
@@ -405,11 +405,13 @@ export default function LibraryPage() {
           {selectedAsset && (
             <div className="space-y-4">
               {selectedAsset.image_url && (
-                <img
-                  src={selectedAsset.image_url}
-                  alt={selectedAsset.content_type}
-                  className="w-full rounded-lg"
-                />
+                <div className="flex items-center justify-center rounded-lg border bg-muted/40 p-3">
+                  <img
+                    src={selectedAsset.image_url}
+                    alt={selectedAsset.content_type}
+                    className="max-h-[60vh] w-auto max-w-full rounded-md object-contain shadow-sm"
+                  />
+                </div>
               )}
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="capitalize">

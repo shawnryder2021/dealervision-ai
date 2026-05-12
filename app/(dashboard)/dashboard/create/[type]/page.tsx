@@ -31,7 +31,8 @@ import { useAppStore } from "@/lib/store";
 import { createClient } from "@/lib/supabase/client";
 import { isDemoMode } from "@/lib/demo-data";
 import { buildPrompt, getAspectRatioForChannel, getResolutionForChannel } from "@/lib/prompt-templates";
-import { COMMON_VEHICLE_PRESETS } from "@/lib/common-vehicle-presets";
+import { COMMON_VEHICLE_PRESETS, parseInlineVehicleId } from "@/lib/common-vehicle-presets";
+import { MODELS_BY_MAKE } from "@/lib/vehicle-options";
 import { CONTENT_TYPES, CHANNEL_PRESETS } from "@/lib/constants";
 import type { Vehicle, GeneratedAsset } from "@/lib/types";
 import { useWebhook } from "@/lib/use-webhook";
@@ -127,8 +128,8 @@ export default function GenerateTypePage() {
     const fromInventory = vehicles
       .map((v) => v.model?.trim())
       .filter((m): m is string => Boolean(m));
-    const fromPresets = COMMON_VEHICLE_PRESETS.map((p) => p.model);
-    return Array.from(new Set([...fromInventory, ...fromPresets])).sort((a, b) =>
+    const fromCatalog = Object.values(MODELS_BY_MAKE).flat();
+    return Array.from(new Set([...fromInventory, ...fromCatalog])).sort((a, b) =>
       a.localeCompare(b)
     );
   }, [vehicles]);
@@ -138,14 +139,13 @@ export default function GenerateTypePage() {
       let vehicle: Vehicle | null = vehicleId
         ? vehicles.find((v) => v.id === vehicleId) ?? null
         : null;
-      if (!vehicle && vehicleId?.startsWith("preset:")) {
-        const { getPresetById } = await import("@/lib/common-vehicle-presets");
-        const preset = getPresetById(vehicleId);
-        if (preset) {
+      if (!vehicle && vehicleId) {
+        const iv = parseInlineVehicleId(vehicleId);
+        if (iv) {
           vehicle = {
-            id: preset.id, dealership_id: dealership.id,
-            year: preset.year, make: preset.make, model: preset.model,
-            trim: preset.trim || null, price: null, mileage: null,
+            id: vehicleId, dealership_id: dealership.id,
+            year: iv.year ?? null, make: iv.make, model: iv.model,
+            trim: iv.trim ?? null, price: null, mileage: null,
             vin: null, stock_number: null, status: "available",
             photos: [], tags: [], details: {},
             created_at: new Date().toISOString(),
@@ -172,30 +172,15 @@ export default function GenerateTypePage() {
     }
 
     try {
-      // Handle preset selection — preview API can't look up "preset:..." in DB
-      const isPreset = vehicleId?.startsWith("preset:") ?? false;
-      let inlineVehicle:
-        | { year: number; make: string; model: string; trim?: string }
-        | undefined;
-      if (isPreset && vehicleId) {
-        const { getPresetById } = await import("@/lib/common-vehicle-presets");
-        const preset = getPresetById(vehicleId);
-        if (preset) {
-          inlineVehicle = {
-            year: preset.year,
-            make: preset.make,
-            model: preset.model,
-            trim: preset.trim,
-          };
-        }
-      }
+      // A "manual:" / "preset:" id isn't a real DB row — send it as inline data.
+      const inlineVehicle = vehicleId ? parseInlineVehicleId(vehicleId) ?? undefined : undefined;
 
       const res = await fetch("/api/generate/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content_type: contentType, channel,
-          vehicle_id: isPreset ? undefined : vehicleId,
+          vehicle_id: inlineVehicle ? undefined : vehicleId,
           inline_vehicle: inlineVehicle,
           headline, subheadline, cta, style,
           event_name: eventName, event_dates: eventDates,
@@ -240,17 +225,16 @@ export default function GenerateTypePage() {
         let vehicle: Vehicle | null = vehicleId
           ? vehicles.find((v) => v.id === vehicleId) ?? null
           : null;
-        if (!vehicle && vehicleId?.startsWith("preset:")) {
-          const { getPresetById } = await import("@/lib/common-vehicle-presets");
-          const preset = getPresetById(vehicleId);
-          if (preset) {
+        if (!vehicle && vehicleId) {
+          const iv = parseInlineVehicleId(vehicleId);
+          if (iv) {
             vehicle = {
-              id: preset.id,
+              id: vehicleId,
               dealership_id: dealership?.id || "demo",
-              year: preset.year,
-              make: preset.make,
-              model: preset.model,
-              trim: preset.trim || null,
+              year: iv.year ?? null,
+              make: iv.make,
+              model: iv.model,
+              trim: iv.trim ?? null,
               price: null, mileage: null, vin: null, stock_number: null,
               status: "available", photos: [], tags: [], details: {},
               created_at: new Date().toISOString(),
@@ -319,24 +303,8 @@ export default function GenerateTypePage() {
 
       const prodImageInput = referencePhotos.map((p) => p.url);
 
-      // If user picked a "preset:" common vehicle, send inline data instead
-      // of vehicle_id (the DB has no row for presets — it would 404)
-      const isPreset = vehicleId?.startsWith("preset:") ?? false;
-      let inlineVehicle:
-        | { year: number; make: string; model: string; trim?: string }
-        | undefined;
-      if (isPreset && vehicleId) {
-        const { getPresetById } = await import("@/lib/common-vehicle-presets");
-        const preset = getPresetById(vehicleId);
-        if (preset) {
-          inlineVehicle = {
-            year: preset.year,
-            make: preset.make,
-            model: preset.model,
-            trim: preset.trim,
-          };
-        }
-      }
+      // A "manual:" / "preset:" id isn't a real DB row — send it as inline data.
+      const inlineVehicle = vehicleId ? parseInlineVehicleId(vehicleId) ?? undefined : undefined;
 
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -346,7 +314,7 @@ export default function GenerateTypePage() {
         },
         body: JSON.stringify({
           content_type: contentType, channel,
-          vehicle_id: isPreset ? undefined : vehicleId,
+          vehicle_id: inlineVehicle ? undefined : vehicleId,
           inline_vehicle: inlineVehicle,
           headline, subheadline, cta, style,
           event_name: eventName, event_dates: eventDates,
