@@ -159,9 +159,9 @@ export default function InventoryAgingPage() {
                     <Badge className={v.bucket.color}>{v.daysInStock}d</Badge>
                     <Link
                       className={buttonVariants({ size: "sm", variant: "outline" })}
-                      href={`/dashboard/create/price-drop?vehicleId=${v.id}&headline=${encodeURIComponent(
-                        `Price Drop: ${v.year} ${v.make} ${v.model}`
-                      )}&cta=${encodeURIComponent("Save Today")}&campaign=${encodeURIComponent("Inventory Aging")}`}
+                      href={`/dashboard/create/price-drop?vehicleId=${v.id}${
+                        v.price ? `&currentPrice=${v.price}` : ""
+                      }&campaign=${encodeURIComponent("Inventory Aging")}`}
                     >
                       <TrendingDown className="h-4 w-4 mr-1" />
                       Price Drop

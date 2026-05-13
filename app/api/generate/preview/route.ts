@@ -77,6 +77,8 @@ export async function POST(request: Request) {
       event_name: body.event_name,
       event_dates: body.event_dates,
       offer_details: body.offer_details,
+      previous_price: body.previous_price,
+      current_price: body.current_price,
       service_offer: body.service_offer,
       service_details: body.service_details,
       testimonial_text: body.testimonial_text,

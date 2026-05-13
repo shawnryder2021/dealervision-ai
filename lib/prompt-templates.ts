@@ -16,6 +16,10 @@ interface PromptContext {
   event_name?: string;
   event_dates?: string;
   offer_details?: string;
+  /** Price-drop: "was" price shown with strikethrough. */
+  previous_price?: number;
+  /** Price-drop: "now" price shown prominently. */
+  current_price?: number;
   service_offer?: string;
   service_details?: string;
   testimonial_text?: string;
@@ -323,17 +327,49 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
     const accuracy = vehicle ? getVehicleAccuracyPrompt(vehicle) : "";
     const scene = getSceneBlock(ctx);
 
+    const wasPrice =
+      ctx.previous_price && ctx.previous_price > 0
+        ? `$${ctx.previous_price.toLocaleString()}`
+        : null;
+    const nowPrice =
+      ctx.current_price && ctx.current_price > 0
+        ? `$${ctx.current_price.toLocaleString()}`
+        : vehicle?.price
+        ? `$${vehicle.price.toLocaleString()}`
+        : null;
+    const savings =
+      ctx.previous_price && ctx.current_price && ctx.previous_price > ctx.current_price
+        ? ctx.previous_price - ctx.current_price
+        : null;
+    const savingsPct =
+      savings && ctx.previous_price
+        ? Math.round((savings / ctx.previous_price) * 100)
+        : null;
+
+    const priceBlock =
+      wasPrice && nowPrice
+        ? `WAS / NOW PRICING — required, large, side-by-side near the vehicle: a "WAS" label with the previous price "${wasPrice}" rendered with a heavy red diagonal strikethrough line crossing through the digits, shown in muted gray or dark tone; immediately beside or below it a "NOW" label with the new price "${nowPrice}" rendered in oversized bold high-contrast typography in a bright accent color (red, orange, or the dealership primary). The NOW price must be visually 1.5–2x the size of the WAS price. ${
+            savings && savingsPct
+              ? `Include a bold "SAVE $${savings.toLocaleString()} (${savingsPct}% OFF)" callout badge.`
+              : savings
+              ? `Include a bold "SAVE $${savings.toLocaleString()}" callout badge.`
+              : ""
+          }`
+        : nowPrice
+        ? `NEW PRICE — large bold callout: "${nowPrice}" with a "PRICE DROP" stamp or starburst beside it.`
+        : "";
+
     return [
       `Urgent 'PRICE REDUCED' automotive promotional graphic, ${getChannelFormatting(ctx.channel)}.`,
       `Featuring a ${vehicleDesc}. ${accuracy}`,
       scene || "Clean studio background. The vehicle is well-lit showing every detail.",
-      ctx.headline ? `Bold attention-grabbing headline: "${ctx.headline}".` : '"PRICE REDUCED!" bold headline text.',
-      ctx.offer_details ? `New price prominently displayed: "${ctx.offer_details}".` : "",
-      ctx.cta ? `CTA: "${ctx.cta}".` : "",
+      '"PRICE REDUCED" or "PRICE DROP" bold headline stamp prominently displayed.',
+      priceBlock,
+      "Visual treatment: red strikethrough on the WAS price must be crisp and unmistakable. NOW price must be the largest text element after the vehicle hero. No other overlay copy beyond the price block and the PRICE DROP stamp.",
       `Style: ${ctx.style}, urgent, bold, high-contrast typography.`,
       getBrandContext(ctx.dealership),
       PHOTO_QUALITY,
-      "All text crisp and fully legible.",
+      "All numerals razor-sharp and fully legible — every digit in both prices must be readable.",
     ].filter(Boolean).join(" ");
   },
 

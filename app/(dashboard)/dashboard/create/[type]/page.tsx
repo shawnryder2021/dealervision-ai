@@ -38,6 +38,11 @@ import type { Vehicle, GeneratedAsset } from "@/lib/types";
 import { useWebhook } from "@/lib/use-webhook";
 import { toast } from "sonner";
 
+function parsePrice(s: string): number | undefined {
+  const n = parseFloat((s ?? "").replace(/[^0-9.]/g, ""));
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
 export default function GenerateTypePage() {
   const params = useParams();
   const router = useRouter();
@@ -57,6 +62,8 @@ export default function GenerateTypePage() {
   const [eventName, setEventName] = useState("");
   const [eventDates, setEventDates] = useState("");
   const [offerDetails, setOfferDetails] = useState("");
+  const [previousPrice, setPreviousPrice] = useState("");
+  const [currentPrice, setCurrentPrice] = useState("");
   const [serviceOffer, setServiceOffer] = useState("");
   const [serviceDetails, setServiceDetails] = useState("");
   const [testimonialText, setTestimonialText] = useState("");
@@ -91,7 +98,20 @@ export default function GenerateTypePage() {
     if (searchParams.get("customPrompt")) setCustomPrompt(searchParams.get("customPrompt")!);
     if (searchParams.get("campaign")) setCampaign(searchParams.get("campaign")!);
     if (searchParams.get("vehicleId")) setVehicleId(searchParams.get("vehicleId")!);
+    if (searchParams.get("previousPrice")) setPreviousPrice(searchParams.get("previousPrice")!);
+    if (searchParams.get("currentPrice")) setCurrentPrice(searchParams.get("currentPrice")!);
   }, [searchParams]);
+
+  // Auto-fill the "Now" price from the picked inventory vehicle, but only if
+  // the user hasn't already typed one in.
+  useEffect(() => {
+    if (contentType !== "price-drop") return;
+    if (currentPrice) return;
+    if (!vehicleId) return;
+    const v = vehicles.find((x) => x.id === vehicleId);
+    if (v?.price) setCurrentPrice(String(v.price));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicleId, vehicles, contentType]);
 
   useEffect(() => {
     if (isDemoMode()) {
@@ -163,6 +183,8 @@ export default function GenerateTypePage() {
         offer_details: offerDetails, service_offer: serviceOffer,
         service_details: serviceDetails, testimonial_text: testimonialText,
         testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
+        previous_price: parsePrice(previousPrice),
+        current_price: parsePrice(currentPrice),
         include_vehicle_year: includeVehicleYear,
         include_vehicle_model: includeVehicleModel,
           scene_location: sceneLocation,
@@ -187,6 +209,8 @@ export default function GenerateTypePage() {
           offer_details: offerDetails, service_offer: serviceOffer,
           service_details: serviceDetails, testimonial_text: testimonialText,
           testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
+          previous_price: parsePrice(previousPrice),
+          current_price: parsePrice(currentPrice),
           include_vehicle_year: includeVehicleYear,
           include_vehicle_model: includeVehicleModel,
           scene_location: sceneLocation,
@@ -207,6 +231,7 @@ export default function GenerateTypePage() {
     contentType, channel, vehicleId, headline, subheadline, cta, style,
     eventName, eventDates, offerDetails, serviceOffer, serviceDetails,
     testimonialText, testimonialAuthor, rating, customPrompt, dealership, vehicles,
+    previousPrice, currentPrice,
     includeVehicleYear, includeVehicleModel, sceneLocation,
   ]);
 
@@ -249,6 +274,8 @@ export default function GenerateTypePage() {
           offer_details: offerDetails, service_offer: serviceOffer,
           service_details: serviceDetails, testimonial_text: testimonialText,
           testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
+          previous_price: parsePrice(previousPrice),
+          current_price: parsePrice(currentPrice),
           include_vehicle_year: includeVehicleYear,
           include_vehicle_model: includeVehicleModel,
           scene_location: sceneLocation,
@@ -321,6 +348,8 @@ export default function GenerateTypePage() {
           offer_details: offerDetails, service_offer: serviceOffer,
           service_details: serviceDetails, testimonial_text: testimonialText,
           testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
+          previous_price: parsePrice(previousPrice),
+          current_price: parsePrice(currentPrice),
           campaign,
           include_vehicle_year: includeVehicleYear,
           include_vehicle_model: includeVehicleModel,
@@ -468,6 +497,7 @@ export default function GenerateTypePage() {
   const showServiceFields = contentType === "service-promo";
   const showTestimonialFields = contentType === "testimonial";
   const showCustomPrompt = contentType === "custom";
+  const showPriceDropFields = contentType === "price-drop";
 
   if (!typeInfo) {
     return (
@@ -520,6 +550,7 @@ export default function GenerateTypePage() {
                     value={vehicleId}
                     onChange={setVehicleId}
                   />
+                  {!showPriceDropFields && (
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label>Include Vehicle Year in Image (Optional)</Label>
@@ -568,38 +599,88 @@ export default function GenerateTypePage() {
                       </Select>
                     </div>
                   </div>
+                  )}
+                  {!showPriceDropFields && (
                   <p className="text-xs text-muted-foreground">
                     Leave these blank unless you want the AI to intentionally show specific year/model details in the graphic.
                   </p>
+                  )}
                 </>
               )}
 
-              <div className="space-y-2">
-                <Label>Headline</Label>
-                <Input
-                  placeholder="Enter your main headline..."
-                  value={headline}
-                  onChange={(e) => setHeadline(e.target.value)}
-                />
-              </div>
+              {showPriceDropFields ? (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="was-price">Was Price</Label>
+                    <Input
+                      id="was-price"
+                      inputMode="decimal"
+                      placeholder="e.g., 32,995"
+                      value={previousPrice}
+                      onChange={(e) => setPreviousPrice(e.target.value)}
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Shown with a red strikethrough.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="now-price">Now Price</Label>
+                    <Input
+                      id="now-price"
+                      inputMode="decimal"
+                      placeholder="e.g., 28,995"
+                      value={currentPrice}
+                      onChange={(e) => setCurrentPrice(e.target.value)}
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Shown big and bold as the new price.
+                    </p>
+                  </div>
+                  {(() => {
+                    const was = parsePrice(previousPrice);
+                    const now = parsePrice(currentPrice);
+                    if (was && now && was > now) {
+                      const savings = was - now;
+                      const pct = Math.round((savings / was) * 100);
+                      return (
+                        <p className="sm:col-span-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                          Savings: ${savings.toLocaleString()} ({pct}% off)
+                        </p>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label>Headline</Label>
+                    <Input
+                      placeholder="Enter your main headline..."
+                      value={headline}
+                      onChange={(e) => setHeadline(e.target.value)}
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label>Subheadline</Label>
-                <Input
-                  placeholder="Supporting text..."
-                  value={subheadline}
-                  onChange={(e) => setSubheadline(e.target.value)}
-                />
-              </div>
+                  <div className="space-y-2">
+                    <Label>Subheadline</Label>
+                    <Input
+                      placeholder="Supporting text..."
+                      value={subheadline}
+                      onChange={(e) => setSubheadline(e.target.value)}
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label>Call to Action</Label>
-                <Input
-                  placeholder='e.g., "Visit Today", "Call Now"'
-                  value={cta}
-                  onChange={(e) => setCta(e.target.value)}
-                />
-              </div>
+                  <div className="space-y-2">
+                    <Label>Call to Action</Label>
+                    <Input
+                      placeholder='e.g., "Visit Today", "Call Now"'
+                      value={cta}
+                      onChange={(e) => setCta(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
 
               {showEventFields && (
                 <>

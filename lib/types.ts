@@ -123,6 +123,10 @@ export interface GenerateRequest {
   event_name?: string;
   event_dates?: string;
   offer_details?: string;
+  /** Price-drop: "was" price shown with strikethrough. */
+  previous_price?: number;
+  /** Price-drop: "now" price shown prominently. */
+  current_price?: number;
   service_offer?: string;
   service_details?: string;
   testimonial_text?: string;
