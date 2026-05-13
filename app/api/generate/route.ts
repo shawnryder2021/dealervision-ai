@@ -117,6 +117,8 @@ export async function POST(request: NextRequest) {
       offer_details: body.offer_details,
       previous_price: body.previous_price,
       current_price: body.current_price,
+      vehicle_vin: body.vehicle_vin,
+      vehicle_color: body.vehicle_color,
       service_offer: body.service_offer,
       service_details: body.service_details,
       testimonial_text: body.testimonial_text,

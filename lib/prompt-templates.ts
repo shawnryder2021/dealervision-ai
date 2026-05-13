@@ -20,6 +20,10 @@ interface PromptContext {
   previous_price?: number;
   /** Price-drop: "now" price shown prominently. */
   current_price?: number;
+  /** Optional VIN — informational only (not drawn on the image). */
+  vehicle_vin?: string;
+  /** Optional exterior paint color — forces the AI to render that color. */
+  vehicle_color?: string;
   service_offer?: string;
   service_details?: string;
   testimonial_text?: string;
@@ -359,9 +363,14 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
         ? `NEW PRICE — large bold callout: "${nowPrice}" with a "PRICE DROP" stamp or starburst beside it.`
         : "";
 
+    const colorDirective = ctx.vehicle_color?.trim()
+      ? `EXTERIOR PAINT COLOR — MANDATORY: render the vehicle's body paint in exactly "${ctx.vehicle_color.trim()}". This colour must be unmistakable across the hood, roof, doors and panels. Do not substitute or shift to a different shade. Reflections and lighting may adjust tone but the dominant body colour must clearly read as ${ctx.vehicle_color.trim()}.`
+      : "";
+
     return [
       `Urgent 'PRICE REDUCED' automotive promotional graphic, ${getChannelFormatting(ctx.channel)}.`,
       `Featuring a ${vehicleDesc}. ${accuracy}`,
+      colorDirective,
       scene || "Clean studio background. The vehicle is well-lit showing every detail.",
       '"PRICE REDUCED" or "PRICE DROP" bold headline stamp prominently displayed.',
       priceBlock,

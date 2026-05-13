@@ -127,6 +127,10 @@ export interface GenerateRequest {
   previous_price?: number;
   /** Price-drop: "now" price shown prominently. */
   current_price?: number;
+  /** Optional VIN — recorded in the asset's metadata for reference. */
+  vehicle_vin?: string;
+  /** Optional exterior paint color — forces the AI to render that color. */
+  vehicle_color?: string;
   service_offer?: string;
   service_details?: string;
   testimonial_text?: string;

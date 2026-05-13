@@ -64,6 +64,9 @@ export default function GenerateTypePage() {
   const [offerDetails, setOfferDetails] = useState("");
   const [previousPrice, setPreviousPrice] = useState("");
   const [currentPrice, setCurrentPrice] = useState("");
+  const [vehicleVin, setVehicleVin] = useState("");
+  const [vehicleColor, setVehicleColor] = useState("");
+  const [vinDecoding, setVinDecoding] = useState(false);
   const [serviceOffer, setServiceOffer] = useState("");
   const [serviceDetails, setServiceDetails] = useState("");
   const [testimonialText, setTestimonialText] = useState("");
@@ -100,18 +103,48 @@ export default function GenerateTypePage() {
     if (searchParams.get("vehicleId")) setVehicleId(searchParams.get("vehicleId")!);
     if (searchParams.get("previousPrice")) setPreviousPrice(searchParams.get("previousPrice")!);
     if (searchParams.get("currentPrice")) setCurrentPrice(searchParams.get("currentPrice")!);
+    if (searchParams.get("vin")) setVehicleVin(searchParams.get("vin")!);
+    if (searchParams.get("color")) setVehicleColor(searchParams.get("color")!);
   }, [searchParams]);
 
-  // Auto-fill the "Now" price from the picked inventory vehicle, but only if
-  // the user hasn't already typed one in.
+  // Auto-fill Now-price and VIN from the picked inventory vehicle, but only
+  // if the user hasn't already typed them in.
   useEffect(() => {
     if (contentType !== "price-drop") return;
-    if (currentPrice) return;
     if (!vehicleId) return;
     const v = vehicles.find((x) => x.id === vehicleId);
-    if (v?.price) setCurrentPrice(String(v.price));
+    if (!v) return;
+    if (!currentPrice && v.price) setCurrentPrice(String(v.price));
+    if (!vehicleVin && v.vin) setVehicleVin(v.vin);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vehicleId, vehicles, contentType]);
+
+  async function handleDecodeVin() {
+    const vin = vehicleVin.trim();
+    if (vin.length < 11) {
+      toast.error("Enter a full VIN to decode (17 characters)");
+      return;
+    }
+    setVinDecoding(true);
+    try {
+      const res = await fetch(`/api/vin-decode?vin=${encodeURIComponent(vin)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Decode failed");
+      const { year, make, model } = data as { year: number | null; make: string | null; model: string | null };
+      if (!make || !model) {
+        toast.error("Couldn't read make/model from this VIN");
+        return;
+      }
+      const id = `manual:${year ?? ""}|${make}|${model}`;
+      setVehicleId(id);
+      toast.success(`Decoded: ${year ?? "—"} ${make} ${model}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Decode failed";
+      toast.error(message);
+    } finally {
+      setVinDecoding(false);
+    }
+  }
 
   useEffect(() => {
     if (isDemoMode()) {
@@ -185,6 +218,8 @@ export default function GenerateTypePage() {
         testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
         previous_price: parsePrice(previousPrice),
         current_price: parsePrice(currentPrice),
+        vehicle_vin: vehicleVin || undefined,
+        vehicle_color: vehicleColor || undefined,
         include_vehicle_year: includeVehicleYear,
         include_vehicle_model: includeVehicleModel,
           scene_location: sceneLocation,
@@ -211,6 +246,8 @@ export default function GenerateTypePage() {
           testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
           previous_price: parsePrice(previousPrice),
           current_price: parsePrice(currentPrice),
+          vehicle_vin: vehicleVin || undefined,
+          vehicle_color: vehicleColor || undefined,
           include_vehicle_year: includeVehicleYear,
           include_vehicle_model: includeVehicleModel,
           scene_location: sceneLocation,
@@ -231,7 +268,7 @@ export default function GenerateTypePage() {
     contentType, channel, vehicleId, headline, subheadline, cta, style,
     eventName, eventDates, offerDetails, serviceOffer, serviceDetails,
     testimonialText, testimonialAuthor, rating, customPrompt, dealership, vehicles,
-    previousPrice, currentPrice,
+    previousPrice, currentPrice, vehicleVin, vehicleColor,
     includeVehicleYear, includeVehicleModel, sceneLocation,
   ]);
 
@@ -276,6 +313,8 @@ export default function GenerateTypePage() {
           testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
           previous_price: parsePrice(previousPrice),
           current_price: parsePrice(currentPrice),
+          vehicle_vin: vehicleVin || undefined,
+          vehicle_color: vehicleColor || undefined,
           include_vehicle_year: includeVehicleYear,
           include_vehicle_model: includeVehicleModel,
           scene_location: sceneLocation,
@@ -350,6 +389,8 @@ export default function GenerateTypePage() {
           testimonial_author: testimonialAuthor, rating, custom_prompt: customPrompt,
           previous_price: parsePrice(previousPrice),
           current_price: parsePrice(currentPrice),
+          vehicle_vin: vehicleVin || undefined,
+          vehicle_color: vehicleColor || undefined,
           campaign,
           include_vehicle_year: includeVehicleYear,
           include_vehicle_model: includeVehicleModel,
@@ -609,47 +650,93 @@ export default function GenerateTypePage() {
               )}
 
               {showPriceDropFields ? (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="was-price">Was Price</Label>
-                    <Input
-                      id="was-price"
-                      inputMode="decimal"
-                      placeholder="e.g., 32,995"
-                      value={previousPrice}
-                      onChange={(e) => setPreviousPrice(e.target.value)}
-                    />
-                    <p className="text-[11px] text-muted-foreground">
-                      Shown with a red strikethrough.
-                    </p>
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="was-price">Was Price</Label>
+                      <Input
+                        id="was-price"
+                        inputMode="decimal"
+                        placeholder="e.g., 32,995"
+                        value={previousPrice}
+                        onChange={(e) => setPreviousPrice(e.target.value)}
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Shown with a red strikethrough.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="now-price">Now Price</Label>
+                      <Input
+                        id="now-price"
+                        inputMode="decimal"
+                        placeholder="e.g., 28,995"
+                        value={currentPrice}
+                        onChange={(e) => setCurrentPrice(e.target.value)}
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Shown big and bold as the new price.
+                      </p>
+                    </div>
+                    {(() => {
+                      const was = parsePrice(previousPrice);
+                      const now = parsePrice(currentPrice);
+                      if (was && now && was > now) {
+                        const savings = was - now;
+                        const pct = Math.round((savings / was) * 100);
+                        return (
+                          <p className="sm:col-span-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                            Savings: ${savings.toLocaleString()} ({pct}% off)
+                          </p>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="now-price">Now Price</Label>
-                    <Input
-                      id="now-price"
-                      inputMode="decimal"
-                      placeholder="e.g., 28,995"
-                      value={currentPrice}
-                      onChange={(e) => setCurrentPrice(e.target.value)}
-                    />
-                    <p className="text-[11px] text-muted-foreground">
-                      Shown big and bold as the new price.
-                    </p>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="price-drop-vin">VIN (Optional)</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="price-drop-vin"
+                          placeholder="17-character VIN"
+                          maxLength={17}
+                          value={vehicleVin}
+                          onChange={(e) => setVehicleVin(e.target.value.toUpperCase())}
+                          className="font-mono uppercase"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={vinDecoding || !vehicleVin.trim()}
+                          onClick={handleDecodeVin}
+                        >
+                          {vinDecoding ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            "Decode"
+                          )}
+                        </Button>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Decode to auto-fill the year, make, and model.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="price-drop-color">Vehicle Color (Optional)</Label>
+                      <Input
+                        id="price-drop-color"
+                        placeholder="e.g., Pearl White, Midnight Black, Silver"
+                        value={vehicleColor}
+                        onChange={(e) => setVehicleColor(e.target.value)}
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Forces the AI to render the body paint in this colour.
+                      </p>
+                    </div>
                   </div>
-                  {(() => {
-                    const was = parsePrice(previousPrice);
-                    const now = parsePrice(currentPrice);
-                    if (was && now && was > now) {
-                      const savings = was - now;
-                      const pct = Math.round((savings / was) * 100);
-                      return (
-                        <p className="sm:col-span-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                          Savings: ${savings.toLocaleString()} ({pct}% off)
-                        </p>
-                      );
-                    }
-                    return null;
-                  })()}
                 </div>
               ) : (
                 <>
