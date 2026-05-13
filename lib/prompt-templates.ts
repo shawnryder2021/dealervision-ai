@@ -367,18 +367,33 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
       ? `EXTERIOR PAINT COLOR — MANDATORY: render the vehicle's body paint in exactly "${ctx.vehicle_color.trim()}". This colour must be unmistakable across the hood, roof, doors and panels. Do not substitute or shift to a different shade. Reflections and lighting may adjust tone but the dominant body colour must clearly read as ${ctx.vehicle_color.trim()}.`
       : "";
 
+    // Vehicle title (YEAR MAKE MODEL [TRIM]) rendered as a text element on the
+    // image. Year/make/model are all the dealer needs to identify the car, so
+    // make sure the AI puts them on the ad.
+    const titleParts = [
+      vehicle?.year ? String(vehicle.year) : "",
+      vehicle?.make || "",
+      vehicle?.model || "",
+      vehicle?.trim || "",
+    ].filter(Boolean);
+    const vehicleTitle = titleParts.join(" ").trim();
+    const titleDirective = vehicleTitle
+      ? `VEHICLE TITLE — MANDATORY text overlay: render the exact string "${vehicleTitle}" as a bold, clearly legible headline near the vehicle (above or beside the price block). Every word must be spelled correctly: "${vehicleTitle}". This title is required and must be one of the largest text elements on the image, second only to the NOW price.`
+      : "";
+
     return [
       `Urgent 'PRICE REDUCED' automotive promotional graphic, ${getChannelFormatting(ctx.channel)}.`,
       `Featuring a ${vehicleDesc}. ${accuracy}`,
       colorDirective,
       scene || "Clean studio background. The vehicle is well-lit showing every detail.",
       '"PRICE REDUCED" or "PRICE DROP" bold headline stamp prominently displayed.',
+      titleDirective,
       priceBlock,
-      "Visual treatment: red strikethrough on the WAS price must be crisp and unmistakable. NOW price must be the largest text element after the vehicle hero. No other overlay copy beyond the price block and the PRICE DROP stamp.",
+      "Visual treatment: red strikethrough on the WAS price must be crisp and unmistakable. NOW price must be the largest text element after the vehicle hero. The only text on the image is: (1) the PRICE REDUCED / PRICE DROP stamp, (2) the vehicle title (year make model trim), (3) the WAS and NOW prices, and (4) the SAVE callout if present. No other overlay copy.",
       `Style: ${ctx.style}, urgent, bold, high-contrast typography.`,
       getBrandContext(ctx.dealership),
       PHOTO_QUALITY,
-      "All numerals razor-sharp and fully legible — every digit in both prices must be readable.",
+      "All numerals and the vehicle title razor-sharp and fully legible — every digit in both prices and every letter in the year/make/model must be readable.",
     ].filter(Boolean).join(" ");
   },
 
