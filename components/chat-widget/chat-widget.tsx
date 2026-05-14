@@ -373,9 +373,30 @@ function MessageContent({
   onGenerate?: (prompt: string) => void;
   isGenerating?: boolean;
 }) {
-  // Check for inline generated image tag: [generated-image:URL]
-  const imageMatch = content.match(/\[generated-image:(.*?)\]/);
-  const textWithoutImage = content.replace(/\[generated-image:.*?\]/, '').trim();
+  // Check for inline generated image — supports multiple formats:
+  // 1. [generated-image:URL] (our custom format)
+  // 2. ![alt](URL) markdown image syntax (returned by GPT-5.2 image gen)
+  // 3. Raw image URL (https://...png|jpg|webp|jpeg)
+  let imageUrl: string | null = null;
+  let textWithoutImage = content;
+
+  const customMatch = content.match(/\[generated-image:(.*?)\]/);
+  if (customMatch) {
+    imageUrl = customMatch[1];
+    textWithoutImage = content.replace(/\[generated-image:.*?\]/, '').trim();
+  } else {
+    const markdownMatch = content.match(/!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/);
+    if (markdownMatch) {
+      imageUrl = markdownMatch[1];
+      textWithoutImage = content.replace(/!\[[^\]]*\]\(https?:\/\/[^\s)]+\)/, '').trim();
+    } else {
+      const rawMatch = content.match(/(https?:\/\/[^\s)]+\.(?:png|jpe?g|webp|gif)(?:\?[^\s)]*)?)/i);
+      if (rawMatch) {
+        imageUrl = rawMatch[1];
+        textWithoutImage = content.replace(rawMatch[1], '').trim();
+      }
+    }
+  }
 
   // Split on code blocks
   const parts = textWithoutImage.split(/(```[\s\S]*?```)/g);
@@ -431,7 +452,7 @@ function MessageContent({
       {/* Non-prompt-block generate button — if a prompt was detected via bold format */}
       {!parts.some((p) => p.startsWith('```prompt')) &&
         onGenerate &&
-        !imageMatch &&
+        !imageUrl &&
         (() => {
           const extracted = extractPrompt(textWithoutImage);
           if (!extracted) return null;
@@ -453,19 +474,22 @@ function MessageContent({
         })()}
 
       {/* Inline image display */}
-      {imageMatch && (
+      {imageUrl && (
         <div className="mt-2 rounded-lg overflow-hidden border border-border">
           <img
-            src={imageMatch[1]}
+            src={imageUrl}
             alt="Generated marketing visual"
             className="w-full h-auto"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
           />
           <div className="flex gap-1.5 p-2 bg-muted/30">
             <Button
               size="sm"
               variant="outline"
               className="text-xs flex-1 h-7"
-              onClick={() => window.open(imageMatch[1], '_blank')}
+              onClick={() => window.open(imageUrl, '_blank')}
             >
               <Download className="h-3 w-3 mr-1" />
               Download
