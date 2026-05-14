@@ -467,98 +467,98 @@ export function TextOverlayEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className="max-w-[min(1400px,96vw)] w-full max-h-[94vh] p-0 gap-0 flex flex-col overflow-hidden">
+        {/* Header */}
+        <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-lg">
             <Type className="h-4 w-4 text-primary" />
             Text Overlay Editor
           </DialogTitle>
           <DialogDescription>
-            Drag text to reposition. Double-click to edit in place.
+            Drag text to reposition · Double-click to edit text in place
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Canvas area */}
-          <div className="lg:col-span-2">
-            <div
-              ref={containerRef}
-              className="relative rounded-lg overflow-hidden border border-border bg-muted/30"
-            >
-              {imageLoaded ? (
-                <>
-                  <canvas
-                    ref={canvasRef}
-                    className={`w-full select-none ${
-                      dragging
-                        ? "cursor-grabbing"
-                        : hoveredLayer
-                        ? "cursor-grab"
-                        : "cursor-default"
-                    }`}
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={() => {
-                      handleMouseUp();
-                      setHoveredLayer(null);
-                    }}
-                    onDoubleClick={handleDoubleClick}
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
-                  />
-                  {/* Inline text input overlay */}
-                  {editingLayer && (
-                    <input
-                      ref={inlineInputRef}
-                      type="text"
-                      value={editingLayer.text}
-                      onChange={(e) =>
-                        updateLayer(editingLayer.id, { text: e.target.value })
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === "Escape") {
-                          commitInlineEdit();
-                        }
+        {/* Body: two-column layout */}
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_340px] min-h-0">
+          {/* LEFT: Canvas area */}
+          <div className="flex flex-col min-h-0 border-r border-border">
+            <div className="flex-1 overflow-auto bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.04)_1px,transparent_1px)] [background-size:18px_18px] p-4 md:p-6 flex items-center justify-center">
+              <div
+                ref={containerRef}
+                className="relative rounded-lg overflow-hidden border border-border shadow-md bg-white max-w-full"
+                style={{ maxHeight: "calc(94vh - 220px)" }}
+              >
+                {imageLoaded ? (
+                  <>
+                    <canvas
+                      ref={canvasRef}
+                      className={`block max-w-full max-h-[calc(94vh-220px)] w-auto h-auto select-none ${
+                        dragging
+                          ? "cursor-grabbing"
+                          : hoveredLayer
+                          ? "cursor-grab"
+                          : "cursor-default"
+                      }`}
+                      onMouseDown={handleMouseDown}
+                      onMouseMove={handleMouseMove}
+                      onMouseUp={handleMouseUp}
+                      onMouseLeave={() => {
+                        handleMouseUp();
+                        setHoveredLayer(null);
                       }}
-                      onBlur={commitInlineEdit}
-                      className="absolute border-2 border-blue-500 bg-black/60 text-white outline-none px-1"
-                      style={{
-                        left: `${inlinePos.left}px`,
-                        top: `${inlinePos.top}px`,
-                        minWidth: `${inlinePos.width}px`,
-                        fontSize: `${inlinePos.fontSize}px`,
-                        fontWeight: editingLayer.fontWeight,
-                        color: editingLayer.color,
-                        lineHeight: 1.2,
-                      }}
+                      onDoubleClick={handleDoubleClick}
+                      onTouchStart={handleTouchStart}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={handleTouchEnd}
                     />
-                  )}
-                </>
-              ) : (
-                <div className="aspect-video flex items-center justify-center">
-                  <p className="text-sm text-muted-foreground">Loading image...</p>
-                </div>
-              )}
+                    {/* Inline text input overlay */}
+                    {editingLayer && (
+                      <input
+                        ref={inlineInputRef}
+                        type="text"
+                        value={editingLayer.text}
+                        onChange={(e) =>
+                          updateLayer(editingLayer.id, { text: e.target.value })
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === "Escape") {
+                            commitInlineEdit();
+                          }
+                        }}
+                        onBlur={commitInlineEdit}
+                        className="absolute border-2 border-blue-500 bg-black/60 text-white outline-none px-1"
+                        style={{
+                          left: `${inlinePos.left}px`,
+                          top: `${inlinePos.top}px`,
+                          minWidth: `${inlinePos.width}px`,
+                          fontSize: `${inlinePos.fontSize}px`,
+                          fontWeight: editingLayer.fontWeight,
+                          color: editingLayer.color,
+                          lineHeight: 1.2,
+                        }}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div className="aspect-video flex items-center justify-center min-w-[400px]">
+                    <p className="text-sm text-muted-foreground">Loading image…</p>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Hint */}
-            {layers.length > 0 && !editingInline && (
-              <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
-                Drag to move &middot; Double-click to edit text
+            {/* Preset chips bar (sticky bottom of canvas column) */}
+            <div className="border-t border-border bg-background px-4 md:px-6 py-3 shrink-0">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Quick add overlay
               </p>
-            )}
-
-            {/* Preset buttons */}
-            <div className="mt-3 space-y-1.5">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Quick Add</p>
               <div className="flex flex-wrap gap-1.5">
                 {PRESET_OVERLAYS.map((preset) => (
                   <button
                     key={preset.label}
                     onClick={() => addPreset(preset)}
-                    className="px-2.5 py-1 text-[11px] rounded-full border border-border bg-muted/30 hover:bg-primary/10 hover:border-primary/30 transition-colors"
+                    className="px-2.5 py-1 text-[11px] rounded-full border border-border bg-background hover:bg-primary/10 hover:border-primary/40 transition-colors whitespace-nowrap"
                   >
                     {preset.label}
                   </button>
@@ -567,105 +567,113 @@ export function TextOverlayEditor({
             </div>
           </div>
 
-          {/* Layer controls */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">Text Layers</p>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => addPreset(PRESET_OVERLAYS[PRESET_OVERLAYS.length - 1])}
-              >
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                Add
-              </Button>
-            </div>
-
-            {layers.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-4">
-                Click a preset or Add to create a text layer
-              </p>
-            )}
-
-            {/* Layer list */}
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {layers.map((layer) => (
-                <div
-                  key={layer.id}
-                  onClick={() => setSelectedLayer(layer.id)}
-                  onDoubleClick={() => startInlineEdit(layer)}
-                  className={`p-2 rounded-md border text-xs cursor-pointer transition-colors ${
-                    selectedLayer === layer.id
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/30"
-                  }`}
+          {/* RIGHT: Layer controls (independently scrollable) */}
+          <div className="flex flex-col min-h-0 bg-muted/10">
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+              {/* Layers header */}
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">Text Layers</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => addPreset(PRESET_OVERLAYS[PRESET_OVERLAYS.length - 1])}
+                  className="h-7 text-xs"
                 >
-                  <div className="flex items-center justify-between gap-1">
-                    <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                    <span className="font-medium truncate flex-1">{layer.text}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeLayer(layer.id);
-                      }}
-                      className="h-5 w-5 flex items-center justify-center rounded hover:bg-destructive/10 flex-shrink-0"
-                    >
-                      <Trash2 className="h-3 w-3 text-muted-foreground" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Add
+                </Button>
+              </div>
 
-            {/* Selected layer properties */}
-            {selected && (
-              <div className="space-y-3 border-t border-border pt-3">
+              {layers.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border bg-background py-6 px-4 text-center">
+                  <Type className="h-6 w-6 text-muted-foreground/40 mx-auto mb-2" />
+                  <p className="text-xs text-muted-foreground">
+                    Click a preset below the image, or hit Add to create your first text layer
+                  </p>
+                </div>
+              ) : (
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Text</Label>
-                  <Input
-                    value={selected.text}
-                    onChange={(e) => updateLayer(selected.id, { text: e.target.value })}
-                    className="text-xs"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Size</Label>
-                    <Select
-                      value={String(selected.fontSize)}
-                      onValueChange={(v) => updateLayer(selected.id, { fontSize: parseInt(v ?? "32") })}
+                  {layers.map((layer) => (
+                    <div
+                      key={layer.id}
+                      onClick={() => setSelectedLayer(layer.id)}
+                      onDoubleClick={() => startInlineEdit(layer)}
+                      className={`p-2 rounded-md border text-xs cursor-pointer transition-colors ${
+                        selectedLayer === layer.id
+                          ? "border-primary bg-primary/5"
+                          : "border-border bg-background hover:border-primary/30"
+                      }`}
                     >
-                      <SelectTrigger className="text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {FONT_SIZES.map((s) => (
-                          <SelectItem key={s} value={String(s)}>
-                            {s}px
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Weight</Label>
-                    <Select
-                      value={selected.fontWeight}
-                      onValueChange={(v) => updateLayer(selected.id, { fontWeight: v ?? "normal" })}
-                    >
-                      <SelectTrigger className="text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="bold">Bold</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                      <div className="flex items-center justify-between gap-1.5">
+                        <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="font-medium truncate flex-1">{layer.text || "(empty)"}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeLayer(layer.id);
+                          }}
+                          className="h-5 w-5 flex items-center justify-center rounded hover:bg-destructive/10 flex-shrink-0"
+                        >
+                          <Trash2 className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
+              )}
 
-                <div className="grid grid-cols-2 gap-2">
+              {/* Selected layer properties */}
+              {selected && (
+                <div className="space-y-3 border-t border-border pt-4">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    Edit Selected Layer
+                  </p>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Text</Label>
+                    <Input
+                      value={selected.text}
+                      onChange={(e) => updateLayer(selected.id, { text: e.target.value })}
+                      className="text-xs h-9"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Size</Label>
+                      <Select
+                        value={String(selected.fontSize)}
+                        onValueChange={(v) => updateLayer(selected.id, { fontSize: parseInt(v ?? "32") })}
+                      >
+                        <SelectTrigger className="text-xs h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {FONT_SIZES.map((s) => (
+                            <SelectItem key={s} value={String(s)}>
+                              {s}px
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Weight</Label>
+                      <Select
+                        value={selected.fontWeight}
+                        onValueChange={(v) => updateLayer(selected.id, { fontWeight: v ?? "normal" })}
+                      >
+                        <SelectTrigger className="text-xs h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="normal">Normal</SelectItem>
+                          <SelectItem value="bold">Bold</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
                   <div className="space-y-1.5">
                     <Label className="text-xs">Text Color</Label>
                     <div className="flex items-center gap-1.5">
@@ -673,15 +681,16 @@ export function TextOverlayEditor({
                         type="color"
                         value={selected.color}
                         onChange={(e) => updateLayer(selected.id, { color: e.target.value })}
-                        className="h-8 w-8 rounded border border-border cursor-pointer"
+                        className="h-9 w-9 rounded border border-border cursor-pointer shrink-0"
                       />
                       <Input
                         value={selected.color}
                         onChange={(e) => updateLayer(selected.id, { color: e.target.value })}
-                        className="text-xs font-mono flex-1"
+                        className="text-xs font-mono flex-1 h-9"
                       />
                     </div>
                   </div>
+
                   <div className="space-y-1.5">
                     <Label className="text-xs">Background</Label>
                     <div className="flex items-center gap-1.5">
@@ -689,52 +698,66 @@ export function TextOverlayEditor({
                         type="color"
                         value={selected.bgColor === "transparent" ? "#000000" : selected.bgColor}
                         onChange={(e) => updateLayer(selected.id, { bgColor: e.target.value, bgEnabled: true })}
-                        className="h-8 w-8 rounded border border-border cursor-pointer"
+                        className="h-9 w-9 rounded border border-border cursor-pointer shrink-0"
+                      />
+                      <Input
+                        value={selected.bgColor === "transparent" ? "" : selected.bgColor}
+                        onChange={(e) => updateLayer(selected.id, { bgColor: e.target.value || "transparent" })}
+                        placeholder="transparent"
+                        className="text-xs font-mono flex-1 h-9"
                       />
                       <button
                         onClick={() => updateLayer(selected.id, { bgEnabled: !selected.bgEnabled })}
-                        className={`text-[10px] px-2 py-1 rounded border ${
-                          selected.bgEnabled ? "border-primary bg-primary/10" : "border-border"
+                        className={`text-[10px] px-2.5 h-9 rounded border font-semibold shrink-0 ${
+                          selected.bgEnabled
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-background"
                         }`}
                       >
                         {selected.bgEnabled ? "ON" : "OFF"}
                       </button>
                     </div>
                   </div>
-                </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Align</Label>
-                  <div className="flex gap-1">
-                    {(["left", "center", "right"] as const).map((align) => (
-                      <button
-                        key={align}
-                        onClick={() => updateLayer(selected.id, { align })}
-                        className={`flex-1 py-1 text-[10px] rounded border capitalize ${
-                          selected.align === align
-                            ? "border-primary bg-primary/10"
-                            : "border-border hover:border-primary/30"
-                        }`}
-                      >
-                        {align}
-                      </button>
-                    ))}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Alignment</Label>
+                    <div className="flex gap-1">
+                      {(["left", "center", "right"] as const).map((align) => (
+                        <button
+                          key={align}
+                          onClick={() => updateLayer(selected.id, { align })}
+                          className={`flex-1 py-1.5 text-[11px] rounded border capitalize transition-colors ${
+                            selected.align === align
+                              ? "border-primary bg-primary/10 text-primary font-medium"
+                              : "border-border bg-background hover:border-primary/30"
+                          }`}
+                        >
+                          {align}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
-            {/* Actions */}
+            {/* Sticky action footer */}
             {layers.length > 0 && (
-              <div className="flex gap-2 border-t border-border pt-3">
-                <Button onClick={handleExport} className="flex-1 gradient-primary text-white" size="sm">
-                  <Type className="h-3.5 w-3.5 mr-1" />
-                  Apply
-                </Button>
-                <Button onClick={handleDownload} variant="outline" size="sm">
-                  <Download className="h-3.5 w-3.5 mr-1" />
-                  Save
-                </Button>
+              <div className="border-t border-border bg-background px-5 py-3 shrink-0">
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleExport}
+                    className="flex-1 gradient-primary text-white"
+                    size="sm"
+                  >
+                    <Type className="h-3.5 w-3.5 mr-1.5" />
+                    Apply Overlay
+                  </Button>
+                  <Button onClick={handleDownload} variant="outline" size="sm">
+                    <Download className="h-3.5 w-3.5 mr-1" />
+                    Save
+                  </Button>
+                </div>
               </div>
             )}
           </div>
