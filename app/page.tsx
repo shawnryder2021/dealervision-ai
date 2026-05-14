@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Wand2,
@@ -12,6 +13,32 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { generateMetadata, pageMetadata } from "@/lib/seo/metadata";
+import { softwareAppSchema, faqSchema, generateJsonLd } from "@/lib/seo/schema";
+
+export const metadata: Metadata = generateMetadata({
+  title: pageMetadata.home.title,
+  description: pageMetadata.home.description,
+  openGraph: {
+    type: "website",
+    title: pageMetadata.home.title,
+    description: pageMetadata.home.description,
+    images: [
+      {
+        url: "https://dealervisionai.com/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "DealerAdGen AI - Create dealership marketing visuals with AI",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: pageMetadata.home.title,
+    description: pageMetadata.home.description,
+    images: ["https://dealervisionai.com/og-image.png"],
+  },
+});
 
 const features = [
   {
@@ -65,9 +92,51 @@ const contentTypes = [
   "Custom Designs",
 ];
 
+const faqData = [
+  {
+    question: "How does DealerAdGen AI work?",
+    answer:
+      "Simply select a content type (vehicle spotlight, price drop, service promo, etc.), choose your channel (Instagram, Facebook, print, etc.), customize with your dealership details, and our AI generates professional marketing visuals in seconds.",
+  },
+  {
+    question: "Do I need design skills?",
+    answer:
+      "No! DealerAdGen AI is designed for dealers with zero design experience. Everything is template-based and AI-optimized. Just fill in the details and let AI handle the creativity.",
+  },
+  {
+    question: "What content types are supported?",
+    answer:
+      "Vehicle spotlight, price drop alerts, sales event banners, new arrival posts, service promotions, financing offers, holiday greetings, testimonials, brand posts, and more.",
+  },
+  {
+    question: "Which social media channels are supported?",
+    answer:
+      "Instagram posts and stories, Facebook posts and covers, Twitter posts, LinkedIn posts, YouTube thumbnails, Google Business Profile, email headers, website headers, print flyers, and more.",
+  },
+  {
+    question: "Can I download and edit the generated images?",
+    answer:
+      "Yes! All generated images are instantly available in your asset library. You can download them in high-resolution, use them immediately on social media, or refine them with additional generations.",
+  },
+  {
+    question: "What's included in the free trial?",
+    answer:
+      "The free trial includes full access to all content types and channels, with a limit of 5 generated assets. Upgrade anytime to unlock unlimited generations.",
+  },
+];
+
 export default function LandingPage() {
+  const faqSchema_ = faqSchema(faqData);
+
   return (
     <div className="min-h-screen">
+      {/* FAQ Schema for rich snippets */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: generateJsonLd(faqSchema_),
+        }}
+      />
       {/* Nav */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 h-16">
@@ -240,6 +309,45 @@ export default function LandingPage() {
                 <p className="text-sm text-muted-foreground">{item.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-20 px-6 border-t border-border/50">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="font-heading text-3xl font-bold">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-muted-foreground mt-3">
+              Get answers to common questions about DealerAdGen AI
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {faqData.map((faq, index) => (
+              <div key={index} className="glass rounded-lg p-6">
+                <h3 className="font-heading font-semibold mb-2">
+                  {faq.question}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {faq.answer}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <p className="text-muted-foreground mb-4">
+              Still have questions?
+            </p>
+            <Link href="mailto:support@dealervisionai.com">
+              <Button variant="outline">
+                Contact Our Support Team
+                <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
