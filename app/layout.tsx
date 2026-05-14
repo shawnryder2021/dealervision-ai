@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { generateMetadata } from "@/lib/seo/metadata";
 import { organizationSchema, softwareAppSchema, generateJsonLd } from "@/lib/seo/schema";
+import { ChatWidget } from "@/components/chat-widget/chat-widget";
 import "./globals.css";
 
 export const metadata: Metadata = generateMetadata({
@@ -54,6 +55,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
           {children}
+          <ChatWidget />
           <Toaster richColors position="bottom-right" />
         </ThemeProvider>
       </body>
