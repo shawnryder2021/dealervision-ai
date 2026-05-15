@@ -40,7 +40,14 @@ export async function updateSession(request: NextRequest) {
   const isDemo = request.nextUrl.searchParams.has("demo");
 
   // Redirect unauthenticated users to login (except public routes)
-  const publicPaths = ["/", "/login", "/signup", "/auth/callback"];
+  const publicPaths = [
+    "/",
+    "/login",
+    "/signup",
+    "/forgot-password",
+    "/reset-password",
+    "/auth/callback",
+  ];
   const publicPrefixes = [
     "/api/webhooks",
     "/api/demo-generate",

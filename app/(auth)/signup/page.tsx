@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Wand2, CheckCircle } from "lucide-react";
+import { Wand2, CheckCircle, Mail, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import {
@@ -22,7 +23,32 @@ export default function SignupPage() {
   const [error, setError] = useState<string>();
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [confirmationEmail, setConfirmationEmail] = useState("");
+  const [isResending, setIsResending] = useState(false);
+  const [resentAt, setResentAt] = useState<number | null>(null);
   const router = useRouter();
+
+  async function handleResendConfirmation() {
+    if (!confirmationEmail) return;
+    setIsResending(true);
+    try {
+      const supabase = createClient();
+      const { error: err } = await supabase.auth.resend({
+        type: "signup",
+        email: confirmationEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
+        },
+      });
+      if (err) throw err;
+      setResentAt(Date.now());
+      toast.success("Confirmation email sent again — check your inbox and spam folder.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Couldn't resend the email";
+      toast.error(msg);
+    } finally {
+      setIsResending(false);
+    }
+  }
 
   const [formData, setFormData] = useState<WizardFormData>({
     fullName: "",
@@ -142,12 +168,40 @@ export default function SignupPage() {
               <p>• Once confirmed, you&apos;ll be taken directly to your dashboard</p>
             </CardContent>
           </Card>
-          <p className="mt-6 text-sm text-muted-foreground">
-            Already confirmed?{" "}
-            <Link href="/login" className="text-primary hover:underline font-medium">
-              Sign in
-            </Link>
-          </p>
+
+          {/* Resend confirmation email */}
+          <div className="mt-6 space-y-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-11"
+              onClick={handleResendConfirmation}
+              disabled={isResending || (resentAt !== null && Date.now() - resentAt < 30000)}
+            >
+              {isResending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Resending…
+                </>
+              ) : resentAt !== null && Date.now() - resentAt < 30000 ? (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                  Sent! Check your inbox
+                </>
+              ) : (
+                <>
+                  <Mail className="h-4 w-4 mr-2" />
+                  Didn&apos;t get the email? Resend it
+                </>
+              )}
+            </Button>
+            <p className="text-sm text-muted-foreground">
+              Already confirmed?{" "}
+              <Link href="/login" className="text-primary hover:underline font-medium">
+                Sign in
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     );

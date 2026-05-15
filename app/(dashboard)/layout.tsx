@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Menu, Wand2 } from "lucide-react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
+import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/lib/store";
 import { createClient } from "@/lib/supabase/client";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
@@ -31,6 +34,7 @@ export default function DashboardLayout({
     isLoading,
   } = useAppStore();
   const [initialized, setInitialized] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     async function init() {
@@ -74,6 +78,16 @@ export default function DashboardLayout({
         .select("*")
         .eq("id", user.id)
         .single();
+
+      // Account exists in auth but profile/dealership not set up — send to signup
+      // wizard so they can finish onboarding (this happens if /api/onboard failed
+      // during signup, or the user was created out-of-band).
+      if (!profile || !profile.dealership_id) {
+        if (!superAdmin) {
+          router.push("/signup?incomplete=1");
+          return;
+        }
+      }
 
       if (profile) {
         setProfile(profile);
@@ -122,9 +136,33 @@ export default function DashboardLayout({
 
   return (
     <div className="flex h-screen">
-      <Sidebar />
-      <main className="flex-1 ml-56 overflow-auto">
-        <div className="p-6 lg:p-8 max-w-7xl mx-auto">{children}</div>
+      <Sidebar
+        mobileOpen={mobileNavOpen}
+        onMobileClose={() => setMobileNavOpen(false)}
+      />
+      <main className="flex-1 md:ml-56 overflow-auto">
+        {/* Mobile top bar — only visible below md */}
+        <div className="md:hidden sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/95 backdrop-blur px-4">
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg gradient-primary">
+              <Wand2 className="h-3.5 w-3.5 text-white" />
+            </div>
+            <span className="font-heading text-sm font-bold tracking-tight">
+              DealerVision
+            </span>
+          </Link>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Open menu"
+            className="h-9 w-9 p-0"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        </div>
+
+        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">{children}</div>
       </main>
     </div>
   );

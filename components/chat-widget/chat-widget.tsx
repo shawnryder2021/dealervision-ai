@@ -239,9 +239,15 @@ export function ChatWidget() {
         </button>
       )}
 
-      {/* Chat Window */}
+      {/* Chat Window — full-screen on mobile, floating panel on desktop */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-[420px] max-w-[calc(100vw-32px)] h-[640px] max-h-[calc(100vh-48px)] flex flex-col rounded-2xl bg-background border border-border shadow-2xl animate-in fade-in slide-in-from-bottom-4">
+        <div
+          className="
+            fixed z-50 flex flex-col bg-background border border-border shadow-2xl animate-in fade-in slide-in-from-bottom-4
+            inset-x-2 bottom-2 top-2 rounded-2xl
+            sm:inset-auto sm:bottom-6 sm:right-6 sm:top-auto sm:w-[420px] sm:h-[640px] sm:max-h-[calc(100vh-48px)]
+          "
+        >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-primary/5 to-primary/10 rounded-t-2xl">
             <div className="flex items-center gap-3">

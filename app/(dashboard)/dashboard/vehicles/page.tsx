@@ -243,11 +243,11 @@ export default function VehiclesPage() {
             <Plus className="h-4 w-4 mr-2" />
             Add Vehicle
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-[min(32rem,95vw)] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add Vehicle</DialogTitle>
             </DialogHeader>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Year</Label>
                 <Select

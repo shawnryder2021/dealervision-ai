@@ -132,7 +132,14 @@ function NavLink({
   );
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  /** When true, the sidebar is visible on mobile (slid in). Desktop ignores this. */
+  mobileOpen?: boolean;
+  /** Called when the user taps a nav link or the backdrop on mobile. */
+  onMobileClose?: () => void;
+}
+
+export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps = {}) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [featureFlags, setFeatureFlags] = useState<FeatureFlags>(DEFAULT_FEATURE_FLAGS);
@@ -144,6 +151,12 @@ export function Sidebar() {
     setAdminActiveDealership,
     setDealership,
   } = useAppStore();
+
+  // Auto-close mobile drawer when route changes
+  useEffect(() => {
+    if (mobileOpen && onMobileClose) onMobileClose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   useEffect(() => {
     const loadFeatureFlags = async () => {
@@ -184,10 +197,22 @@ export function Sidebar() {
   }
 
   return (
-    <aside
+    <>
+      {/* Mobile backdrop — taps close the drawer */}
+      {mobileOpen && (
+        <div
+          onClick={onMobileClose}
+          className="md:hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-sm animate-in fade-in"
+        />
+      )}
+
+      <aside
       className={cn(
         "fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300",
-        collapsed ? "w-14" : "w-56"
+        collapsed ? "w-14" : "w-56",
+        // Mobile: hidden offscreen unless mobileOpen is true. Always visible from md+.
+        "md:translate-x-0",
+        mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       )}
     >
       <div className="flex h-14 items-center border-b border-sidebar-border px-3">
@@ -291,6 +316,7 @@ export function Sidebar() {
           </form>
         </div>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
