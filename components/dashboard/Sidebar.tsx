@@ -38,6 +38,7 @@ import {
   Tv,
   Columns3,
   Palette,
+  Camera,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,7 @@ const navSections: Array<{ label?: string; items: NavItem[] }> = [
       { href: "/dashboard/background-swap", label: "BG Swap", icon: ImageMinus, featureKey: "backgroundSwap" },
       { href: "/dashboard/photo-enhancer", label: "Photo Enhancer", icon: Wrench, featureKey: "photoEnhancer" },
       { href: "/dashboard/walkaround-video", label: "Walkaround Video", icon: Video, featureKey: "walkaroundVideo" },
+      { href: "/dashboard/multi-angle", label: "Multi-Angle Gallery", icon: Camera, featureKey: "multiAngleGallery" },
       { href: "/dashboard/comparison", label: "Compare", icon: Columns3, featureKey: "comparison" },
       { href: "/dashboard/ab-test", label: "A/B Test", icon: FlaskConical, featureKey: "abTest" },
       { href: "/dashboard/batch-generate", label: "Batch", icon: Layers, featureKey: "batchGenerate" },

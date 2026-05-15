@@ -35,6 +35,7 @@ import { Progress } from "@/components/ui/progress";
 import { Download, Pencil, Heart, Trash2, Type, CheckSquare, X, Package, FileText } from "lucide-react";
 import { EditImageDialog } from "@/components/create/EditImageDialog";
 import { TextOverlayEditor } from "@/components/create/TextOverlayEditor";
+import { startPlateInlay, pollPlateInlay } from "@/lib/plate-inlay";
 
 export default function LibraryPage() {
   const { dealership, recentAssets } = useAppStore();
@@ -192,6 +193,55 @@ export default function LibraryPage() {
       URL.revokeObjectURL(url);
     } catch {
       window.open(asset.image_url, "_blank");
+    }
+  }
+
+  async function handleCoverPlate(asset: GeneratedAsset) {
+    if (!asset.image_url) {
+      toast.error("This asset has no image to process");
+      return;
+    }
+    if (!dealership) return;
+
+    const mode = (dealership as { plate_inlay_mode?: "off" | "blur" | "branded" })
+      .plate_inlay_mode;
+    if (!mode || mode === "off") {
+      toast.error(
+        "Plate handling is off. Enable it in Settings → Privacy & License Plates."
+      );
+      return;
+    }
+
+    const toastId = toast.loading(
+      mode === "blur" ? "Blurring license plate…" : "Applying branded plate…"
+    );
+    try {
+      const { taskId } = await startPlateInlay({
+        imageUrl: asset.image_url,
+        dealership: { name: dealership.name },
+        mode,
+      });
+      const newUrl = await pollPlateInlay({ taskId });
+
+      // Update the asset on the server
+      if (!isDemoMode()) {
+        const supabase = createClient();
+        await supabase
+          .from("generated_assets")
+          .update({ image_url: newUrl })
+          .eq("id", asset.id);
+      }
+
+      setAssets((prev) =>
+        prev.map((a) => (a.id === asset.id ? { ...a, image_url: newUrl } : a))
+      );
+      toast.success(
+        mode === "blur" ? "Plate blurred" : "Plate replaced with dealer brand",
+        { id: toastId }
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Plate cover failed";
+      toast.error(msg, { id: toastId });
     }
   }
 
@@ -387,6 +437,7 @@ export default function LibraryPage() {
         onEdit={setEditAsset}
         onExportPDF={handleExportPDF}
         onPublishSocial={setSocialPublishAsset}
+        onCoverPlate={handleCoverPlate}
         selectMode={selectMode}
         selectedIds={selectedIds}
         onToggleSelect={handleToggleSelect}

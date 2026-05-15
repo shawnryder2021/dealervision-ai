@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Car, Plus, Search, Edit, Trash2, Eye, Upload, QrCode, FileText, ScrollText } from "lucide-react";
+import { Car, Plus, Search, Edit, Trash2, Eye, Upload, QrCode, FileText, ScrollText, Camera } from "lucide-react";
 import { buildWindowSticker, buildBuyersGuide } from "@/lib/pdf-stickers";
+import { VinScanner } from "@/components/vehicles/VinScanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +51,8 @@ export default function VehiclesPage() {
   const [search, setSearch] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [qrVehicle, setQrVehicle] = useState<Vehicle | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [decodingVin, setDecodingVin] = useState(false);
   const [form, setForm] = useState({
     year: "",
     make: "",
@@ -83,6 +86,37 @@ export default function VehiclesPage() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [dealership, storeVehicles, loadVehicles]);
+
+  async function handleVinScanned(vin: string) {
+    // Set the VIN immediately so the user sees something
+    setForm((prev) => ({ ...prev, vin }));
+    // Open the form if it's not already open
+    setIsAddOpen(true);
+
+    // Try to decode it to auto-fill year/make/model/trim
+    setDecodingVin(true);
+    try {
+      const res = await fetch(`/api/vin-decode?vin=${encodeURIComponent(vin)}`);
+      if (!res.ok) {
+        toast.warning("VIN saved, but auto-decode failed. Fill in details manually.");
+        return;
+      }
+      const decoded = await res.json();
+      setForm((prev) => ({
+        ...prev,
+        vin,
+        year: decoded.year ? String(decoded.year) : prev.year,
+        make: decoded.make || prev.make,
+        model: decoded.model || prev.model,
+        trim: decoded.trim || prev.trim,
+      }));
+      toast.success("VIN decoded — vehicle details filled in");
+    } catch {
+      toast.warning("VIN saved, but auto-decode failed. Fill in details manually.");
+    } finally {
+      setDecodingVin(false);
+    }
+  }
 
   async function handleAdd() {
     if (!dealership) return;
@@ -182,7 +216,12 @@ export default function VehiclesPage() {
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => setScannerOpen(true)}>
+            <Camera className="h-4 w-4 mr-2" />
+            Scan VIN
+          </Button>
+
           <Link href="/dashboard/vehicles/import">
             <Button variant="outline">
               <Upload className="h-4 w-4 mr-2" />
@@ -305,15 +344,33 @@ export default function VehiclesPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">VIN</Label>
-                <Input
-                  placeholder="1VWSA7A37LC000001"
-                  value={form.vin}
-                  onChange={(e) =>
-                    setForm({ ...form, vin: e.target.value })
-                  }
-                  className="font-mono text-xs"
-                />
+                <Label className="text-xs flex items-center justify-between">
+                  <span>VIN</span>
+                  {decodingVin && (
+                    <span className="text-[10px] text-muted-foreground font-normal">Decoding…</span>
+                  )}
+                </Label>
+                <div className="flex gap-1.5">
+                  <Input
+                    placeholder="1VWSA7A37LC000001"
+                    value={form.vin}
+                    onChange={(e) =>
+                      setForm({ ...form, vin: e.target.value })
+                    }
+                    className="font-mono text-xs"
+                    maxLength={17}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setScannerOpen(true)}
+                    className="shrink-0 px-2"
+                    title="Scan VIN with camera"
+                  >
+                    <Camera className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Stock #</Label>
@@ -486,6 +543,13 @@ export default function VehiclesPage() {
           defaultUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/vehicles/${qrVehicle.id}`}
         />
       )}
+
+      {/* VIN Scanner modal */}
+      <VinScanner
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        onScanned={handleVinScanned}
+      />
     </div>
   );
 }

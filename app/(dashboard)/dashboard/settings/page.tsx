@@ -64,6 +64,7 @@ export default function SettingsPage() {
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [oemBrand, setOemBrand] = useState<string>("");
   const [stateCode, setStateCode] = useState<string>("");
+  const [plateInlayMode, setPlateInlayMode] = useState<"off" | "blur" | "branded">("off");
   const [isSaving, setIsSaving] = useState(false);
   const [localContext, setLocalContext] = useState({
     inventory_type: "both" as "new" | "used" | "both",
@@ -112,6 +113,9 @@ export default function SettingsPage() {
       setBrandColors(dealership.brand_colors);
       setOemBrand((dealership as { oem_brand?: string | null }).oem_brand || "");
       setStateCode((dealership as { state_code?: string | null }).state_code || "");
+      setPlateInlayMode(
+        ((dealership as { plate_inlay_mode?: "off" | "blur" | "branded" }).plate_inlay_mode) || "off"
+      );
       setContact({
         address: dealership.contact.address || "",
         phone: dealership.contact.phone || "",
@@ -223,6 +227,7 @@ export default function SettingsPage() {
         webhook_config: webhookToSave,
         oem_brand: oemBrand || null,
         state_code: stateCode || null,
+        plate_inlay_mode: plateInlayMode,
         updated_at: new Date().toISOString(),
       };
       setDealership(updated);
@@ -245,6 +250,7 @@ export default function SettingsPage() {
         webhook_config: webhookToSave,
         oem_brand: oemBrand || null,
         state_code: stateCode || null,
+        plate_inlay_mode: plateInlayMode,
         updated_at: new Date().toISOString(),
       })
       .eq("id", dealership.id)
@@ -603,6 +609,62 @@ export default function SettingsPage() {
               }
               placeholder="https://www.yourdealership.com"
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Privacy & Plate Branding */}
+      <Card className="glass">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Privacy & License Plates
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Automatically handle license plates on generated vehicle photos. Applies when you click &ldquo;Cover Plate&rdquo; on any asset in your library.
+          </p>
+          <div className="space-y-2">
+            {[
+              {
+                value: "off" as const,
+                label: "Off",
+                description: "Do nothing — leave license plates as-is in generated photos.",
+              },
+              {
+                value: "blur" as const,
+                label: "Blur",
+                description: "Cover license plates with a soft blur for privacy.",
+              },
+              {
+                value: "branded" as const,
+                label: "Branded inlay",
+                description: `Replace plates with a clean plate showing "${(name || "DEALER NAME").toUpperCase()}".`,
+              },
+            ].map((opt) => (
+              <label
+                key={opt.value}
+                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  plateInlayMode === opt.value
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/40"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="plate-inlay-mode"
+                  value={opt.value}
+                  checked={plateInlayMode === opt.value}
+                  onChange={() => setPlateInlayMode(opt.value)}
+                  className="mt-1 h-4 w-4 text-primary accent-primary"
+                />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{opt.label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{opt.description}</p>
+                </div>
+              </label>
+            ))}
           </div>
         </CardContent>
       </Card>

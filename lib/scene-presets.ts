@@ -8,7 +8,7 @@ export interface ScenePreset {
   id: string;
   label: string;
   emoji: string;
-  category: "Studio" | "Urban" | "Nature" | "Lifestyle" | "Local";
+  category: "Premium Showroom" | "Studio" | "Urban" | "Nature" | "Lifestyle" | "Local";
   description: string; // shown in UI
   /**
    * Detailed photography-direction language injected into the prompt.
@@ -18,6 +18,81 @@ export interface ScenePreset {
 }
 
 export const SCENE_PRESETS: ScenePreset[] = [
+  // ── Premium Showroom ────────────────────────────────────────────────────────
+  // Curated, branded showroom environments tuned for premium, predictable results.
+  {
+    id: "showroom-urban-luxury",
+    label: "Urban Luxury",
+    emoji: "🏙️",
+    category: "Premium Showroom",
+    description: "Rooftop infinity-glass showroom, dusk skyline",
+    promptBlock:
+      "Inside a private rooftop showroom with floor-to-ceiling infinity glass walls overlooking a modern city skyline at blue-hour dusk. Polished black mirror-finish floor reflects the vehicle. Recessed warm-white LED cove lighting along the ceiling. The skyline glitters with thousands of building lights, slightly bokeh-blurred. Vehicle is the clear hero, lit by soft cinematic overhead key light and warm rim lights from rear corners. Aspirational, ultra-premium automotive editorial photography.",
+  },
+  {
+    id: "showroom-classic-heritage",
+    label: "Classic Heritage",
+    emoji: "🖼️",
+    category: "Premium Showroom",
+    description: "Warm walnut floor, gallery walls with marque prints",
+    promptBlock:
+      "Inside a heritage marque gallery showroom with warm dark walnut hardwood floors and cream gallery walls hung with framed black-and-white motorsport heritage prints. Brass accent lighting from picture lights along the walls. Vehicle is placed center-stage on the wood floor under a single soft overhead key light. Polished floor shows a faint reflection. Quiet, museum-like atmosphere. Refined, timeless automotive photography.",
+  },
+  {
+    id: "showroom-tech-innovation",
+    label: "Tech Innovation Hub",
+    emoji: "💎",
+    category: "Premium Showroom",
+    description: "White lab showroom, ambient blue LED accents",
+    promptBlock:
+      "Inside a futuristic tech-forward showroom with pure white seamless walls and a satin-finish white floor. Ambient cool-blue LED strip lighting traces the floor-to-wall seam and the ceiling perimeter, casting a subtle blue accent glow. Crisp clean overhead lighting from a grid of recessed daylight-balanced panels. Vehicle is the clear hero, with a faint blue rim light catching the rear quarter. Hyper-clean, modern, innovative automotive photography.",
+  },
+  {
+    id: "showroom-nova-arena",
+    label: "Nova Arena",
+    emoji: "🎯",
+    category: "Premium Showroom",
+    description: "Black mirror stage with overhead spotlight ring",
+    promptBlock:
+      "Inside a black-walled performance showroom with a polished black mirror floor that perfectly reflects the vehicle's underside and lower panels. A circular ring of overhead theatrical spotlights aimed inward casts dramatic crossed beams onto the vehicle. Subtle smoke-haze in the air adds depth to the light beams. Pitch-black background. Single-vehicle stage presentation. High-drama, performance-focused automotive photography.",
+  },
+  {
+    id: "showroom-elise-gallery",
+    label: "Elise Gallery",
+    emoji: "🏛️",
+    category: "Premium Showroom",
+    description: "Concrete gallery with skylight, museum lighting",
+    promptBlock:
+      "Inside a minimalist concrete gallery space with a polished light-grey concrete floor and matte cream walls. A linear skylight overhead floods the scene with soft, even diffuse daylight. Museum-style track lighting provides subtle accent lights on the vehicle. The space feels expansive and quiet. Vehicle is positioned dead-center, beautifully lit, with a faint shadow grounding it. Architectural, sophisticated, art-gallery automotive photography.",
+  },
+  {
+    id: "showroom-origin-loft",
+    label: "Origin Loft",
+    emoji: "🧱",
+    category: "Premium Showroom",
+    description: "Industrial loft, exposed brick, factory windows",
+    promptBlock:
+      "Inside a converted industrial loft showroom. Exposed red brick walls, polished concrete floors, and tall steel-framed factory windows let in warm late-afternoon golden light from the side. Vintage Edison-bulb pendant lights hang from the high ceiling. The vehicle is positioned in the warm light pool, casting a long soft shadow. Rugged-meets-refined aesthetic. Lifestyle, urban-craft automotive photography.",
+  },
+  {
+    id: "showroom-desert-modern",
+    label: "Desert Modern",
+    emoji: "🌵",
+    category: "Premium Showroom",
+    description: "Modernist concrete pavilion in a desert landscape",
+    promptBlock:
+      "Inside an open-air modernist concrete pavilion set within a stark desert landscape. Smooth poured-concrete platform, minimal architectural lines, distant red rock formations visible through the open sides. Bright high-altitude sun creates crisp hard shadows. Vehicle is placed on the concrete platform, lit by direct natural light from above and warm reflected ground bounce. Architectural-meets-natural aesthetic. Premium lifestyle automotive photography.",
+  },
+  {
+    id: "showroom-alpine-glass",
+    label: "Alpine Glass",
+    emoji: "🏔️",
+    category: "Premium Showroom",
+    description: "Glass-walled mountain showroom, snow peaks",
+    promptBlock:
+      "Inside a glass-walled mountain showroom with panoramic floor-to-ceiling windows revealing snow-capped alpine peaks under a crisp blue sky. Light-stained pine floor, white walls, exposed wood-beam ceiling. Crystal-clear high-altitude daylight floods the scene from the windows. Vehicle is positioned center, perfectly lit by the cool natural light with a soft warm fill from concealed interior lighting. Aspirational, premium, mountain-luxury automotive photography.",
+  },
+
   // ── Studio ──────────────────────────────────────────────────────────────────
   {
     id: "studio-white",
@@ -311,6 +386,7 @@ export const SCENE_PRESETS: ScenePreset[] = [
 ];
 
 export const SCENE_CATEGORIES: ScenePreset["category"][] = [
+  "Premium Showroom",
   "Studio",
   "Urban",
   "Nature",

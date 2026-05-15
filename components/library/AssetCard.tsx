@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, Download, MoreHorizontal, Trash2, Pencil, Eye, Check, FileDown, Share2, Palette } from "lucide-react";
+import { Heart, Download, MoreHorizontal, Trash2, Pencil, Eye, Check, FileDown, Share2, Palette, Shield } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ interface AssetCardProps {
   onEdit?: (asset: GeneratedAsset) => void;
   onExportPDF?: (asset: GeneratedAsset) => void;
   onPublishSocial?: (asset: GeneratedAsset) => void;
+  onCoverPlate?: (asset: GeneratedAsset) => void;
   selectMode?: boolean;
   isSelected?: boolean;
   onToggleSelect?: (id: string) => void;
@@ -36,6 +37,7 @@ export function AssetCard({
   onEdit,
   onExportPDF,
   onPublishSocial,
+  onCoverPlate,
   selectMode,
   isSelected,
   onToggleSelect,
@@ -190,6 +192,12 @@ export function AssetCard({
                   >
                     <Share2 className="h-4 w-4 mr-2" />
                     Publish to Social
+                  </DropdownMenuItem>
+                )}
+                {onCoverPlate && asset.image_url && (
+                  <DropdownMenuItem onClick={() => onCoverPlate(asset)}>
+                    <Shield className="h-4 w-4 mr-2" />
+                    Cover Plate
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem

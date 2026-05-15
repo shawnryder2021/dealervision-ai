@@ -12,6 +12,7 @@ interface AssetGridProps {
   onEdit?: (asset: GeneratedAsset) => void;
   onExportPDF?: (asset: GeneratedAsset) => void;
   onPublishSocial?: (asset: GeneratedAsset) => void;
+  onCoverPlate?: (asset: GeneratedAsset) => void;
   selectMode?: boolean;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
@@ -26,6 +27,7 @@ export function AssetGrid({
   onEdit,
   onExportPDF,
   onPublishSocial,
+  onCoverPlate,
   selectMode,
   selectedIds,
   onToggleSelect,
@@ -51,6 +53,7 @@ export function AssetGrid({
           onEdit={onEdit}
           onExportPDF={onExportPDF}
           onPublishSocial={onPublishSocial}
+          onCoverPlate={onCoverPlate}
           selectMode={selectMode}
           isSelected={selectedIds?.has(asset.id)}
           onToggleSelect={onToggleSelect}

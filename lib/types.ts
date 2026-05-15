@@ -50,6 +50,13 @@ export interface Dealership {
   image_model: "kie-nano-banana" | "openai-gpt-image-2" | null;
   oem_brand?: string | null;
   state_code?: string | null;
+  /**
+   * How license plates should be handled on generated/published vehicle photos.
+   * - off: do nothing (default)
+   * - blur: blur the plate region for privacy
+   * - branded: replace the plate with a clean plate showing the dealership name
+   */
+  plate_inlay_mode?: "off" | "blur" | "branded";
   created_at: string;
   updated_at: string;
 }
@@ -98,6 +105,10 @@ export interface GeneratedAsset {
   metadata: Record<string, unknown>;
   is_favorite: boolean;
   campaign: string | null;
+  /** Optional UUID grouping assets that belong to one multi-angle vehicle gallery. */
+  gallery_id?: string | null;
+  /** Which angle this asset represents within a multi-angle gallery (e.g., "front-3-4"). */
+  gallery_angle?: string | null;
   created_at: string;
 }
 
