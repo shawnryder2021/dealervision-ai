@@ -447,7 +447,7 @@ export default function LibraryPage() {
         open={!!selectedAsset}
         onOpenChange={(open) => !open && setSelectedAsset(null)}
       >
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[min(1100px,95vw)] w-full max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="capitalize">
               {selectedAsset?.content_type.replace(/-/g, " ")}
@@ -478,7 +478,7 @@ export default function LibraryPage() {
                   <Badge variant="outline">{selectedAsset.campaign}</Badge>
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
                   onClick={() => handleDownload(selectedAsset)}

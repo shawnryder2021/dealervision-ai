@@ -363,10 +363,24 @@ export default function MultiAnglePage() {
             <div className="space-y-2">
               <Label className="text-xs">Location / backdrop</Label>
               <Select value={showroomId} onValueChange={(v) => setShowroomId(v ?? "")}>
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Pick a location…">
+                    {(() => {
+                      const sel = getScenePreset(showroomId);
+                      if (!sel) return "Pick a location…";
+                      return (
+                        <span className="flex items-center gap-1.5 truncate">
+                          <span>{sel.emoji}</span>
+                          <span className="font-medium">{sel.label}</span>
+                          <span className="text-muted-foreground truncate hidden md:inline">
+                            — {sel.description}
+                          </span>
+                        </span>
+                      );
+                    })()}
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent className="max-h-[60vh]">
+                <SelectContent className="max-h-[60vh] min-w-[520px] max-w-[95vw]">
                   {LOCATION_SECTIONS.map((section) => (
                     <SelectGroup key={section.label}>
                       <SelectLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -374,8 +388,13 @@ export default function MultiAnglePage() {
                       </SelectLabel>
                       {section.presets.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
-                          {p.emoji} {p.label}
-                          <span className="text-muted-foreground"> — {p.description}</span>
+                          <span className="flex items-baseline gap-1.5 whitespace-nowrap">
+                            <span>{p.emoji}</span>
+                            <span className="font-medium">{p.label}</span>
+                            <span className="text-muted-foreground">
+                              — {p.description}
+                            </span>
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectGroup>
@@ -387,10 +406,10 @@ export default function MultiAnglePage() {
             <div className="space-y-2">
               <Label className="text-xs">Bind to vehicle (optional)</Label>
               <Select value={vehicleId} onValueChange={(v) => setVehicleId(v ?? "none")}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="No vehicle binding" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-[60vh] min-w-[320px]">
                   <SelectItem value="none">No vehicle binding</SelectItem>
                   {vehicles.slice(0, 50).map((v) => (
                     <SelectItem key={v.id} value={v.id}>
