@@ -383,6 +383,53 @@ export const SCENE_PRESETS: ScenePreset[] = [
     promptBlock:
       "Parked at a premium alpine ski resort base. Snow-covered mountain peaks towering in the background. Chairlifts visible ascending the slopes. Crisp winter Alpine air, pristine snow on terrain. Clear crisp light from thin mountain air. The vehicle shows full colour contrast against white snow. Adventure sports luxury lifestyle photography.",
   },
+
+  // ── Everyday / Driver-Realistic ─────────────────────────────────────────────
+  {
+    id: "suburban-driveway",
+    label: "Suburban Driveway",
+    emoji: "🏡",
+    category: "Lifestyle",
+    description: "Clean residential driveway with tidy home in background",
+    promptBlock:
+      "Parked on a clean concrete driveway of a modern suburban home with a well-kept lawn and a tidy garage door behind. Soft late-afternoon sunlight casts a warm glow on the driveway. Family-friendly residential setting, tree-lined street visible to the sides. Approachable, everyday driver context. Natural, friendly automotive lifestyle photography.",
+  },
+  {
+    id: "country-road",
+    label: "Quiet Country Road",
+    emoji: "🛣️",
+    category: "Nature",
+    description: "Two-lane rural road with open fields",
+    promptBlock:
+      "Parked on the shoulder of a quiet two-lane rural country road with open farm fields stretching to the horizon on both sides. A simple wooden fence runs along the roadside. Golden-hour warm light from a low sun. Clean tarmac with a faded yellow centerline. Peaceful, uncluttered setting. Open-road automotive lifestyle photography.",
+  },
+  {
+    id: "cafe-parking",
+    label: "Café Curbside",
+    emoji: "☕",
+    category: "Lifestyle",
+    description: "Urban coffee shop with sidewalk seating",
+    promptBlock:
+      "Parked at the curb in front of a small independent coffee shop with a chalkboard sandwich sign and a few sidewalk tables. Brick storefront, large windows with warm interior lighting. Soft morning light on a clean city street. Approachable everyday urban setting — the kind of place a driver stops on the way to work. Lifestyle automotive photography.",
+  },
+  {
+    id: "park-pathway",
+    label: "City Park",
+    emoji: "🌳",
+    category: "Nature",
+    description: "Leafy park-side parking with paths and trees",
+    promptBlock:
+      "Parked along a tree-lined park-side road. A mature city park stretches behind with paved walking paths, a wooden bench, and tall leafy trees casting dappled shade onto the road. Soft afternoon sunlight filters through the leaves. Calm, family-friendly urban setting. Natural lifestyle automotive photography.",
+  },
+  {
+    id: "mall-parking",
+    label: "Modern Retail Plaza",
+    emoji: "🛍️",
+    category: "Urban",
+    description: "Clean outdoor shopping center parking lot",
+    promptBlock:
+      "Parked in an open outdoor shopping center parking lot. Modern retail storefronts with clean architectural facades in the background, freshly painted parking lines on smooth asphalt. Bright midday daylight, a few decorative trees in planters. Familiar, accessible suburban retail context. Clean everyday automotive photography.",
+  },
 ];
 
 export const SCENE_CATEGORIES: ScenePreset["category"][] = [

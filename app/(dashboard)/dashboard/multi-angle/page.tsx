@@ -18,13 +18,15 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { useAppStore } from "@/lib/store";
 import { createClient } from "@/lib/supabase/client";
-import { SCENE_PRESETS } from "@/lib/scene-presets";
+import { getScenePreset, type ScenePreset } from "@/lib/scene-presets";
 import {
   ANGLE_PROMPTS,
   buildAnglePrompt,
@@ -35,8 +37,84 @@ import { AngleGrid } from "@/components/multi-angle/AngleGrid";
 import type { Vehicle } from "@/lib/types";
 import { toast } from "sonner";
 
-const PREMIUM_SHOWROOMS = SCENE_PRESETS.filter(
-  (p) => p.category === "Premium Showroom"
+/**
+ * Curated list of practical, driver-realistic locations for multi-angle galleries.
+ * Grouped by setting. Drawn from the full scene-presets catalog, hand-picked to
+ * exclude fantasy/showroom-only environments that don't read as real-world.
+ */
+const LOCATION_GROUPS: Array<{ label: string; presetIds: string[] }> = [
+  {
+    label: "Showroom & Studio",
+    presetIds: [
+      "studio-white",
+      "studio-gradient",
+      "showroom-urban-luxury",
+      "showroom-classic-heritage",
+      "showroom-origin-loft",
+      "showroom-elise-gallery",
+      "dealership-lot",
+    ],
+  },
+  {
+    label: "Everyday & Residential",
+    presetIds: [
+      "suburban-driveway",
+      "upscale-neighborhood",
+      "cafe-parking",
+      "mall-parking",
+    ],
+  },
+  {
+    label: "City & Urban",
+    presetIds: [
+      "city-golden-hour",
+      "historic-downtown",
+      "industrial-brick",
+      "downtown-high-rise",
+    ],
+  },
+  {
+    label: "Roads & Highway",
+    presetIds: [
+      "sunrise-highway",
+      "country-road",
+      "coastal-cliff",
+      "canyon-road",
+      "forest-road",
+    ],
+  },
+  {
+    label: "Nature & Scenic",
+    presetIds: [
+      "mountain-summit",
+      "rolling-hills",
+      "beach-boardwalk",
+      "lake-reflection",
+      "park-pathway",
+    ],
+  },
+  {
+    label: "Premium Lifestyle",
+    presetIds: [
+      "marina-waterfront",
+      "golf-course",
+      "mansion-driveway",
+    ],
+  },
+];
+
+/** Resolved location groups with full preset objects (drops any missing IDs). */
+const LOCATION_SECTIONS: Array<{ label: string; presets: ScenePreset[] }> =
+  LOCATION_GROUPS.map((g) => ({
+    label: g.label,
+    presets: g.presetIds
+      .map((id) => getScenePreset(id))
+      .filter((p): p is ScenePreset => !!p),
+  })).filter((s) => s.presets.length > 0);
+
+/** Flat list — used for default selection only. */
+const ALL_PRACTICAL_LOCATIONS: ScenePreset[] = LOCATION_SECTIONS.flatMap(
+  (s) => s.presets
 );
 
 const MAX_CONCURRENT = 3;
@@ -47,7 +125,8 @@ export default function MultiAnglePage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehicleId, setVehicleId] = useState<string>("none");
   const [showroomId, setShowroomId] = useState<string>(
-    PREMIUM_SHOWROOMS[0]?.id ?? ""
+    // Default to first showroom in the catalog
+    ALL_PRACTICAL_LOCATIONS[0]?.id ?? ""
   );
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -282,16 +361,24 @@ export default function MultiAnglePage() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-xs">Showroom backdrop</Label>
+              <Label className="text-xs">Location / backdrop</Label>
               <Select value={showroomId} onValueChange={(v) => setShowroomId(v ?? "")}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  {PREMIUM_SHOWROOMS.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.emoji} {p.label} — {p.description}
-                    </SelectItem>
+                <SelectContent className="max-h-[60vh]">
+                  {LOCATION_SECTIONS.map((section) => (
+                    <SelectGroup key={section.label}>
+                      <SelectLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        {section.label}
+                      </SelectLabel>
+                      {section.presets.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.emoji} {p.label}
+                          <span className="text-muted-foreground"> — {p.description}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   ))}
                 </SelectContent>
               </Select>
