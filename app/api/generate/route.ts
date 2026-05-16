@@ -5,6 +5,7 @@ import type { ImageModelOption } from "@/lib/db/image-generation";
 import { buildPrompt, getAspectRatioForChannel, getResolutionForChannel } from "@/lib/prompt-templates";
 import { checkQuota, incrementUsage } from "@/lib/db/subscriptions";
 import { isSuperAdmin } from "@/lib/db/admin";
+import { findMatchingReferenceImages } from "@/lib/db/reference-vehicles";
 import type { GenerateRequest } from "@/lib/types";
 
 async function getGlobalImageModel(supabase: Awaited<ReturnType<typeof createClient>>): Promise<ImageModelOption> {
@@ -172,12 +173,30 @@ export async function POST(request: NextRequest) {
     try {
       const provider = getImageProvider(imageModel);
 
-      // Build image_input: only user-provided reference photos. The dealership
-      // logo is composited server-side after generation (see image-compositor.ts)
-      // — we no longer rely on the AI to render it, which produced inconsistent
-      // results and frequent duplicate watermarks.
+      // Build image_input: user-provided reference photos + admin-curated
+      // reference photos that match the vehicle (year/make/model/trim).
+      // The dealership logo is composited server-side after generation
+      // (see image-compositor.ts) — we no longer rely on the AI to render it.
       const userRefs = Array.isArray(body.image_input) ? body.image_input.filter(Boolean) : [];
-      const imageInput = userRefs;
+
+      // Look up admin-curated reference photos matching this vehicle. Best-match
+      // logic: exact trim → exact year → trim only → make+model fallback.
+      let adminRefs: string[] = [];
+      try {
+        adminRefs = await findMatchingReferenceImages({
+          year: vehicle?.year ?? undefined,
+          make: vehicle?.make ?? undefined,
+          model: vehicle?.model ?? undefined,
+          trim: vehicle?.trim ?? undefined,
+          limit: 2, // keep payload small — 2 angles is enough to constrain the model
+        });
+      } catch (refErr) {
+        // Non-fatal: generation should still proceed without references.
+        console.error("Reference vehicle lookup failed:", refErr);
+      }
+
+      // User refs first (highest priority), then admin refs. Dedupe by URL.
+      const imageInput = Array.from(new Set([...userRefs, ...adminRefs]));
 
       const providerResult = await provider.createImageTask({
         prompt,
