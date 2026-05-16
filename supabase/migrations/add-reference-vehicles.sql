@@ -50,11 +50,12 @@ CREATE POLICY "reference_vehicles_insert_super_admin"
   FOR INSERT
   TO authenticated
   WITH CHECK (
+    -- Use auth.jwt()->>'email' instead of joining auth.users — authenticated
+    -- users don't have permission to read auth.users directly.
     EXISTS (
       SELECT 1
       FROM super_admins sa
-      JOIN auth.users u ON u.email = sa.email
-      WHERE u.id = auth.uid()
+      WHERE sa.email = (auth.jwt()->>'email')
         AND sa.revoked_at IS NULL
     )
   );
@@ -65,11 +66,12 @@ CREATE POLICY "reference_vehicles_update_super_admin"
   FOR UPDATE
   TO authenticated
   USING (
+    -- Use auth.jwt()->>'email' instead of joining auth.users — authenticated
+    -- users don't have permission to read auth.users directly.
     EXISTS (
       SELECT 1
       FROM super_admins sa
-      JOIN auth.users u ON u.email = sa.email
-      WHERE u.id = auth.uid()
+      WHERE sa.email = (auth.jwt()->>'email')
         AND sa.revoked_at IS NULL
     )
   );
@@ -80,11 +82,12 @@ CREATE POLICY "reference_vehicles_delete_super_admin"
   FOR DELETE
   TO authenticated
   USING (
+    -- Use auth.jwt()->>'email' instead of joining auth.users — authenticated
+    -- users don't have permission to read auth.users directly.
     EXISTS (
       SELECT 1
       FROM super_admins sa
-      JOIN auth.users u ON u.email = sa.email
-      WHERE u.id = auth.uid()
+      WHERE sa.email = (auth.jwt()->>'email')
         AND sa.revoked_at IS NULL
     )
   );
