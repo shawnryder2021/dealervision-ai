@@ -11,6 +11,7 @@ import {
   Image as ImageIcon,
   Power,
   PowerOff,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,8 +66,14 @@ export default function ReferenceVehiclesPage() {
   const [trim, setTrim] = useState<string>(ANY_TRIM);
   const [color, setColor] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  // Staged uploaded image URLs — each one becomes a separate reference_vehicles
+  // row sharing the same year/make/model/trim/color/notes on submit.
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number }>({
+    done: 0,
+    total: 0,
+  });
   const [creating, setCreating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -91,29 +98,75 @@ export default function ReferenceVehiclesPage() {
     loadVehicles();
   }, [loadVehicles]);
 
-  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Upload failed");
-      }
-      const data = await res.json();
-      const url = data.url || data.image_url;
-      if (!url) throw new Error("Upload did not return a URL");
-      setImageUrl(url);
-      toast.success("Image uploaded");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+  /** Upload one file to ImgBB. Returns the public URL or throws. */
+  async function uploadOne(file: File): Promise<string> {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Upload failed for ${file.name}`);
     }
+    const data = await res.json();
+    const url: string | undefined = data.url || data.image_url;
+    if (!url) throw new Error(`Upload returned no URL for ${file.name}`);
+    return url;
+  }
+
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+
+    setUploading(true);
+    setUploadProgress({ done: 0, total: files.length });
+
+    // Run 3 uploads in parallel so a big batch isn't slow but doesn't slam ImgBB
+    const CONCURRENCY = 3;
+    const queue = [...files];
+    const successes: string[] = [];
+    const failures: { file: string; error: string }[] = [];
+
+    async function worker() {
+      while (queue.length > 0) {
+        const file = queue.shift();
+        if (!file) return;
+        try {
+          const url = await uploadOne(file);
+          successes.push(url);
+        } catch (err) {
+          failures.push({
+            file: file.name,
+            error: err instanceof Error ? err.message : "Upload failed",
+          });
+        } finally {
+          setUploadProgress((p) => ({ done: p.done + 1, total: p.total }));
+        }
+      }
+    }
+
+    await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+
+    setImageUrls((prev) => [...prev, ...successes]);
+    if (successes.length > 0) {
+      toast.success(
+        successes.length === 1
+          ? "Image uploaded"
+          : `${successes.length} images uploaded`
+      );
+    }
+    if (failures.length > 0) {
+      toast.error(
+        `${failures.length} upload${failures.length === 1 ? "" : "s"} failed`
+      );
+    }
+
+    setUploading(false);
+    setUploadProgress({ done: 0, total: 0 });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function removeStagedImage(index: number) {
+    setImageUrls((prev) => prev.filter((_, i) => i !== index));
   }
 
   function resetForm() {
@@ -123,35 +176,76 @@ export default function ReferenceVehiclesPage() {
     setTrim(ANY_TRIM);
     setColor("");
     setNotes("");
-    setImageUrl(null);
+    setImageUrls([]);
   }
 
   async function handleCreate() {
-    if (!year || !make || !model || !imageUrl) {
-      toast.error("Year, make, model, and image are all required");
+    if (!year || !make || !model || imageUrls.length === 0) {
+      toast.error("Year, make, model, and at least one image are required");
       return;
     }
     setCreating(true);
     try {
-      const res = await fetch("/api/admin/reference-vehicles", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          year: parseInt(year, 10),
-          make: make.trim(),
-          model: model.trim(),
-          trim: trim === ANY_TRIM ? null : trim.trim() || null,
-          color: color.trim() || null,
-          image_url: imageUrl,
-          notes: notes.trim() || null,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to create");
+      const body = {
+        year: parseInt(year, 10),
+        make: make.trim(),
+        model: model.trim(),
+        trim: trim === ANY_TRIM ? null : trim.trim() || null,
+        color: color.trim() || null,
+        notes: notes.trim() || null,
+      };
+
+      // Create one reference_vehicles row per staged image (year/make/model/trim
+      // shared). Run in parallel — 3 at a time keeps DB writes light.
+      const CONCURRENCY = 3;
+      const queue = [...imageUrls];
+      const failures: { url: string; error: string }[] = [];
+      let successCount = 0;
+
+      async function worker() {
+        while (queue.length > 0) {
+          const url = queue.shift();
+          if (!url) return;
+          try {
+            const res = await fetch("/api/admin/reference-vehicles", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...body, image_url: url }),
+            });
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              throw new Error(err.error || `HTTP ${res.status}`);
+            }
+            successCount += 1;
+          } catch (err) {
+            failures.push({
+              url,
+              error: err instanceof Error ? err.message : "Save failed",
+            });
+          }
+        }
       }
-      toast.success(`Added ${year} ${make} ${model}${trim !== ANY_TRIM ? ` (${trim})` : ""}`);
-      resetForm();
+
+      await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+
+      if (successCount > 0) {
+        const trimLabel = trim !== ANY_TRIM ? ` (${trim})` : "";
+        toast.success(
+          `Added ${successCount} reference${successCount === 1 ? "" : "s"} for ${year} ${make} ${model}${trimLabel}`
+        );
+      }
+      if (failures.length > 0) {
+        toast.error(
+          `${failures.length} reference${failures.length === 1 ? "" : "s"} failed to save`
+        );
+      }
+
+      if (failures.length === 0) {
+        resetForm();
+      } else {
+        // Keep the failed images staged so the admin can retry
+        setImageUrls(failures.map((f) => f.url));
+      }
       loadVehicles();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create");
@@ -332,76 +426,105 @@ export default function ReferenceVehiclesPage() {
             </div>
           </div>
 
-          {/* Image upload */}
-          <div className="space-y-1.5">
-            <Label className="text-xs">Reference photo</Label>
-            {imageUrl ? (
-              <div className="flex items-start gap-3">
-                <div className="relative w-40 h-32 rounded-lg overflow-hidden border border-border bg-muted">
-                  <img
-                    src={imageUrl}
-                    alt="Reference"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  type="button"
-                  onClick={() => setImageUrl(null)}
-                >
-                  Replace
-                </Button>
-              </div>
-            ) : (
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/40 hover:bg-muted/30 transition-colors"
-              >
-                {uploading ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                    <p className="text-sm text-muted-foreground">Uploading…</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-2">
-                    <Upload className="h-7 w-7 text-muted-foreground/60" />
-                    <p className="text-sm font-medium">Click to upload reference</p>
-                    <p className="text-xs text-muted-foreground">
-                      Use an OEM press photo or a clean dealer-lot shot. JPG / PNG / WebP.
-                    </p>
-                  </div>
+          {/* Image upload (multi-file) */}
+          <div className="space-y-2">
+            <div className="flex items-baseline justify-between gap-2">
+              <Label className="text-xs">
+                Reference photos
+                {imageUrls.length > 0 && (
+                  <span className="text-muted-foreground font-normal ml-1.5">
+                    ({imageUrls.length} staged)
+                  </span>
                 )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
+              </Label>
+              <p className="text-[11px] text-muted-foreground">
+                Each photo becomes one reference row sharing this year / make / model / trim.
+              </p>
+            </div>
+
+            {/* Staged thumbnails grid */}
+            {imageUrls.length > 0 && (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                {imageUrls.map((url, idx) => (
+                  <div
+                    key={`${url}-${idx}`}
+                    className="relative group aspect-square rounded-md overflow-hidden border border-border bg-muted"
+                  >
+                    <img src={url} alt={`Staged ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeStagedImage(idx)}
+                      className="absolute top-1 right-1 h-6 w-6 flex items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 hover:bg-destructive transition-opacity"
+                      aria-label="Remove image"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
+
+            {/* Upload drop zone */}
+            <div
+              onClick={() => !uploading && fileInputRef.current?.click()}
+              className={`border-2 border-dashed border-border rounded-lg p-5 text-center transition-colors ${
+                uploading
+                  ? "cursor-wait opacity-70"
+                  : "cursor-pointer hover:border-primary/40 hover:bg-muted/30"
+              }`}
+            >
+              {uploading ? (
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <p className="text-sm text-muted-foreground">
+                    Uploading {uploadProgress.done}/{uploadProgress.total}…
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-1.5">
+                  <Upload className="h-6 w-6 text-muted-foreground/60" />
+                  <p className="text-sm font-medium">
+                    {imageUrls.length > 0
+                      ? "Add more photos"
+                      : "Click to upload one or more references"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Hold Shift / ⌘ to pick multiple files. OEM press photos or clean lot shots work best. JPG / PNG / WebP.
+                  </p>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+            </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-1">
+          <div className="flex flex-wrap justify-end gap-2 pt-1">
             <Button variant="ghost" type="button" onClick={resetForm} disabled={creating}>
               Clear
             </Button>
             <Button
               type="button"
               onClick={handleCreate}
-              disabled={creating || !year || !make || !model || !imageUrl}
+              disabled={creating || !year || !make || !model || imageUrls.length === 0}
               className="gradient-primary text-white"
             >
               {creating ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                  Adding…
+                  Saving {imageUrls.length}…
                 </>
               ) : (
                 <>
                   <Plus className="h-4 w-4 mr-1.5" />
-                  Add reference
+                  {imageUrls.length > 1
+                    ? `Add ${imageUrls.length} references`
+                    : "Add reference"}
                 </>
               )}
             </Button>
