@@ -60,6 +60,12 @@ export const CONTENT_TYPES = [
     icon: "Gift",
   },
   {
+    id: "blueprint-infographic",
+    name: "Technical Blueprint",
+    description: "Technical specification infographic with measurements, component labels, and architectural sketch aesthetics",
+    icon: "LayoutGrid",
+  },
+  {
     id: "custom",
     name: "Custom Freeform",
     description: "Open prompt with brand overlay",

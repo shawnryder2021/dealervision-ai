@@ -529,6 +529,7 @@ export default function GenerateTypePage() {
   const showVehicleSelector = [
     "vehicle-spotlight",
     "new-arrival",
+    "blueprint-infographic",
     "price-drop",
     "sales-event",
     "financing",

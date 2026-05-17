@@ -493,6 +493,46 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
     ].filter(Boolean).join(" ");
   },
 
+  "blueprint-infographic": (ctx) => {
+    const vehicle = ctx.vehicle || {
+      id: "unknown",
+      dealership_id: "",
+      year: null,
+      make: "Unknown",
+      model: "Unknown",
+      trim: null,
+      price: null,
+      mileage: null,
+      vin: null,
+      stock_number: null,
+      status: "available" as const,
+      photos: [],
+      tags: [],
+      details: {},
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    const vehicleDescription = getVehicleDescription(vehicle);
+
+    // Pricing prevention: only include price if explicitly enabled via include_price flag
+    const pricing = ctx.include_price && vehicle.price
+      ? `Price: $${vehicle.price.toLocaleString()}.`
+      : "";
+
+    return [
+      `Create an infographic image of ${vehicleDescription}, combining a realistic photograph or photorealistic render of the object with technical annotation overlays placed directly on top. Use black ink–style line drawings and text (technical pen / architectural sketch look) on a pure white studio background.`,
+      "Include: • Key component labels • Internal cutaway or exploded-view outlines (where relevant) • Measurements, dimensions, and scale markers • Material callouts and quantities • Arrows indicating function, force, or flow (air, sound, power, pressure, movement) • Simple schematic or sectional diagrams where applicable.",
+      `Place the title ${vehicleDescription} inside a hand-drawn technical annotation box in one corner.`,
+      "Style & layout rules: • The real object remains clearly visible beneath the annotations • Annotations look hand-sketched, technical, and architectural • Clean composition with balanced negative space • Educational, museum-exhibit / engineering-manual vibe.",
+      "Visual style: Minimal technical illustration aesthetic. Black linework layered over realistic imagery. Precise but slightly hand-drawn feel.",
+      "Color palette: Pure white background. Black annotation lines and text only. No colors.",
+      "Output: 1080 × 1080 resolution, ultra-crisp, social-feed optimized, no watermark.",
+      pricing,
+      getVehicleAccuracyPrompt(vehicle),
+      getBrandContext(ctx.dealership),
+    ].filter(Boolean).join(" ");
+  },
+
   custom: (ctx) => {
     const scene = getSceneBlock(ctx);
 
