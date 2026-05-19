@@ -53,6 +53,178 @@ export const CATEGORY_COLORS: Record<ArticleCategory, string> = {
 
 export const ARTICLES: Article[] = [
   {
+    slug: "dealership-marketing-automation-time-savings",
+    title: "How to Cut Vehicle Marketing Time by 65%",
+    description:
+      "Discover how AI-powered dealership marketing automation cuts production time from hours to minutes, freeing sales teams to focus on selling.",
+    category: "ai-marketing",
+    readTime: "9 min read",
+    publishedAt: "2026-05-19",
+    author: "DealerAdGen AI Team",
+    heroEmoji: "⚡",
+    tags: ["automation", "ai", "time savings", "workflow", "inventory marketing"],
+    sections: [
+      {
+        heading: "The Hidden Cost of Manual Vehicle Marketing",
+        content:
+          "Every day a vehicle sits on your lot is margin disappearing. Yet the average dealership spends 2 to 4 hours per unit on marketing assets — bad lot photos, generic captions, scattered tools for social, email, and print. For a dealership moving 20 vehicles per month, that is 45 hours of staff time, or roughly $900–$1,350 in monthly labor cost on content creation alone. And that assumes no revisions, no coordination delays, and no re-shoots when the lighting is bad. The hidden cost is delay itself: those 2 hours mean the inventory listing goes live 2 to 4 hours after the car is photographed. In a world where 90% of car shopping happens online, every hour of delay is lost impressions.",
+        tips: [
+          "Photo capture: 15 minutes per vehicle on a phone",
+          "Photo editing in Photoshop: 20 minutes",
+          "Copy for Facebook, Instagram, email, website, print: 20 minutes",
+          "Individual posts in each platform: 15 minutes",
+          "Print flyer design in Canva: 15 minutes",
+          "Website inventory upload: 10 minutes",
+          "Scheduling social posts: 10 minutes",
+        ],
+      },
+      {
+        heading: "What Dealership Marketing Automation Actually Means",
+        content:
+          "Marketing automation for dealerships is not about robots replacing your team. It is about replacing the repetitive, low-skill tasks that eat up your team's time so they can focus on selling and strategy. The core idea: the system handles production; your team handles strategy. One photo becomes 8 angles and 13 channel-ready creatives in 5 minutes, not 2 hours. One click publishes simultaneously to Facebook, Instagram, your website, and email list. The same image and copy auto-adapt to Instagram's 1080×1350px format, Twitter's 16:9 ratio, email's 600px width, and print flyer dimensions without manual cropping.",
+        tips: [
+          "Batch content generation: one input creates 13 channel-ready outputs",
+          "One-click publishing across Facebook, Instagram, website, email simultaneously",
+          "Brand enforcement: dealership colors, fonts, and logo applied automatically",
+          "Compliance automation: OEM co-op rules and state disclaimers enforced",
+          "Intelligent repurposing: assets re-render for each channel's exact dimensions",
+        ],
+      },
+      {
+        heading: "Real Dealership Workflow: Before and After",
+        content:
+          "Before automation, a 2024 Honda Accord landing on the lot Monday morning takes until early afternoon to appear across all channels: 15 minutes for an iPhone lot photo, 30 minutes editing, an hour writing copy for five places, 45 minutes posting manually with re-crops for each platform, plus website and email work. Result: 4 hours of labor, inventory live 4 hours after capture, inconsistent branding. After automation, the same Accord is live across all channels 20 minutes after hitting the lot: scan the VIN, snap one hero photo, the system generates 8 angles in a premium showroom plus 13 channel-ready creatives, review the preview, click Publish. Total: 4 minutes of work, 100% consistent branding. That is a 55-minute time savings per vehicle. For 20 vehicles per month, 18+ hours saved.",
+        tips: [
+          "Scan VIN with phone to auto-fill year, make, model, trim",
+          "Snap one hero photo with any smartphone",
+          "Pick a backdrop and click Generate Campaign",
+          "Review the preview in 10 seconds",
+          "One-click publish to all channels simultaneously",
+        ],
+      },
+      {
+        heading: "Why This Works: The Real Results",
+        content:
+          "The numbers are not theoretical. Real dealerships using marketing automation report 65% less production time per vehicle (2 hours dropping to 30 minutes), 3× faster photo capture, 1 to 7 days faster inventory sell-through, 27 to 40% lift in landing page conversions, and 62% more clicks on digital ads. A Texas Ford dealer reported: 'We went from spending our entire Tuesday on photo shoots and Facebook posts to having our entire week's inventory live by Monday afternoon. We're moving cars 3 to 5 days faster, and our DealerRater rating went up because customers say the cars looked better than the photos.'",
+        tips: [
+          "65% reduction in vehicle marketing production time",
+          "3× faster photo capture vs. studio shoots",
+          "27–40% lift in landing page conversion rate",
+          "62% more clicks on digital advertisements",
+          "1–7 days faster inventory sell-through",
+        ],
+      },
+      {
+        heading: "The Multi-Channel Publishing Problem",
+        content:
+          "Dealerships have 13 different ways customers can find inventory: Facebook (post and cover), Instagram (post, story, reel), X/Twitter, your website, Google Business, email, print flyers, Facebook Marketplace, YouTube thumbnails, mobile app, syndication partners, billboards, and in-dealership displays. Each requires different dimensions, aspect ratios, and copy length. Without automation, you either create one version that looks terrible on 11 other platforms, or manually create 13 versions (a 4-hour job becoming 52 hours). Marketing automation inputs once and outputs 13 optimized versions — dimensioned, sized, and branded correctly.",
+      },
+      {
+        heading: "The Business Case: ROI in 30 Days",
+        content:
+          "For a dealership moving 20 vehicles per month, the math works out fast. Time savings: 55 minutes per vehicle × 20 vehicles = 18.3 hours saved monthly, or $458 in labor at $25 per hour. Inventory aging improvement: a 5-day reduction in time-on-lot across 20 vehicles, at $200–$500 margin per day per vehicle, recovers $1,000–$2,500 monthly. Total monthly benefit: $1,458–$2,958. Platform cost: $29–$99 per month depending on tier. ROI: break-even in 1 month, 18 to 36× return year-over-year. Photography is not the bottleneck; publishing is. You can take 20 photos in 20 minutes with a phone — publishing those 20 photos across 13 channels without automation takes 8 hours.",
+        tips: [
+          "Time-on-lot is a direct profit lever: 5 days × 20 vehicles = $10,000–$50,000 recovered margin",
+          "Inconsistency costs conversions: same car looking different across platforms builds distrust",
+          "Automation pays for itself at 10+ vehicles per month",
+          "Recurring monthly platform cost replaces $150–$300 per professional photo shoot",
+        ],
+      },
+    ],
+    cta: {
+      text: "Cut Your Marketing Time by 65%",
+      description:
+        "Start a 7-day free trial and generate your first batch of multi-channel assets in under 10 minutes.",
+    },
+  },
+  {
+    slug: "ai-vehicle-photo-generator-dealerships",
+    title: "The AI Vehicle Photo Generator Dealers Actually Use",
+    description:
+      "Learn how dealerships use AI vehicle photo generation to create photoreal car images in premium showrooms — and why it outsells lot photography by 5x.",
+    category: "ai-marketing",
+    readTime: "10 min read",
+    publishedAt: "2026-05-19",
+    author: "DealerAdGen AI Team",
+    heroEmoji: "📸",
+    tags: ["ai photos", "vehicle photography", "inventory marketing", "conversion", "ai"],
+    sections: [
+      {
+        heading: "Why Lot Photos Lose Sales",
+        content:
+          "A lot photo does not sell cars. A premium photo does. When a customer sees a car photographed in a parking lot with harsh shadows, surrounded by other inventory, shot in 5 minutes with an iPhone, they see a cheap car. When they see the same car in a sleek showroom with professional lighting, they see a car worth buying. That is not psychology — that is conversion data. Dealerships using premium photography see 27 to 40% higher landing page conversion rates than those using lot photos. They move inventory 3 to 7 days faster. They report 3% higher selling prices on average. The problem: professional photography costs $150–$300 per shoot and takes 1 to 2 weeks turnaround. Most dealerships default to lot photos because they are free and instant.",
+        tips: [
+          "Lot photos are taken in parking lots with distracting backgrounds",
+          "Harsh sunlight or flat overcast lighting creates unflattering shadows",
+          "Cars surrounded by other inventory look cheap by association",
+          "5-minute iPhone shoots produce inconsistent quality",
+          "Same car in lot photo vs. studio photo can get 5× the clicks",
+        ],
+      },
+      {
+        heading: "How AI Vehicle Photo Generation Works",
+        content:
+          "The technology is called diffusion-based image generation. You provide any reference photo — a snapshot of the vehicle from your lot, any lighting, any angle, low resolution is fine. The AI analyzes the reference and reconstructs the car: color, body shape, wheels, trim, badges, condition. You select a premium backdrop (urban luxury showroom, coastal cliffside, modern gallery), and the AI renders the car in that environment with professional lighting, realistic shadows and reflections, premium background, and cinematic composition. The output is a photoreal image dimensioned for your channel (Instagram 1080×1350, website 600×600, print 8.5×11). Time: 5 minutes. Cost: covered by your monthly platform fee.",
+        tips: [
+          "Reference photo can be any quality — even a quick phone snap",
+          "AI rebuilds the exact car, preserving color, trim, and distinguishing features",
+          "Choose from premium backdrops: showrooms, urban, coastal, modern gallery",
+          "Output is dimensioned automatically for each channel",
+          "All 8 angles of the car generated from a single hero photo",
+        ],
+      },
+      {
+        heading: "Real Example: 2024 Toyota Camry",
+        content:
+          "Start with an iPhone photo of a 2024 Camry on the lot: gray overcast sky, multiple cars in the background, harsh roof lighting. From that one photo, the AI generates four premium options: Urban Luxury Showroom (rooftop infinity-glass environment), Classic Heritage Showroom (warm walnut floor, framed heritage prints), Tech Innovation Hub (white lab with blue LED accents), and Coastal Modern (glass-walled showroom overlooking ocean). All generated from the same lot photo. Each looks professional, expensive, and desirable. The car itself is identical; only the backdrop and lighting changes. Same car appears in 4 different premium environments. Customers do not have to imagine the car looking better — they see it better.",
+      },
+      {
+        heading: "Why Dealerships Are Switching to AI Photos",
+        content:
+          "The cost comparison is striking. Lot photos cost nothing, take 5 minutes, deliver baseline conversions, and quality is roughly 3 out of 10. Professional studio photos cost $150–$300, take 1 to 2 weeks, deliver 27 to 40% higher conversions, 5× more ad clicks, 1 to 3% price premium, and quality is 9 out of 10. AI-generated photos cost $29–$99 per month for unlimited generations, take 5 minutes, deliver 25 to 35% higher conversions (nearly studio-level), 4 to 5× more ad clicks, 1 to 2% price premium, and quality is 8 out of 10. AI photos are not quite as perfect as a professional shoot — but they are 95% as good and cost 99% less. For a dealership moving 20+ vehicles monthly, the ROI is immense.",
+        tips: [
+          "AI photos: 25–35% higher conversions, nearly studio-level quality",
+          "4–5× more clicks on ads vs. lot photos",
+          "1–2% price premium achievable on listed inventory",
+          "Unlimited generations included in monthly platform fee",
+          "5-minute turnaround vs. 1–2 weeks for professional shoots",
+        ],
+      },
+      {
+        heading: "Real-World Dealer Results",
+        content:
+          "A Southeast dealership ran an A/B test on identical inventory. Same vehicle, two Facebook ads. Ad 1: standard lot photo. Ad 2: AI-generated premium showroom photo. Two-week results — lot photo: 45 clicks, 8 landing page visits, 1 test drive request. AI photo: 198 clicks, 42 landing page visits, 7 test drive requests. The AI photo won 4.4× more clicks and 5.25× more test drives. The conversion lift was not from a different car or a different price — purely from the perception the AI photo created: this car is premium and desirable. A Texas dealership reported their VDP conversion rate jumped from 12% to 18% in the first week of using AI photos. By week three they were moving cars 4 days faster. At $300–$500 margin per day per car, that recovered $1,200–$2,000 per vehicle just from the photo quality.",
+        tips: [
+          "Run A/B tests on Facebook with lot vs. AI photos to see your own lift",
+          "Track VDP (Vehicle Detail Page) conversion rate as the primary metric",
+          "Days-to-sell improvement compounds margin recovery across inventory",
+          "Customer satisfaction goes up: cars 'look better than expected' in person",
+        ],
+      },
+      {
+        heading: "The 8-Angle Advantage",
+        content:
+          "Most dealerships show 1 to 3 angles of a car: front 3/4, side, rear. But conversion researchers have found that buyers want to see: front 3/4 angle, rear 3/4 angle, direct side profile, interior dashboard, interior seats, engine bay, wheel close-up, and badge close-up. One lot photo will not capture all 8 angles. A professional shoot would. But AI can generate all 8 from a single lot photo — each in a premium environment, each photoreal. Buyers get a complete 360° view of the vehicle. Confidence goes up. Conversions follow.",
+        tips: [
+          "Generate 8 angles from a single reference photo",
+          "Each angle is photoreal and consistent with the original car",
+          "Combine exterior angles with interior shots for a complete VDP",
+          "Skip obvious duds and use the best 5 of 8 for fastest curation",
+        ],
+      },
+      {
+        heading: "The Business Case",
+        content:
+          "For a dealership moving 20 vehicles per month: Time savings — professional shoots cost 20 vehicles × 2 hours = 40 hours per month; AI generation cost 20 × 5 minutes = 100 minutes; savings = 38 hours × $25 per hour = $950 per month. Conversion lift — baseline 60 days time-on-lot dropping to 54 days with AI photos = $1,500–$3,000 in recovered margin per month. Total monthly benefit: $2,450–$3,950. Platform cost: $29–$99 per month. ROI: 25 to 135× in year one. AI vehicle photography is no longer a nice-to-have. It is table stakes for dealerships that want to move inventory fast and at the best price. If you are still using lot photos, you are leaving $10,000–$50,000 per month on the table in recovered inventory margin.",
+      },
+    ],
+    cta: {
+      text: "Generate AI Photos for Your Inventory",
+      description:
+        "Pick any vehicle on your lot and see how it looks in a premium showroom. Free 7-day trial.",
+    },
+  },
+  {
     slug: "social-media-marketing-car-dealerships",
     title: "The Complete Guide to Social Media Marketing for Car Dealerships",
     description:
