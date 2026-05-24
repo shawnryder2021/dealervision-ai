@@ -57,8 +57,62 @@ export interface Dealership {
    * - branded: replace the plate with a clean plate showing the dealership name
    */
   plate_inlay_mode?: "off" | "blur" | "branded";
+  /** Per-dealership config for the embeddable conversion widgets (chat / trade-in / booking). */
+  widget_settings?: WidgetSettings;
   created_at: string;
   updated_at: string;
+}
+
+/** Config for the embeddable conversion widgets, stored on `dealerships.widget_settings` (JSONB). */
+export interface WidgetSettings {
+  /** Master toggle per widget. Undefined is treated as enabled. */
+  chat_enabled?: boolean;
+  trade_in_enabled?: boolean;
+  booking_enabled?: boolean;
+  /** First message the AI chat greets visitors with. */
+  chat_greeting?: string;
+}
+
+/** Where a lead originated. Extensible — widgets add new sources. */
+export type LeadSource =
+  | "landing_page"
+  | "chat_widget"
+  | "trade_in"
+  | "test_drive"
+  | "api";
+
+export interface Lead {
+  id: string;
+  dealership_id: string;
+  landing_page_id: string | null;
+  landing_page_title: string | null;
+  name: string;
+  email: string;
+  phone: string | null;
+  message: string | null;
+  vehicle_interest: string | null;
+  source: LeadSource | string;
+  /** Structured per-source payload (trade details, chat summary, requested slot). */
+  metadata?: Record<string, unknown>;
+  read_at: string | null;
+  created_at: string;
+}
+
+export type AppointmentStatus = "requested" | "confirmed" | "completed" | "cancelled";
+
+export interface Appointment {
+  id: string;
+  dealership_id: string;
+  lead_id: string | null;
+  vehicle_id: string | null;
+  customer_name: string;
+  email: string;
+  phone: string | null;
+  /** ISO timestamp of the requested test-drive slot. */
+  requested_at: string;
+  status: AppointmentStatus;
+  notes: string | null;
+  created_at: string;
 }
 
 export interface Profile {

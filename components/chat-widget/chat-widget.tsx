@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -58,6 +59,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
 }
 
 export function ChatWidget() {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -224,6 +226,11 @@ export function ChatWidget() {
     };
 
     setTimeout(poll, 3000);
+  }
+
+  // Don't render the marketing assistant inside embeddable widgets or the public showroom display.
+  if (pathname?.startsWith('/embed') || pathname?.startsWith('/display')) {
+    return null;
   }
 
   return (

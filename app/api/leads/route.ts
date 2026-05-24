@@ -12,7 +12,18 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { dealership_id, landing_page_id, landing_page_title, name, email, phone, message, vehicle_interest } = body;
+    const {
+      dealership_id,
+      landing_page_id,
+      landing_page_title,
+      name,
+      email,
+      phone,
+      message,
+      vehicle_interest,
+      source,
+      metadata,
+    } = body;
 
     if (!dealership_id || !name || !email) {
       return NextResponse.json({ error: "Missing required fields: dealership_id, name, email" }, { status: 400 });
@@ -23,6 +34,10 @@ export async function POST(request: NextRequest) {
     if (!emailRegex.test(email)) {
       return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
     }
+
+    // Whitelist of accepted lead sources; default to landing_page for backward compatibility.
+    const ALLOWED_SOURCES = ["landing_page", "chat_widget", "trade_in", "test_drive", "api"];
+    const leadSource = ALLOWED_SOURCES.includes(source) ? source : "landing_page";
 
     // Use service role to bypass RLS for public submission
     const adminSupabase = await createServiceClient();
@@ -37,7 +52,8 @@ export async function POST(request: NextRequest) {
         phone: phone?.trim() || null,
         message: message?.trim() || null,
         vehicle_interest: vehicle_interest?.trim() || null,
-        source: "landing_page",
+        source: leadSource,
+        metadata: metadata && typeof metadata === "object" ? metadata : {},
       })
       .select("id")
       .single();

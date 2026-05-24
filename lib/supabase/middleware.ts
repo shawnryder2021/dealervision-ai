@@ -55,7 +55,9 @@ export async function updateSession(request: NextRequest) {
     "/api/onboard",
     "/api/auth/",
     "/api/leads",
+    "/api/widget/",
     "/landing/",
+    "/embed",
     "/p/",
     "/resources",
   ];

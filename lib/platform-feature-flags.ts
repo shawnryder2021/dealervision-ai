@@ -26,6 +26,7 @@ export const FEATURE_FLAG_KEYS = [
   "showroomTv",
   "canvasEditor",
   "multiAngleGallery",
+  "conversionWidgets",
 ] as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[number];
@@ -59,6 +60,7 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   showroomTv: true,
   canvasEditor: true,
   multiAngleGallery: true,
+  conversionWidgets: true,
 };
 
 export const FEATURE_FLAG_LABELS: Record<FeatureFlagKey, string> = {
@@ -89,6 +91,7 @@ export const FEATURE_FLAG_LABELS: Record<FeatureFlagKey, string> = {
   showroomTv: "Showroom TV Mode",
   canvasEditor: "Design Studio (Canvas)",
   multiAngleGallery: "Multi-Angle Gallery",
+  conversionWidgets: "Conversion Widgets",
 };
 
 export function normalizeFeatureFlags(raw: unknown): FeatureFlags {

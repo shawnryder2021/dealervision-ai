@@ -20,9 +20,18 @@ interface Lead {
   vehicle_interest: string | null;
   landing_page_title: string | null;
   source: string;
+  metadata: Record<string, unknown> | null;
   read_at: string | null;
   created_at: string;
 }
+
+const SOURCE_LABELS: Record<string, { label: string; cls: string }> = {
+  landing_page: { label: "Landing Page", cls: "bg-slate-500/10 text-slate-600" },
+  chat_widget: { label: "Website Chat", cls: "bg-violet-500/10 text-violet-600" },
+  trade_in: { label: "Trade-In", cls: "bg-emerald-500/10 text-emerald-600" },
+  test_drive: { label: "Test Drive", cls: "bg-blue-500/10 text-blue-600" },
+  api: { label: "API", cls: "bg-slate-500/10 text-slate-600" },
+};
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -140,11 +149,17 @@ export default function LeadsPage() {
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1.5">
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                       <p className="font-semibold text-sm">{lead.name}</p>
                       {!lead.read_at && (
                         <Badge className="text-[10px] bg-primary/10 text-primary px-1.5 py-0">New</Badge>
                       )}
+                      {(() => {
+                        const s = SOURCE_LABELS[lead.source];
+                        return s ? (
+                          <Badge className={`text-[10px] px-1.5 py-0 ${s.cls}`}>{s.label}</Badge>
+                        ) : null;
+                      })()}
                       {lead.landing_page_title && (
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                           {lead.landing_page_title}
@@ -175,6 +190,24 @@ export default function LeadsPage() {
                         <MessageSquare className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                         {lead.message}
                       </p>
+                    )}
+                    {lead.source === "trade_in" && lead.metadata && (
+                      <div className="mt-2 rounded-md bg-emerald-500/5 border border-emerald-500/15 p-2 text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">Trade-in:</span>{" "}
+                        {String(lead.metadata.trade_year ?? "")} {String(lead.metadata.trade_make ?? "")}{" "}
+                        {String(lead.metadata.trade_model ?? "")} · {String(lead.metadata.trade_mileage ?? "?")} mi ·{" "}
+                        {String(lead.metadata.trade_condition ?? "")}
+                        {lead.metadata.estimate_low != null && (
+                          <> · est. ${Number(lead.metadata.estimate_low).toLocaleString()}–$
+                            {Number(lead.metadata.estimate_high).toLocaleString()}</>
+                        )}
+                      </div>
+                    )}
+                    {lead.source === "chat_widget" && typeof lead.metadata?.transcript === "string" && (
+                      <details className="mt-2 text-xs text-muted-foreground">
+                        <summary className="cursor-pointer font-medium text-foreground">Chat transcript</summary>
+                        <pre className="mt-1 whitespace-pre-wrap rounded-md bg-muted p-2">{lead.metadata.transcript}</pre>
+                      </details>
                     )}
                   </div>
 

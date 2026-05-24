@@ -39,6 +39,8 @@ import {
   Columns3,
   Palette,
   Camera,
+  CalendarClock,
+  Code2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -82,6 +84,7 @@ const navSections: Array<{ label?: string; items: NavItem[] }> = [
       { href: "/dashboard/vehicles", label: "Vehicles", icon: Car },
       { href: "/dashboard/inventory-aging", label: "Inventory Aging", icon: Clock, featureKey: "inventoryAging" },
       { href: "/dashboard/leads", label: "Leads", icon: Users, featureKey: "leads" },
+      { href: "/dashboard/appointments", label: "Appointments", icon: CalendarClock, featureKey: "conversionWidgets" },
       { href: "/dashboard/lead-reply", label: "Lead Reply", icon: MessageCircle, featureKey: "leadReply" },
       { href: "/dashboard/review-reply", label: "Review Reply", icon: Star, featureKey: "reviewReply" },
       { href: "/dashboard/salespeople", label: "Salespeople", icon: UserCircle, featureKey: "salespeople" },
@@ -100,6 +103,7 @@ const bottomItems: NavItem[] = [
   { href: "/dashboard/usage", label: "Usage", icon: BarChart3, featureKey: "usage" },
   { href: "/dashboard/settings/billing", label: "Billing", icon: CreditCard, featureKey: "billing" },
   { href: "/dashboard/settings/social-accounts", label: "Social Accounts", icon: Share2, featureKey: "socialAccounts" },
+  { href: "/dashboard/settings/widgets", label: "Website Widgets", icon: Code2, featureKey: "conversionWidgets" },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
