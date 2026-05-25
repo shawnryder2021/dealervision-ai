@@ -27,6 +27,7 @@ export const FEATURE_FLAG_KEYS = [
   "canvasEditor",
   "multiAngleGallery",
   "conversionWidgets",
+  "vehicleDescriptions",
 ] as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[number];
@@ -61,6 +62,7 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   canvasEditor: true,
   multiAngleGallery: true,
   conversionWidgets: true,
+  vehicleDescriptions: true,
 };
 
 export const FEATURE_FLAG_LABELS: Record<FeatureFlagKey, string> = {
@@ -92,6 +94,7 @@ export const FEATURE_FLAG_LABELS: Record<FeatureFlagKey, string> = {
   canvasEditor: "Design Studio (Canvas)",
   multiAngleGallery: "Multi-Angle Gallery",
   conversionWidgets: "Conversion Widgets",
+  vehicleDescriptions: "Vehicle Descriptions",
 };
 
 export function normalizeFeatureFlags(raw: unknown): FeatureFlags {

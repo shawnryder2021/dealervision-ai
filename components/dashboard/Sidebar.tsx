@@ -41,6 +41,7 @@ import {
   Camera,
   CalendarClock,
   Code2,
+  PenLine,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,7 @@ const navSections: Array<{ label?: string; items: NavItem[] }> = [
     label: "Create",
     items: [
       { href: "/dashboard/create", label: "Generate", icon: Wand2 },
+      { href: "/dashboard/descriptions", label: "Descriptions", icon: PenLine, featureKey: "vehicleDescriptions" },
       { href: "/dashboard/canvas", label: "Design Studio", icon: Palette, featureKey: "canvasEditor" },
       { href: "/dashboard/campaigns", label: "Campaigns", icon: Sparkles, featureKey: "campaigns" },
       { href: "/dashboard/chat", label: "AI Assistant", icon: MessageSquare, featureKey: "aiAssistant" },
