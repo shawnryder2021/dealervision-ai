@@ -5,6 +5,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { cleanGeneratedText } from "@/lib/clean-generated-text";
 
 const KIE_CHAT_URL = "https://api.kie.ai/gpt-5-2/v1/chat/completions";
 
@@ -78,8 +79,8 @@ ${TONE_INSTRUCTIONS[tone]}
 RULES
 - Use ONLY the facts provided. Never invent specifications, mileage, pricing, MPG, awards, warranty terms, or features that are not given.
 ${includePrice ? "- You may reference the price naturally if it helps the pitch." : "- Do NOT mention any specific price or payment."}
-- Write natural, ready-to-publish prose. No markdown headings, no bullet lists unless it reads naturally, no placeholder text.
-- Do not include a subject line or any meta commentary — output only the description text.`;
+- Write natural, ready-to-publish prose in PLAIN TEXT. Do NOT use Markdown — no **asterisks**, no _underscores_, no # headers, no backticks, and no "- " bullet markers.
+- Do not wrap the text in quotation marks, and do not include a subject line, label, or any meta commentary — output only the description text.`;
 
     const userPrompt = `VEHICLE & DEALERSHIP FACTS:
 ${facts.join("\n")}
@@ -105,7 +106,7 @@ Write the ${format} description now.`;
 
     const data = await res.json();
     const description: string = data.choices?.[0]?.message?.content ?? "";
-    return NextResponse.json({ description: description.trim(), format });
+    return NextResponse.json({ description: cleanGeneratedText(description), format });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to generate description";
     return NextResponse.json({ error: message }, { status: 500 });

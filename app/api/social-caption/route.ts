@@ -5,6 +5,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { cleanGeneratedText } from "@/lib/clean-generated-text";
 
 const KIE_CHAT_URL = "https://api.kie.ai/gpt-5-2/v1/chat/completions";
 
@@ -59,7 +60,8 @@ ${includeEmoji ? "A few tasteful emoji are encouraged." : "Do NOT use any emoji.
 RULES
 - Base the post ONLY on the facts in the provided description and dealership context. Never invent specs, pricing, or features.
 - Keep the dealership's brand voice.
-- Output ONLY the caption text — no labels, no quotes, no commentary.`;
+- Output PLAIN TEXT only. Do NOT use any Markdown — no **asterisks**, no _underscores_, no # headers, no backticks, and no "- " bullet markers.
+- Do NOT wrap the caption in quotation marks and do NOT add any label, preamble, or commentary. Output ONLY the caption itself.`;
 
     const userPrompt = `SOURCE DESCRIPTION:
 """
@@ -90,7 +92,7 @@ Write the ${platform} caption now.`;
 
     const data = await res.json();
     const caption: string = data.choices?.[0]?.message?.content ?? "";
-    return NextResponse.json({ caption: caption.trim(), platform });
+    return NextResponse.json({ caption: cleanGeneratedText(caption), platform });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to generate caption";
     return NextResponse.json({ error: message }, { status: 500 });
