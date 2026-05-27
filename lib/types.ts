@@ -207,6 +207,12 @@ export interface GenerateRequest {
   scene_location?: string;
   /** Reference image URLs (user-uploaded photos). Logo URL is added automatically server-side. */
   image_input?: string[];
+  /**
+   * A user-uploaded base photo to build the piece ON. When set, generation runs
+   * through the image-edit pipeline: the actual photo is preserved and marketing
+   * text/branding/styling is overlaid on top, rather than generating from scratch.
+   */
+  source_image_url?: string;
   /** Inline vehicle data when the user picked a "preset:" common model not in their DB. */
   inline_vehicle?: {
     year?: number;

@@ -75,6 +75,8 @@ export default function GenerateTypePage() {
   const [customPrompt, setCustomPrompt] = useState("");
   const [campaign, setCampaign] = useState("");
   const [referencePhotos, setReferencePhotos] = useState<{ url: string; display_url: string; thumbnail_url: string }[]>([]);
+  // A single uploaded base photo to build the piece ON (edit pipeline preserves it + overlays marketing).
+  const [baseImage, setBaseImage] = useState<{ url: string; display_url: string; thumbnail_url: string }[]>([]);
   const [includeVehicleYear, setIncludeVehicleYear] = useState<string | undefined>();
   const [includeVehicleModel, setIncludeVehicleModel] = useState<string | undefined>();
   const [sceneLocation, setSceneLocation] = useState<string | undefined>();
@@ -323,7 +325,7 @@ export default function GenerateTypePage() {
         const aspectRatio = getAspectRatioForChannel(channel);
         const resolution = getResolutionForChannel(channel);
 
-        const imageInput = referencePhotos.map((p) => p.url);
+        const imageInput = [...baseImage.map((p) => p.url), ...referencePhotos.map((p) => p.url)];
 
         const res = await fetch("/api/demo-generate", {
           method: "POST",
@@ -396,6 +398,7 @@ export default function GenerateTypePage() {
           include_vehicle_model: includeVehicleModel,
           scene_location: sceneLocation,
           image_input: prodImageInput.length > 0 ? prodImageInput : undefined,
+          source_image_url: baseImage[0]?.url || undefined,
         }),
       });
 
@@ -880,6 +883,21 @@ export default function GenerateTypePage() {
 
               <Separator />
 
+              {/* Base Image — build the piece ON the uploaded photo (edit pipeline) */}
+              <ImageUploader
+                value={baseImage}
+                onChange={setBaseImage}
+                maxFiles={1}
+                label="Use Your Own Image (Optional)"
+              />
+              <p className="text-xs text-muted-foreground -mt-2">
+                {baseImage.length > 0
+                  ? "Your photo will be kept as the base — we'll overlay the marketing text, branding, and styling on top of it."
+                  : "Upload a photo to build this piece on. We'll keep your actual photo and overlay marketing text & branding — instead of generating a new image from scratch."}
+              </p>
+
+              <Separator />
+
               {/* Reference Photo Upload */}
               <ImageUploader
                 value={referencePhotos}
@@ -888,7 +906,7 @@ export default function GenerateTypePage() {
                 label="Reference Photos (Optional)"
               />
               <p className="text-xs text-muted-foreground -mt-2">
-                Upload actual vehicle photos as reference for AI generation
+                Guide a from-scratch generation — the AI recreates the vehicle using these as a visual reference.
               </p>
 
               <Separator />

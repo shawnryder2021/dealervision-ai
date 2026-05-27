@@ -599,3 +599,19 @@ export function getResolutionForChannel(channelId: string): string {
   const channel = CHANNEL_PRESETS.find((c) => c.id === channelId);
   return channel?.resolution || "1K";
 }
+
+/**
+ * Wrap a standard marketing prompt for the image-EDIT pipeline, where the user
+ * supplied their own base photo. The model must preserve the real photo's
+ * subject (the actual vehicle) and add marketing treatment + text on top —
+ * NOT regenerate the vehicle from scratch.
+ */
+export function buildBaseImageEditPrompt(basePrompt: string): string {
+  return [
+    "EDIT THE PROVIDED PHOTOGRAPH. The provided image is the base of this design.",
+    "Preserve the real subject of the photo exactly — keep the actual vehicle's body shape, color, wheels, trim, badges, angle, and condition as they appear. Do NOT replace, redraw, or swap the vehicle for a different one.",
+    "You may tastefully clean up lighting and the background, and you should add a polished marketing treatment as a graphic overlay on top of the photo:",
+    basePrompt,
+    "Render every headline, subheadline, offer, price, and call-to-action as crisp, legible graphic text overlaid on the image. Keep all text exactly as specified — do not invent or alter wording. Produce a professional, on-brand marketing creative built on the provided photo.",
+  ].join("\n\n");
+}

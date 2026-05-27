@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getImageProvider } from "@/lib/image-providers";
 import type { ImageModelOption } from "@/lib/db/image-generation";
-import { buildPrompt, getAspectRatioForChannel, getResolutionForChannel } from "@/lib/prompt-templates";
+import { buildPrompt, buildBaseImageEditPrompt, getAspectRatioForChannel, getResolutionForChannel } from "@/lib/prompt-templates";
 import { checkQuota, incrementUsage } from "@/lib/db/subscriptions";
 import { isSuperAdmin } from "@/lib/db/admin";
 import { findMatchingReferenceImages } from "@/lib/db/reference-vehicles";
@@ -131,12 +131,24 @@ export async function POST(request: NextRequest) {
       scene_location: body.scene_location,
     });
 
+    // A user-uploaded base photo means we EDIT that photo instead of generating
+    // from scratch. Image editing is KIE.ai-only (nano-banana-edit), so when a
+    // base image is supplied we force the KIE model regardless of the dealership
+    // default — this also keeps the status poller's provider selection correct,
+    // since it reads metadata.model.
+    const sourceImageUrl: string | undefined =
+      typeof body.source_image_url === "string" && body.source_image_url.trim()
+        ? body.source_image_url.trim()
+        : undefined;
+    const useBaseImageEdit = !!sourceImageUrl;
+
     // Read image model directly from the already-fetched dealership object.
     // Logo is composited server-side after generation (see image-compositor.ts),
     // so any model works regardless of image_input support.
     const globalDefaultModel = await getGlobalImageModel(supabase);
-    const imageModel: ImageModelOption =
-      (dealership.image_model as ImageModelOption) || globalDefaultModel;
+    const imageModel: ImageModelOption = useBaseImageEdit
+      ? "kie-nano-banana"
+      : (dealership.image_model as ImageModelOption) || globalDefaultModel;
 
     // Create asset record
     const { data: asset, error: assetError } = await supabase
@@ -157,6 +169,9 @@ export async function POST(request: NextRequest) {
           headline: body.headline,
           subheadline: body.subheadline,
           model: imageModel,
+          ...(useBaseImageEdit
+            ? { mode: "edit", source_image_url: sourceImageUrl }
+            : {}),
         },
       })
       .select()
@@ -198,13 +213,22 @@ export async function POST(request: NextRequest) {
       // User refs first (highest priority), then admin refs. Dedupe by URL.
       const imageInput = Array.from(new Set([...userRefs, ...adminRefs]));
 
-      const providerResult = await provider.createImageTask({
-        prompt,
-        aspect_ratio: aspectRatio,
-        resolution,
-        output_format: "png",
-        image_input: imageInput.length > 0 ? imageInput : undefined,
-      });
+      // When the user uploaded a base photo, EDIT it (preserve the real photo,
+      // overlay the marketing treatment) instead of generating from scratch.
+      const providerResult = useBaseImageEdit
+        ? await provider.createEditTask({
+            prompt: buildBaseImageEditPrompt(prompt),
+            image_urls: [sourceImageUrl as string],
+            image_size: aspectRatio,
+            output_format: "png",
+          })
+        : await provider.createImageTask({
+            prompt,
+            aspect_ratio: aspectRatio,
+            resolution,
+            output_format: "png",
+            image_input: imageInput.length > 0 ? imageInput : undefined,
+          });
 
       // Update asset with task ID
       await supabase
