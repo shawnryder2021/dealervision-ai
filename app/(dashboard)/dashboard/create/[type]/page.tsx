@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Wand2, Eye, Loader2, Download, BookmarkPlus } from "lucide-react";
+import { ArrowLeft, Wand2, Eye, Loader2, Download, BookmarkPlus, Plus, Minus, Trash2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { ChannelPicker } from "@/components/create/ChannelPicker";
 import { StyleOptions } from "@/components/create/StyleOptions";
 import { VehicleSelector } from "@/components/create/VehicleSelector";
 import { GenerationPreview } from "@/components/create/GenerationPreview";
+import { AiSuggestButton } from "@/components/create/AiSuggestButton";
 import { EditImageDialog } from "@/components/create/EditImageDialog";
 import { TextOverlayEditor } from "@/components/create/TextOverlayEditor";
 import { ImageUploader } from "@/components/shared/ImageUploader";
@@ -36,6 +37,8 @@ import { MODELS_BY_MAKE } from "@/lib/vehicle-options";
 import { CONTENT_TYPES, CHANNEL_PRESETS } from "@/lib/constants";
 import type { Vehicle, GeneratedAsset } from "@/lib/types";
 import { useWebhook } from "@/lib/use-webhook";
+import { submitAndPollProd, submitAndPollDemo, runPool, QuotaError } from "@/lib/create/run-generation-job";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
 function parsePrice(s: string): number | undefined {
@@ -82,7 +85,12 @@ export default function GenerateTypePage() {
   const [sceneLocation, setSceneLocation] = useState<string | undefined>();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedAsset, setGeneratedAsset] = useState<GeneratedAsset | null>(null);
+  // All generations from this session (the "attempt strip"); the active one drives the dialogs.
+  const [results, setResults] = useState<GeneratedAsset[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  // How many options to produce per channel, and which extra channels to also generate for.
+  const [variations, setVariations] = useState(1);
+  const [extraChannels, setExtraChannels] = useState<string[]>([]);
   const [previewPrompt, setPreviewPrompt] = useState("");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [textEditorOpen, setTextEditorOpen] = useState(false);
@@ -274,40 +282,55 @@ export default function GenerateTypePage() {
     includeVehicleYear, includeVehicleModel, sceneLocation,
   ]);
 
-  async function handleGenerate() {
-    if (!dealership) {
-      toast.error("Please set up your dealership profile first");
-      return;
-    }
+  // Upsert a result into the session strip (insert if new, replace if it exists).
+  const upsertResult = useCallback((asset: GeneratedAsset) => {
+    setResults((prev) => {
+      const i = prev.findIndex((r) => r.id === asset.id);
+      if (i === -1) return [...prev, asset];
+      const next = [...prev];
+      next[i] = asset;
+      return next;
+    });
+  }, []);
 
-    setIsGenerating(true);
-    setGeneratedAsset(null);
+  const activeAsset = useMemo<GeneratedAsset | null>(
+    () => results.find((r) => r.id === activeId) ?? results[results.length - 1] ?? null,
+    [results, activeId]
+  );
 
+  // Resolve the selected vehicle (inventory row, or a synthetic from a preset/manual id).
+  const resolveVehicle = useCallback((): Vehicle | null => {
+    if (!vehicleId) return null;
+    const inv = vehicles.find((v) => v.id === vehicleId);
+    if (inv) return inv;
+    const iv = parseInlineVehicleId(vehicleId);
+    if (!iv) return null;
+    return {
+      id: vehicleId,
+      dealership_id: dealership?.id || "demo",
+      year: iv.year ?? null,
+      make: iv.make,
+      model: iv.model,
+      trim: iv.trim ?? null,
+      price: null, mileage: null, vin: null, stock_number: null,
+      status: "available", photos: [], tags: [], details: {},
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    } as Vehicle;
+  }, [vehicleId, vehicles, dealership?.id]);
+
+  // Run a single generation job for one channel. Appends a card, polls, and
+  // updates it in place. Errors are surfaced via toast; quota stops are signalled.
+  async function runSingleJob(
+    jobChannel: string,
+    setActiveOnce: (id: string) => void,
+    onQuota?: (msg: string) => void
+  ) {
     try {
       if (isDemoMode()) {
-        // Build prompt client-side and call demo API
-        let vehicle: Vehicle | null = vehicleId
-          ? vehicles.find((v) => v.id === vehicleId) ?? null
-          : null;
-        if (!vehicle && vehicleId) {
-          const iv = parseInlineVehicleId(vehicleId);
-          if (iv) {
-            vehicle = {
-              id: vehicleId,
-              dealership_id: dealership?.id || "demo",
-              year: iv.year ?? null,
-              make: iv.make,
-              model: iv.model,
-              trim: iv.trim ?? null,
-              price: null, mileage: null, vin: null, stock_number: null,
-              status: "available", photos: [], tags: [], details: {},
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            } as Vehicle;
-          }
-        }
+        const vehicle = resolveVehicle();
         const prompt = buildPrompt({
-          content_type: contentType, channel, dealership,
+          content_type: contentType, channel: jobChannel, dealership: dealership!,
           vehicle: vehicle || null, headline, subheadline, cta, style,
           event_name: eventName, event_dates: eventDates,
           offer_details: offerDetails, service_offer: serviceOffer,
@@ -321,67 +344,34 @@ export default function GenerateTypePage() {
           include_vehicle_model: includeVehicleModel,
           scene_location: sceneLocation,
         });
-
-        const aspectRatio = getAspectRatioForChannel(channel);
-        const resolution = getResolutionForChannel(channel);
-
+        const aspectRatio = getAspectRatioForChannel(jobChannel);
+        const resolution = getResolutionForChannel(jobChannel);
         const imageInput = [...baseImage.map((p) => p.url), ...referencePhotos.map((p) => p.url)];
-
-        const res = await fetch("/api/demo-generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt,
-            aspect_ratio: aspectRatio,
-            resolution,
-            image_input: imageInput.length > 0 ? imageInput : undefined,
-          }),
-        });
-
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || "Generation failed");
-        }
-
-        const { taskId } = await res.json();
-        const demoAsset: GeneratedAsset = {
-          id: `demo-${Date.now()}`,
-          dealership_id: dealership.id,
-          created_by: null,
-          vehicle_id: vehicleId || null,
-          content_type: contentType,
-          channel,
-          prompt,
-          image_url: null,
-          storage_path: null,
-          aspect_ratio: aspectRatio,
-          resolution,
-          kie_task_id: taskId,
-          status: "processing",
-          metadata: {},
-          is_favorite: false,
-          campaign: campaign || null,
+        const baseAsset: GeneratedAsset = {
+          id: `demo-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          dealership_id: dealership!.id, created_by: null, vehicle_id: vehicleId || null,
+          content_type: contentType, channel: jobChannel, prompt, image_url: null,
+          storage_path: null, aspect_ratio: aspectRatio, resolution, kie_task_id: null,
+          status: "processing", metadata: {}, is_favorite: false, campaign: campaign || null,
           created_at: new Date().toISOString(),
         };
-        setGeneratedAsset(demoAsset);
-        addAsset(demoAsset);
-        pollDemoResult(demoAsset, taskId);
+        const final = await submitAndPollDemo({
+          payload: { prompt, aspect_ratio: aspectRatio, resolution, image_input: imageInput.length > 0 ? imageInput : undefined },
+          baseAsset,
+          onCreated: (a) => { upsertResult(a); addAsset(a); setActiveOnce(a.id); },
+        });
+        upsertResult(final);
+        updateAsset(final.id, final);
+        if (final.status === "completed") fireWebhook(final);
         return;
       }
 
-      const prodImageInput = referencePhotos.map((p) => p.url);
-
-      // A "manual:" / "preset:" id isn't a real DB row — send it as inline data.
       const inlineVehicle = vehicleId ? parseInlineVehicleId(vehicleId) ?? undefined : undefined;
-
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(adminActiveDealership && { "X-Dealership-Id": adminActiveDealership.id }),
-        },
-        body: JSON.stringify({
-          content_type: contentType, channel,
+      const prodImageInput = referencePhotos.map((p) => p.url);
+      const final = await submitAndPollProd({
+        headers: adminActiveDealership ? { "X-Dealership-Id": adminActiveDealership.id } : undefined,
+        body: {
+          content_type: contentType, channel: jobChannel,
           vehicle_id: inlineVehicle ? undefined : vehicleId,
           inline_vehicle: inlineVehicle,
           headline, subheadline, cta, style,
@@ -399,120 +389,76 @@ export default function GenerateTypePage() {
           scene_location: sceneLocation,
           image_input: prodImageInput.length > 0 ? prodImageInput : undefined,
           source_image_url: baseImage[0]?.url || undefined,
-        }),
+        },
+        onCreated: (a) => { upsertResult(a); addAsset(a); setActiveOnce(a.id); },
       });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Generation failed");
+      upsertResult(final);
+      updateAsset(final.id, final);
+      if (final.status === "completed") fireWebhook(final);
+    } catch (err) {
+      if (err instanceof QuotaError) {
+        onQuota?.(err.message);
+      } else {
+        toast.error(err instanceof Error ? err.message : "Generation failed");
       }
-
-      const asset: GeneratedAsset = await res.json();
-      setGeneratedAsset(asset);
-      addAsset(asset);
-      pollForResult(asset.id);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Generation failed";
-      toast.error(message);
-      setIsGenerating(false);
     }
   }
 
-  async function pollDemoResult(asset: GeneratedAsset, taskId: string) {
-    const maxAttempts = 60;
-    let attempts = 0;
+  async function handleGenerate() {
+    if (!dealership) {
+      toast.error("Please set up your dealership profile first");
+      return;
+    }
 
-    const poll = async () => {
-      attempts++;
-      try {
-        const res = await fetch(`/api/demo-generate?taskId=${taskId}`);
-        if (!res.ok) return;
-        const data = await res.json();
+    const effectiveChannels = Array.from(new Set([channel, ...extraChannels]));
+    const jobs: string[] = [];
+    for (const ch of effectiveChannels) {
+      for (let i = 0; i < variations; i++) jobs.push(ch);
+    }
+    if (jobs.length === 0) return;
 
-        if (data.status === "completed" && (data.output?.image_url || data.output?.url)) {
-          const imageUrl = data.output.image_url || data.output.url;
-          const updated = { ...asset, status: "completed" as const, image_url: imageUrl };
-          setGeneratedAsset(updated);
-          updateAsset(asset.id, updated);
-          setIsGenerating(false);
-          toast.success("Visual generated successfully!");
-          fireWebhook(updated);
-          return;
-        }
-
-        if (data.status === "failed") {
-          setGeneratedAsset({ ...asset, status: "failed" });
-          setIsGenerating(false);
-          toast.error("Generation failed. Please try again.");
-          return;
-        }
-
-        if (attempts < maxAttempts) {
-          setTimeout(poll, 3000);
-        } else {
-          setIsGenerating(false);
-          toast.error("Generation timed out.");
-        }
-      } catch {
-        if (attempts < maxAttempts) setTimeout(poll, 5000);
-      }
+    setIsGenerating(true);
+    let firstId: string | null = null;
+    const setActiveOnce = (id: string) => {
+      if (!firstId) { firstId = id; setActiveId(id); }
+    };
+    let quotaHit = false;
+    const onQuota = (msg: string) => {
+      if (!quotaHit) { quotaHit = true; toast.error(msg); }
     };
 
-    setTimeout(poll, 3000);
+    await runPool(jobs, 3, async (jobChannel) => {
+      if (quotaHit) return;
+      await runSingleJob(jobChannel, setActiveOnce, onQuota);
+    });
+
+    setIsGenerating(false);
+    if (!quotaHit) toast.success(jobs.length > 1 ? `Generated ${jobs.length} visuals` : "Visual generated successfully!");
   }
 
-  async function pollForResult(assetId: string) {
-    const maxAttempts = 60;
-    let attempts = 0;
-
-    const poll = async () => {
-      attempts++;
-      try {
-        const res = await fetch(`/api/generate/${assetId}`);
-        if (!res.ok) return;
-
-        const data = await res.json();
-
-        if (data.status === "completed" && data.image_url) {
-          setGeneratedAsset(data);
-          updateAsset(assetId, data);
-          setIsGenerating(false);
-          toast.success("Visual generated successfully!");
-          fireWebhook(data);
-          return;
-        }
-
-        if (data.status === "failed") {
-          setGeneratedAsset(data);
-          updateAsset(assetId, data);
-          setIsGenerating(false);
-          toast.error("Generation failed. Please try again.");
-          return;
-        }
-
-        if (attempts < maxAttempts) {
-          setTimeout(poll, 3000);
-        } else {
-          setIsGenerating(false);
-          toast.error("Generation timed out. Check your library later.");
-        }
-      } catch {
-        if (attempts < maxAttempts) {
-          setTimeout(poll, 5000);
-        }
-      }
-    };
-
-    setTimeout(poll, 3000);
+  // Regenerate adds one more option for the active card's channel (keeps prior attempts).
+  async function handleRegenerate() {
+    if (!dealership) return;
+    const ch = activeAsset?.channel || channel;
+    setIsGenerating(true);
+    await runSingleJob(ch, (id) => setActiveId(id), (msg) => toast.error(msg));
+    setIsGenerating(false);
   }
+
+  const clearResults = () => {
+    setResults([]);
+    setActiveId(null);
+  };
+
+  const totalJobs = Array.from(new Set([channel, ...extraChannels])).length * variations;
 
   async function handleDownload() {
-    if (!generatedAsset?.image_url) return;
+    if (!activeAsset?.image_url) return;
 
     try {
       // The server-side composite already baked the dealership logo into the
       // image_url — download it as-is, no canvas manipulation needed.
-      const proxyUrl = `/api/download-proxy?url=${encodeURIComponent(generatedAsset.image_url)}`;
+      const proxyUrl = `/api/download-proxy?url=${encodeURIComponent(activeAsset.image_url)}`;
       const res = await fetch(proxyUrl);
       if (!res.ok) throw new Error("Download failed");
       const imageBlob = await res.blob();
@@ -525,7 +471,7 @@ export default function GenerateTypePage() {
       URL.revokeObjectURL(url);
     } catch {
       // Last resort: open in new tab
-      window.open(generatedAsset.image_url, "_blank");
+      window.open(activeAsset.image_url, "_blank");
     }
   }
 
@@ -578,6 +524,59 @@ export default function GenerateTypePage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <ChannelPicker value={channel} onChange={setChannel} />
+
+              {/* Also create for — extra channels */}
+              <div className="space-y-2">
+                <Label className="text-sm">Also create for (optional)</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                  {CHANNEL_PRESETS.filter((c) => c.id !== channel).map((c) => {
+                    const checked = extraChannels.includes(c.id);
+                    return (
+                      <label
+                        key={c.id}
+                        className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs cursor-pointer hover:bg-muted/50"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) =>
+                            setExtraChannels((prev) =>
+                              v ? [...prev, c.id] : prev.filter((id) => id !== c.id)
+                            )
+                          }
+                        />
+                        <span className="truncate">{c.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {/* clear extras when the primary changes to avoid a stale dup is handled by the filter above */}
+              </div>
+
+              {/* Variations */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm">Variations per channel</Label>
+                  <p className="text-xs text-muted-foreground">Generate several options to choose from.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button" size="icon" variant="outline" className="h-7 w-7"
+                    onClick={() => setVariations((v) => Math.max(1, v - 1))}
+                    disabled={variations <= 1}
+                  >
+                    <Minus className="h-3.5 w-3.5" />
+                  </Button>
+                  <span className="w-6 text-center text-sm font-medium">{variations}</span>
+                  <Button
+                    type="button" size="icon" variant="outline" className="h-7 w-7"
+                    onClick={() => setVariations((v) => Math.min(4, v + 1))}
+                    disabled={variations >= 4}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+
               <Separator />
               <StyleOptions value={style} onChange={setStyle} />
             </CardContent>
@@ -745,30 +744,66 @@ export default function GenerateTypePage() {
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Label>Headline</Label>
+                    <div className="flex items-center justify-between">
+                      <Label>Headline</Label>
+                      <AiSuggestButton
+                        kind="headline"
+                        dealership={dealership}
+                        vehicle={resolveVehicle()}
+                        goal={typeInfo?.name || "Promote this vehicle"}
+                        onPick={setHeadline}
+                      />
+                    </div>
                     <Input
                       placeholder="Enter your main headline..."
                       value={headline}
                       onChange={(e) => setHeadline(e.target.value)}
                     />
+                    {headline && (
+                      <p className="text-[11px] text-muted-foreground text-right">{headline.length} chars</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Subheadline</Label>
+                    <div className="flex items-center justify-between">
+                      <Label>Subheadline</Label>
+                      <AiSuggestButton
+                        kind="subheadline"
+                        dealership={dealership}
+                        vehicle={resolveVehicle()}
+                        goal={typeInfo?.name || "Promote this vehicle"}
+                        onPick={setSubheadline}
+                      />
+                    </div>
                     <Input
                       placeholder="Supporting text..."
                       value={subheadline}
                       onChange={(e) => setSubheadline(e.target.value)}
                     />
+                    {subheadline && (
+                      <p className="text-[11px] text-muted-foreground text-right">{subheadline.length} chars</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Call to Action</Label>
+                    <div className="flex items-center justify-between">
+                      <Label>Call to Action</Label>
+                      <AiSuggestButton
+                        kind="cta"
+                        dealership={dealership}
+                        vehicle={resolveVehicle()}
+                        goal={typeInfo?.name || "Promote this vehicle"}
+                        onPick={setCta}
+                      />
+                    </div>
                     <Input
                       placeholder='e.g., "Visit Today", "Call Now"'
                       value={cta}
                       onChange={(e) => setCta(e.target.value)}
                     />
+                    {cta && (
+                      <p className="text-[11px] text-muted-foreground text-right">{cta.length} chars</p>
+                    )}
                   </div>
                 </>
               )}
@@ -955,51 +990,97 @@ export default function GenerateTypePage() {
             )}
           </Card>
 
-          <div className="flex gap-2">
-            <Button
-              size="lg"
-              className="flex-1 gradient-primary text-white text-base"
-              onClick={handleGenerate}
-              disabled={isGenerating}
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Wand2 className="h-5 w-5 mr-2" />
-                  Generate Visual
-                </>
-              )}
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={() => setSaveTemplateOpen(true)}
-              title="Save as template"
-            >
-              <BookmarkPlus className="h-5 w-5" />
-            </Button>
+          <div className="space-y-1.5">
+            <div className="flex gap-2">
+              <Button
+                size="lg"
+                className="flex-1 gradient-primary text-white text-base"
+                onClick={handleGenerate}
+                disabled={isGenerating}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-5 w-5 mr-2" />
+                    {totalJobs > 1 ? `Generate ${totalJobs} Visuals` : "Generate Visual"}
+                  </>
+                )}
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => setSaveTemplateOpen(true)}
+                title="Save as template"
+              >
+                <BookmarkPlus className="h-5 w-5" />
+              </Button>
+            </div>
+            {totalJobs > 1 && (
+              <p className="text-[11px] text-muted-foreground text-center">
+                Creates {totalJobs} images · uses {totalJobs} generations
+              </p>
+            )}
           </div>
         </div>
 
         {/* Preview Sidebar */}
         <div className="space-y-4">
-          <h3 className="font-heading font-semibold text-sm">Preview</h3>
-          {(isGenerating || generatedAsset) && (
+          <div className="flex items-center justify-between">
+            <h3 className="font-heading font-semibold text-sm">
+              Preview {results.length > 0 && <span className="text-muted-foreground font-normal">({results.length})</span>}
+            </h3>
+            {results.length > 0 && (
+              <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-muted-foreground" onClick={clearResults}>
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Clear
+              </Button>
+            )}
+          </div>
+
+          {/* Attempt strip — click a thumbnail to make it active */}
+          {results.length > 1 && (
+            <div className="grid grid-cols-4 gap-2">
+              {results.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => setActiveId(r.id)}
+                  className={`relative aspect-square rounded-md overflow-hidden border-2 transition-colors ${
+                    r.id === (activeAsset?.id) ? "border-primary" : "border-transparent hover:border-border"
+                  }`}
+                  title={r.channel.replace(/-/g, " ")}
+                >
+                  {r.image_url ? (
+                    <img src={r.image_url} alt="" className="h-full w-full object-cover" />
+                  ) : r.status === "failed" ? (
+                    <div className="flex h-full w-full items-center justify-center bg-muted">
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                    </div>
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-muted">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {(isGenerating || activeAsset) && (
             <GenerationPreview
-              asset={generatedAsset}
-              isGenerating={isGenerating}
-              onRegenerate={handleGenerate}
+              asset={activeAsset}
+              isGenerating={isGenerating && results.length === 0}
+              onRegenerate={handleRegenerate}
               onDownload={handleDownload}
               onEdit={() => setEditDialogOpen(true)}
               onAddText={() => setTextEditorOpen(true)}
             />
           )}
 
-          {!isGenerating && !generatedAsset && (
+          {!isGenerating && results.length === 0 && (
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Wand2 className="h-10 w-10 text-muted-foreground/30 mb-3" />
@@ -1033,16 +1114,16 @@ export default function GenerateTypePage() {
       </div>
 
       {/* Edit Image Dialog */}
-      {generatedAsset?.image_url && (
+      {activeAsset?.image_url && (
         <EditImageDialog
           open={editDialogOpen}
           onOpenChange={setEditDialogOpen}
-          imageUrl={generatedAsset.image_url}
-          aspectRatio={generatedAsset.aspect_ratio || "1:1"}
+          imageUrl={activeAsset.image_url}
+          aspectRatio={activeAsset.aspect_ratio || "1:1"}
           onEditComplete={(newUrl) => {
-            const updated = { ...generatedAsset, image_url: newUrl };
-            setGeneratedAsset(updated);
-            updateAsset(generatedAsset.id, updated);
+            const updated = { ...activeAsset, image_url: newUrl };
+            upsertResult(updated);
+            updateAsset(activeAsset.id, updated);
             toast.success("Image updated with edits!");
             fireWebhook(updated, "image.edited");
           }}
@@ -1050,15 +1131,15 @@ export default function GenerateTypePage() {
       )}
 
       {/* Text Overlay Editor */}
-      {generatedAsset?.image_url && (
+      {activeAsset?.image_url && (
         <TextOverlayEditor
           open={textEditorOpen}
           onOpenChange={setTextEditorOpen}
-          imageUrl={generatedAsset.image_url}
+          imageUrl={activeAsset.image_url}
           onSave={(dataUrl) => {
-            const updated = { ...generatedAsset, image_url: dataUrl };
-            setGeneratedAsset(updated);
-            updateAsset(generatedAsset.id, updated);
+            const updated = { ...activeAsset, image_url: dataUrl };
+            upsertResult(updated);
+            updateAsset(activeAsset.id, updated);
             toast.success("Text overlay applied!");
           }}
         />
