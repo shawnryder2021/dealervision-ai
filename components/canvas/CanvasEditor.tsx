@@ -35,12 +35,20 @@ interface Props {
   showGrid?: boolean;
   showSafeArea?: boolean;
   showThirds?: boolean;
+  /** Flips true once web fonts finish loading; triggers a redraw so text reflows from fallback. */
+  fontsReady?: boolean;
+  /** Double-clicking a text element calls this with its id (page renders the edit overlay). */
+  onEditText?: (id: string) => void;
+  /** Id of the text element currently being edited inline — hidden here so the overlay isn't doubled. */
+  editingId?: string | null;
 }
 
 type CommonHandlers = {
   draggable: boolean;
   onMouseDown: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   onTouchStart: (e: Konva.KonvaEventObject<TouchEvent>) => void;
+  onDblClick?: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+  onDblTap?: (e: Konva.KonvaEventObject<TouchEvent>) => void;
   onDragMove?: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onTransformEnd: (e: Konva.KonvaEventObject<Event>) => void;
@@ -50,9 +58,14 @@ interface BuildHandlersCtx {
   onSelect: (id: string, additive?: boolean) => void;
   updateEl: (id: string, patch: Partial<CanvasElement>) => void;
   onDragMove?: (e: Konva.KonvaEventObject<DragEvent>, el: CanvasElement) => void;
+  onEditText?: (id: string) => void;
 }
 
 function buildHandlers(el: CanvasElement, ctx: BuildHandlersCtx): CommonHandlers {
+  const editText =
+    el.type === "text" && ctx.onEditText && !el.locked
+      ? () => ctx.onEditText!(el.id)
+      : undefined;
   return {
     draggable: !el.locked,
     onMouseDown: (e) => {
@@ -64,6 +77,18 @@ function buildHandlers(el: CanvasElement, ctx: BuildHandlersCtx): CommonHandlers
       e.cancelBubble = true;
       ctx.onSelect(el.id);
     },
+    onDblClick: editText
+      ? (e) => {
+          e.cancelBubble = true;
+          editText();
+        }
+      : undefined,
+    onDblTap: editText
+      ? (e) => {
+          e.cancelBubble = true;
+          editText();
+        }
+      : undefined,
     onDragMove: (e) => ctx.onDragMove?.(e, el),
     onDragEnd: (e) => {
       ctx.updateEl(el.id, { x: e.target.x(), y: e.target.y() });
@@ -288,13 +313,26 @@ export default function CanvasEditor({
   showGrid = false,
   showSafeArea = false,
   showThirds = false,
+  fontsReady = false,
+  onEditText,
+  editingId = null,
 }: Props) {
   const layerRef = useRef<Konva.Layer | null>(null);
   const trRef = useRef<Konva.Transformer | null>(null);
   const [guides, setGuides] = useState<Guide[]>([]);
 
   const merged = useMemo(() => applyMergeTags(elements, vehicle, dealership), [elements, vehicle, dealership]);
-  const visibleEls = useMemo(() => merged.filter((el) => el.visible !== false), [merged]);
+  const visibleEls = useMemo(
+    () => merged.filter((el) => el.visible !== false && el.id !== editingId),
+    [merged, editingId]
+  );
+
+  // Once web fonts finish loading, force a redraw so text rendered with a
+  // fallback font re-measures and repaints with the real font.
+  useEffect(() => {
+    if (!fontsReady) return;
+    layerRef.current?.getStage()?.batchDraw();
+  }, [fontsReady]);
 
   useEffect(() => {
     const tr = trRef.current;
@@ -369,6 +407,7 @@ export default function CanvasEditor({
     onSelect,
     updateEl,
     onDragMove: handleDragMove,
+    onEditText,
   };
 
   return (

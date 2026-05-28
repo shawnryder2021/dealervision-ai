@@ -39,7 +39,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAppStore } from "@/lib/store";
-import { CANVAS_SIZE_PRESETS, newId, type CanvasElement, type Design } from "@/lib/canvas/types";
+import { CANVAS_SIZE_PRESETS, newId, type CanvasElement, type Design, type TextElement } from "@/lib/canvas/types";
+import { loadCanvasFonts } from "@/lib/canvas/fonts";
 import { Toolbar } from "@/components/canvas/Toolbar";
 import { PropertyPanel } from "@/components/canvas/PropertyPanel";
 import { BadgePicker } from "@/components/canvas/BadgePicker";
@@ -95,6 +96,9 @@ export default function CanvasEditorPage() {
   const stageRef = useRef<Konva.Stage | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [stageScale, setStageScale] = useState(1);
+  const [fontsReady, setFontsReady] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const historyRef = useRef<Design[]>([]);
   const futureRef = useRef<Design[]>([]);
@@ -194,6 +198,17 @@ export default function CanvasEditorPage() {
       })
       .finally(() => setLoading(false));
   }, [id, isNew, searchParams, dealership]);
+
+  // Load the canvas web fonts so on-screen text (and exports) match the picker.
+  useEffect(() => {
+    let active = true;
+    loadCanvasFonts().then(() => {
+      if (active) setFontsReady(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const fit = () => {
@@ -422,6 +437,9 @@ export default function CanvasEditorPage() {
     try {
       if (!designId) await save("draft");
       const finalId = designId || (design.id as string | undefined);
+      // Make sure web fonts are fully loaded so the baked PNG uses them, not a fallback.
+      await loadCanvasFonts();
+      stageRef.current.batchDraw();
       let dataUrl: string;
       try {
         dataUrl = stageRef.current.toDataURL({ pixelRatio: 2 });
@@ -743,7 +761,7 @@ export default function CanvasEditorPage() {
         </div>
 
         <div ref={containerRef} className="flex-1 flex items-center justify-center overflow-hidden">
-          <div className="shadow-xl">
+          <div className="shadow-xl relative">
             <CanvasEditor
               width={design.canvasWidth}
               height={design.canvasHeight}
@@ -759,7 +777,74 @@ export default function CanvasEditorPage() {
               showGrid={showGrid}
               showSafeArea={showSafe}
               showThirds={showThirds}
+              fontsReady={fontsReady}
+              onEditText={setEditingId}
+              editingId={editingId}
             />
+            {editingId && (() => {
+              const el = design.elements.find((e) => e.id === editingId);
+              if (!el || el.type !== "text") return null;
+              const t = el as TextElement;
+              const finish = (value: string | null) => {
+                const targetId = editingId;
+                // Only write (and create an undo step) when the text actually changed.
+                if (value !== null && value !== t.text) {
+                  setDesign((d) => ({
+                    ...d,
+                    elements: d.elements.map((e) =>
+                      e.id === targetId ? ({ ...e, text: value } as CanvasElement) : e
+                    ),
+                  }));
+                }
+                setEditingId(null);
+              };
+              return (
+                <textarea
+                  ref={editTextareaRef}
+                  autoFocus
+                  defaultValue={t.text}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onBlur={(e) => finish(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      e.currentTarget.blur(); // triggers onBlur → single commit
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      // Prevent the blur handler from also committing.
+                      e.currentTarget.value = t.text;
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  style={{
+                    position: "absolute",
+                    left: t.x * stageScale,
+                    top: t.y * stageScale,
+                    width: Math.max(20, t.width * stageScale),
+                    height: Math.max(20, t.height * stageScale),
+                    fontFamily: t.fontFamily,
+                    fontSize: t.fontSize * stageScale,
+                    fontWeight: t.fontStyle.includes("bold") ? 700 : 400,
+                    fontStyle: t.fontStyle.includes("italic") ? "italic" : "normal",
+                    color: t.fill,
+                    textAlign: t.align,
+                    lineHeight: String(t.lineHeight ?? 1.1),
+                    letterSpacing: t.letterSpacing ? `${t.letterSpacing * stageScale}px` : undefined,
+                    textTransform: t.uppercase ? "uppercase" : "none",
+                    transform: t.rotation ? `rotate(${t.rotation}deg)` : undefined,
+                    transformOrigin: "top left",
+                    background: "transparent",
+                    border: "1px dashed var(--primary, #6d28d9)",
+                    outline: "none",
+                    resize: "none",
+                    overflow: "hidden",
+                    padding: 0,
+                    margin: 0,
+                    zIndex: 20,
+                  }}
+                />
+              );
+            })()}
           </div>
         </div>
       </div>
