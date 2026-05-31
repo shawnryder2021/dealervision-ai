@@ -169,6 +169,7 @@ export async function checkQuota(
 
   if (!isActiveSubscription(sub)) {
     // No active subscription — check if they have allocated credits instead
+    // (Free trial users get 25 credits at signup — this path serves them)
     const { getCreditBalanceAdmin } = await import("@/lib/db/credits");
     const credits = await getCreditBalanceAdmin(dealershipId);
     if (credits && credits.balance > 0) {
@@ -184,7 +185,7 @@ export async function checkQuota(
     }
     return {
       allowed: false,
-      reason: "No active subscription or available credits. Please subscribe or contact your account manager.",
+      reason: "You've used all your free credits. Upgrade to Pro for unlimited image generation.",
       used: 0,
       limit: 0,
       percentUsed: 100,
@@ -197,13 +198,8 @@ export async function checkQuota(
     return { allowed: true, used: 0, limit: null, percentUsed: 0 };
   }
 
-  const limitMap = {
-    assets_generated: plan.limits.assetsPerMonth,
-    landing_pages_created: plan.limits.pagesPerMonth,
-    social_posts_published: plan.limits.postsPerMonth,
-  };
-
-  const limit = limitMap[resource];
+  // Pro plan is unlimited — always allow
+  const limit = plan.limits.assetsPerMonth;
   const used = usage[resource];
 
   if (limit === null) {
@@ -215,7 +211,7 @@ export async function checkQuota(
   if (used >= limit) {
     return {
       allowed: false,
-      reason: `Monthly ${resource.replace(/_/g, " ")} limit of ${limit} reached. Upgrade your plan for more.`,
+      reason: `Monthly image generation limit of ${limit} reached. Upgrade to Pro for unlimited generations.`,
       used,
       limit,
       percentUsed: 100,

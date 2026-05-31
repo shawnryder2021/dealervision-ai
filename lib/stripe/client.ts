@@ -3,7 +3,7 @@
  * Only import this from server-side code (API routes, server actions).
  */
 import Stripe from "stripe";
-export { PLANS, getPlanByPriceId, getPlanBySlug } from "@/lib/stripe/plans";
+export { PLANS, FREE_TRIAL, PRO_PLAN, getPlanByPriceId, getPlanBySlug } from "@/lib/stripe/plans";
 export type { PlanConfig } from "@/lib/stripe/plans";
 
 // Singleton pattern to avoid creating multiple instances

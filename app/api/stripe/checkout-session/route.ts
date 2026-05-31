@@ -7,7 +7,7 @@
  * Returns: { url: string }  — redirect the user to this URL
  */
 import { NextRequest, NextResponse } from "next/server";
-import { getStripe, PLANS } from "@/lib/stripe/client";
+import { getStripe, PLANS, PRO_PLAN } from "@/lib/stripe/client";
 import { getSubscription, upsertSubscription } from "@/lib/db/subscriptions";
 import { createClient } from "@/lib/supabase/server";
 

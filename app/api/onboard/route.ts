@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { applyCoupon } from "@/lib/db/coupons";
+import { grantCredits } from "@/lib/db/credits";
+import { FREE_TRIAL } from "@/lib/stripe/plans";
 
 export async function POST(request: Request) {
   try {
@@ -85,6 +87,19 @@ export async function POST(request: Request) {
         { error: profileError.message || "Failed to create profile" },
         { status: 500 }
       );
+    }
+
+    // Grant free trial credits (25 image generations)
+    try {
+      await grantCredits(
+        dealership.id,
+        FREE_TRIAL.freeCredits ?? 25,
+        "Free trial — welcome credits",
+        "system"
+      );
+    } catch (err) {
+      console.error("[onboard] Failed to grant free trial credits:", err);
+      // Don't fail signup if credit grant fails
     }
 
     // Apply coupon if provided
