@@ -44,12 +44,14 @@ export async function updateSession(request: NextRequest) {
     "/",
     "/login",
     "/signup",
+    "/pricing",
     "/forgot-password",
     "/reset-password",
     "/auth/callback",
   ];
   const publicPrefixes = [
     "/api/webhooks",
+    "/api/stripe/webhooks",
     "/api/demo-generate",
     "/api/vin-decode",
     "/api/onboard",
