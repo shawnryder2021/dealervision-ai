@@ -30,7 +30,7 @@ export interface PlanConfig {
 export const FREE_TRIAL: PlanConfig = {
   name: "Free Trial",
   slug: "free-trial",
-  description: "Try DealerVision AI with 25 free image credits — no card required",
+  description: "Try DealerAdGen AI with 25 free image credits — no card required",
   priceMonthly: 0,
   priceId: "",
   isFree: true,

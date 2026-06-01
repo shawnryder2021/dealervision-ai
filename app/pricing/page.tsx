@@ -68,7 +68,7 @@ function PricingContent() {
       {/* Header */}
       <div className="border-b">
         <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <span className="text-xl font-heading font-bold">DealerVision AI</span>
+          <span className="text-xl font-heading font-bold">DealerAdGen AI</span>
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={() => router.push("/login")}>
               Sign in
@@ -87,7 +87,7 @@ function PricingContent() {
             Start free. Go unlimited when you&apos;re ready.
           </h1>
           <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-            Try DealerVision AI with 25 free image credits — no card required.
+            Try DealerAdGen AI with 25 free image credits — no card required.
             Upgrade to Pro for unlimited AI-powered marketing.
           </p>
           {canceled && (
@@ -222,7 +222,7 @@ function PricingContent() {
         {/* Footer */}
         <div className="border-t border-border/30 pt-8 mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
           <p>
-            &copy; {new Date().getFullYear()} DealerVision AI. All rights reserved.
+            &copy; {new Date().getFullYear()} DealerAdGen AI. All rights reserved.
           </p>
           <p>
             Developed by{" "}

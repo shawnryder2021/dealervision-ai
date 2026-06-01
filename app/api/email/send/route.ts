@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     // Send via Resend
     const fromName = dealership?.name || "DealerAdGen";
-    const fromEmail = process.env.RESEND_FROM_EMAIL || "noreply@dealervisionai.com";
+    const fromEmail = process.env.RESEND_FROM_EMAIL || "noreply@dealeradgen.com";
 
     const sendResults = await Promise.allSettled(
       to.map((recipient) =>

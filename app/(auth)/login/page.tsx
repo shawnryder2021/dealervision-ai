@@ -108,7 +108,7 @@ export default function LoginPage() {
           </div>
           <h1 className="font-heading text-2xl font-bold">Welcome Back</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Sign in to DealerVision AI
+            Sign in to DealerAdGen AI
           </p>
         </div>
 

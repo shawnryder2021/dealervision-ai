@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 
-export const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://dealervisionai.com';
+export const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://dealeradgen.com';
 
 export const siteMetadata = {
   title: 'DealerAdGen AI — AI-Powered Automotive Marketing Platform',

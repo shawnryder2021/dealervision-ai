@@ -25,7 +25,7 @@ export const metadata: Metadata = generateMetadata({
     description: pageMetadata.home.description,
     images: [
       {
-        url: "https://dealervisionai.com/og-image.png",
+        url: "https://dealeradgen.com/og-image.png",
         width: 1200,
         height: 630,
         alt: "DealerAdGen AI - Create dealership marketing visuals with AI",
@@ -36,7 +36,7 @@ export const metadata: Metadata = generateMetadata({
     card: "summary_large_image",
     title: pageMetadata.home.title,
     description: pageMetadata.home.description,
-    images: ["https://dealervisionai.com/og-image.png"],
+    images: ["https://dealeradgen.com/og-image.png"],
   },
 });
 
@@ -45,7 +45,7 @@ const features = [
     icon: Wand2,
     title: "AI Image Generation",
     description:
-      "Generate professional marketing visuals in seconds with Nano Banana 2 AI.",
+      "Generate professional marketing visuals in seconds with advanced AI image generation.",
   },
   {
     icon: Palette,
@@ -57,7 +57,7 @@ const features = [
     icon: Monitor,
     title: "Multi-Channel Ready",
     description:
-      "Auto-optimized for Instagram, Facebook, X, print, email, and 10+ channels.",
+      "Auto-optimized for Instagram, Facebook, X, print, email, and 13 channels total.",
   },
   {
     icon: Car,
@@ -121,7 +121,7 @@ const faqData = [
   {
     question: "What's included in the free trial?",
     answer:
-      "The free trial includes full access to all content types and channels, with a limit of 5 generated assets. Upgrade anytime to unlock unlimited generations.",
+      "The free trial includes 25 image credits with full access to all content types and 13 channels — no credit card required. Upgrade to Pro ($249/month) anytime for unlimited generations.",
   },
 ];
 
@@ -152,6 +152,11 @@ export default function LandingPage() {
             <Link href="/resources">
               <Button variant="ghost" size="sm">
                 Resources
+              </Button>
+            </Link>
+            <Link href="/pricing">
+              <Button variant="ghost" size="sm">
+                Pricing
               </Button>
             </Link>
             <Link href="/login">
@@ -215,7 +220,7 @@ export default function LandingPage() {
             </span>
             <span className="flex items-center gap-1.5">
               <Zap className="h-3.5 w-3.5 text-primary" />
-              Results in under 30 seconds
+              Results in under a minute
             </span>
           </div>
         </div>
@@ -342,7 +347,7 @@ export default function LandingPage() {
             <p className="text-muted-foreground mb-4">
               Still have questions?
             </p>
-            <Link href="mailto:support@dealervisionai.com">
+            <Link href="mailto:support@dealeradgen.com">
               <Button variant="outline">
                 Contact Our Support Team
                 <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
@@ -389,6 +394,9 @@ export default function LandingPage() {
             <div className="flex items-center gap-6 text-xs text-muted-foreground">
               <Link href="/resources" className="hover:text-foreground transition-colors">
                 Resources
+              </Link>
+              <Link href="/pricing" className="hover:text-foreground transition-colors">
+                Pricing
               </Link>
               <Link href="/login" className="hover:text-foreground transition-colors">
                 Sign In

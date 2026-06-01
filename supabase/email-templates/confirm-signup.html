@@ -1,0 +1,80 @@
+<!--
+  DealerAdGen — Confirm Signup email template
+  Paste this into: Supabase Dashboard → Authentication → Emails → "Confirm signup"
+  Keep the {{ .ConfirmationURL }} token exactly as-is — Supabase replaces it.
+-->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confirm your DealerAdGen account</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f2f6fa; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#1a2530;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f2f6fa; padding:32px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px; background-color:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+
+            <!-- Header -->
+            <tr>
+              <td style="background-color:#003366; padding:28px 32px;">
+                <span style="font-size:24px; font-weight:700; color:#ffffff; letter-spacing:-0.3px;">DealerAdGen</span>
+                <div style="font-size:13px; color:#bbd4ee; margin-top:4px;">AI Marketing Built for Car Dealers</div>
+              </td>
+            </tr>
+            <!-- Accent stripe -->
+            <tr><td style="height:4px; background-color:#1e88e5; font-size:0; line-height:0;">&nbsp;</td></tr>
+
+            <!-- Body -->
+            <tr>
+              <td style="padding:36px 32px 8px 32px;">
+                <h1 style="margin:0 0 16px 0; font-size:22px; font-weight:700; color:#003366;">Confirm your account</h1>
+                <p style="margin:0 0 24px 0; font-size:15px; line-height:1.6; color:#5a6b7b;">
+                  Welcome aboard! You're one click away from turning a single phone photo into
+                  showroom-quality marketing across every channel. Confirm your email to activate
+                  your account and your <strong style="color:#1a2530;">25 free image credits</strong>.
+                </p>
+
+                <!-- CTA button -->
+                <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
+                  <tr>
+                    <td align="center" style="border-radius:8px; background-color:#003366;">
+                      <a href="{{ .ConfirmationURL }}"
+                         style="display:inline-block; padding:14px 32px; font-size:15px; font-weight:600; color:#ffffff; text-decoration:none; border-radius:8px;">
+                        Confirm my email &rarr;
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin:0 0 8px 0; font-size:13px; line-height:1.6; color:#5a6b7b;">
+                  Or paste this link into your browser:
+                </p>
+                <p style="margin:0 0 24px 0; font-size:12px; line-height:1.5; word-break:break-all;">
+                  <a href="{{ .ConfirmationURL }}" style="color:#1e88e5; text-decoration:underline;">{{ .ConfirmationURL }}</a>
+                </p>
+
+                <p style="margin:0; font-size:13px; line-height:1.6; color:#9aa7b4;">
+                  If you didn't create a DealerAdGen account, you can safely ignore this email.
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td style="padding:24px 32px 32px 32px; border-top:1px solid #e6edf3;">
+                <p style="margin:0; font-size:12px; line-height:1.6; color:#9aa7b4;">
+                  DealerAdGen &mdash; AI-Powered Automotive Marketing<br />
+                  <a href="https://dealeradgen.com" style="color:#5a6b7b; text-decoration:none;">dealeradgen.com</a>
+                  &nbsp;&middot;&nbsp; Developed by Shawn Ryder Digital
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
