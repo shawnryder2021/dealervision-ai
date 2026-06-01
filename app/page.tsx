@@ -5,16 +5,27 @@ import {
   Car,
   Image,
   Zap,
-  Palette,
   ArrowRight,
-  Star,
   Sparkles,
   Monitor,
+  Clock,
+  Camera,
+  Layers,
+  Shield,
+  BarChart3,
+  Smartphone,
+  PenLine,
+  Megaphone,
+  Check,
+  Rocket,
+  ImageIcon,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { generateMetadata, pageMetadata } from "@/lib/seo/metadata";
-import { softwareAppSchema, faqSchema, generateJsonLd } from "@/lib/seo/schema";
+import { faqSchema, generateJsonLd } from "@/lib/seo/schema";
 
 export const metadata: Metadata = generateMetadata({
   title: pageMetadata.home.title,
@@ -28,7 +39,7 @@ export const metadata: Metadata = generateMetadata({
         url: "https://dealeradgen.com/og-image.png",
         width: 1200,
         height: 630,
-        alt: "DealerAdGen AI - Create dealership marketing visuals with AI",
+        alt: "DealerAdGen AI - AI marketing built for car dealers",
       },
     ],
   },
@@ -40,104 +51,111 @@ export const metadata: Metadata = generateMetadata({
   },
 });
 
-const features = [
+/* ─── Data ──────────────────────────────────────────────────────────────────── */
+
+const stats = [
+  { value: "13", label: "Marketing channels" },
+  { value: "11", label: "Content types" },
+  { value: "35+", label: "Premium backdrops" },
+  { value: "<10 min", label: "Per vehicle" },
+];
+
+const beforeAfter = [
+  { label: "Parking lot", emoji: "📱", sublabel: "Phone snap" },
+  { label: "Urban showroom", emoji: "🏙️", sublabel: "AI-generated" },
+  { label: "Coastal drive", emoji: "🌊", sublabel: "AI-generated" },
+  { label: "Mountain glass", emoji: "🏔️", sublabel: "AI-generated" },
+];
+
+const capabilities = [
   {
-    icon: Wand2,
-    title: "AI Image Generation",
-    description:
-      "Generate professional marketing visuals in seconds with advanced AI image generation.",
+    icon: Camera,
+    title: "8 Angles from One Photo",
+    desc: "Snap one hero shot → get front, rear, side, 3/4, and detail angles in a premium showroom. Complete VDP photo set.",
   },
   {
-    icon: Palette,
-    title: "Brand Consistency",
-    description:
-      "Every visual automatically incorporates your dealership's brand colors and identity.",
+    icon: Layers,
+    title: "13 Channels, One Click",
+    desc: "Instagram, Facebook, X, email headers, print flyers, YouTube thumbnails, billboards — all sized and formatted automatically.",
   },
   {
-    icon: Monitor,
-    title: "Multi-Channel Ready",
-    description:
-      "Auto-optimized for Instagram, Facebook, X, print, email, and 13 channels total.",
+    icon: PenLine,
+    title: "Design Studio",
+    desc: "Add price badges, \"JUST ARRIVED\" stamps, dealer logos, QR codes, and custom text overlays. Save as reusable templates.",
+  },
+  {
+    icon: Megaphone,
+    title: "AI Copy Assistant",
+    desc: "Generate on-brand headlines, descriptions, and social captions for every vehicle. Click to fill — no blank-page staring.",
+  },
+  {
+    icon: Smartphone,
+    title: "Mobile VIN Scanner",
+    desc: "Point your phone at the VIN barcode. Auto-fills year, make, model, trim. Start generating in seconds from the lot.",
+  },
+  {
+    icon: Shield,
+    title: "Compliance Built In",
+    desc: "OEM co-op rules, state disclaimers, and license plate auto-blur or branded inlay — all handled automatically.",
   },
   {
     icon: Car,
-    title: "Vehicle Inventory",
-    description:
-      "Add your inventory and instantly create spotlight posts, price drops, and more.",
+    title: "Inventory Management",
+    desc: "Import via CSV, URL scrape, or VIN scan. Track aging units. Generate marketing the moment a vehicle hits your lot.",
   },
   {
-    icon: Image,
-    title: "Asset Library",
-    description:
-      "Organize, search, and reuse all your generated marketing visuals.",
+    icon: BarChart3,
+    title: "Lead Capture Widgets",
+    desc: "Embeddable AI chat, trade-in estimator, and test-drive booking widgets for your website — every lead tracked.",
   },
-  {
-    icon: Zap,
-    title: "Smart Prompts",
-    description:
-      "AI-optimized prompt templates for every content type — no design skills needed.",
-  },
-];
-
-const contentTypes = [
-  "Vehicle Spotlight",
-  "Sales Event Banners",
-  "New Arrival Posts",
-  "Price Drop Alerts",
-  "Service Promos",
-  "Financing Offers",
-  "Holiday Greetings",
-  "Testimonials",
-  "Brand Posts",
-  "Custom Designs",
 ];
 
 const faqData = [
   {
-    question: "How does DealerAdGen AI work?",
+    question: "How does it work?",
     answer:
-      "Simply select a content type (vehicle spotlight, price drop, service promo, etc.), choose your channel (Instagram, Facebook, print, etc.), customize with your dealership details, and our AI generates professional marketing visuals in seconds.",
+      "Add a vehicle (scan VIN, import CSV, or type it in), pick a content type and channel, and hit Generate. You get a professional marketing image in under a minute — branded to your dealership, sized for the channel, ready to post.",
   },
   {
     question: "Do I need design skills?",
     answer:
-      "No! DealerAdGen AI is designed for dealers with zero design experience. Everything is template-based and AI-optimized. Just fill in the details and let AI handle the creativity.",
+      "No. Every content type has AI-optimized prompts built in. For custom work, the Design Studio handles text, badges, and overlays with drag-and-drop — no Photoshop required.",
   },
   {
-    question: "What content types are supported?",
+    question: "What channels and sizes are supported?",
     answer:
-      "Vehicle spotlight, price drop alerts, sales event banners, new arrival posts, service promotions, financing offers, holiday greetings, testimonials, brand posts, and more.",
+      "13 channels: Instagram post + story, Facebook post + cover, X post, LinkedIn, YouTube thumbnail, Google Business, email header, website hero, print flyer, print poster, and digital billboard. Each auto-sized to spec.",
   },
   {
-    question: "Which social media channels are supported?",
+    question: "Can I use my own photos?",
     answer:
-      "Instagram posts and stories, Facebook posts and covers, Twitter posts, LinkedIn posts, YouTube thumbnails, Google Business Profile, email headers, website headers, print flyers, and more.",
-  },
-  {
-    question: "Can I download and edit the generated images?",
-    answer:
-      "Yes! All generated images are instantly available in your asset library. You can download them in high-resolution, use them immediately on social media, or refine them with additional generations.",
+      "Yes. Upload any vehicle photo and the AI will swap the background, enhance it, or overlay your marketing graphics. The original vehicle is preserved exactly — same color, wheels, trim.",
   },
   {
     question: "What's included in the free trial?",
     answer:
-      "The free trial includes 25 image credits with full access to all content types and 13 channels — no credit card required. Upgrade to Pro ($249/month) anytime for unlimited generations.",
+      "25 image credits with full access to every feature, content type, and channel. No credit card required. When you're ready, Pro is $249/month for unlimited generations.",
+  },
+  {
+    question: "How is this different from Canva or generic AI tools?",
+    answer:
+      "DealerAdGen is built specifically for car dealers. Every prompt, template, badge, and workflow is automotive-first — VIN scanning, OEM compliance, dealer license plates, inventory integration, lead capture. Generic tools don't know what a VDP is.",
   },
 ];
+
+/* ─── Page ──────────────────────────────────────────────────────────────────── */
 
 export default function LandingPage() {
   const faqSchema_ = faqSchema(faqData);
 
   return (
     <div className="min-h-screen">
-      {/* FAQ Schema for rich snippets */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: generateJsonLd(faqSchema_),
-        }}
+        dangerouslySetInnerHTML={{ __html: generateJsonLd(faqSchema_) }}
       />
-      {/* Nav */}
+
+      {/* ── Nav ────────────────────────────────────────────────────────────── */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 h-16">
           <div className="flex items-center gap-2">
@@ -150,124 +168,150 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-3">
             <Link href="/resources">
-              <Button variant="ghost" size="sm">
-                Resources
-              </Button>
+              <Button variant="ghost" size="sm">Resources</Button>
             </Link>
             <Link href="/pricing">
-              <Button variant="ghost" size="sm">
-                Pricing
-              </Button>
+              <Button variant="ghost" size="sm">Pricing</Button>
             </Link>
             <Link href="/login">
-              <Button variant="ghost" size="sm">
-                Sign In
-              </Button>
+              <Button variant="ghost" size="sm">Sign In</Button>
             </Link>
             <Link href="/signup">
               <Button size="sm" className="gradient-primary text-white">
-                Get Started
-                <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                Start Free <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
               </Button>
             </Link>
           </div>
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="pt-32 pb-20 px-6">
-        <div className="max-w-4xl mx-auto text-center">
+      {/* ── Hero ───────────────────────────────────────────────────────────── */}
+      <section className="pt-28 pb-16 px-6">
+        <div className="max-w-5xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 mb-6">
             <Sparkles className="h-3.5 w-3.5 text-primary" />
             <span className="text-xs font-medium text-primary">
-              Powered by AI Image Generation
+              AI marketing built for car dealers
             </span>
           </div>
 
-          <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
-            Create Stunning Dealership{" "}
-            <span className="text-gradient">Marketing Visuals</span> in Seconds
+          <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1]">
+            Stop losing deals to{" "}
+            <span className="text-gradient">bad lot photos</span>
           </h1>
 
-          <p className="text-lg text-muted-foreground mt-6 max-w-2xl mx-auto leading-relaxed">
-            DealerAdGen AI empowers car dealerships to instantly generate
-            professional marketing materials for social media, websites, print,
-            and more — no design skills required.
+          <p className="text-lg sm:text-xl text-muted-foreground mt-6 max-w-2xl mx-auto leading-relaxed">
+            One phone photo becomes 8 showroom-quality angles, social posts,
+            email headers, and VDP-ready creative — branded to your store,
+            in under 10 minutes. No photographer. No agency.
           </p>
 
-          <div className="flex items-center justify-center gap-4 mt-8">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
             <Link href="/signup">
-              <Button
-                size="lg"
-                className="gradient-primary text-white text-base px-8"
-              >
-                Start Creating Free
+              <Button size="lg" className="gradient-primary text-white text-base px-8 h-12">
+                Start free — 25 image credits
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </Link>
             <Link href="/dashboard?demo">
-              <Button size="lg" variant="outline" className="text-base font-semibold border-accent text-accent hover:bg-accent/10">
-                Try Demo
-                <Sparkles className="h-4 w-4 ml-2" />
+              <Button size="lg" variant="outline" className="text-base h-12 border-accent text-accent hover:bg-accent/10">
+                <Sparkles className="h-4 w-4 mr-2" />
+                Try the live demo
               </Button>
             </Link>
           </div>
 
-          <div className="flex items-center justify-center gap-6 mt-8 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <Star className="h-3.5 w-3.5 text-accent fill-accent" />
-              No design skills needed
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Zap className="h-3.5 w-3.5 text-primary" />
-              Results in under a minute
-            </span>
-          </div>
+          <p className="text-sm text-muted-foreground mt-4">
+            No credit card required · Cancel anytime · $249/mo for unlimited
+          </p>
         </div>
       </section>
 
-      {/* Content Types Ticker */}
-      <section className="py-8 border-y border-border/50 overflow-hidden">
-        <div className="flex gap-8 justify-center flex-wrap">
-          {contentTypes.map((type, i) => (
-            <span
-              key={i}
-              className="whitespace-nowrap text-sm text-muted-foreground/60 font-medium"
-            >
-              {type}
-            </span>
+      {/* ── Before / After strip ───────────────────────────────────────────── */}
+      <section className="py-10 px-6 border-y border-border/50 bg-muted/30">
+        <div className="max-w-5xl mx-auto">
+          <p className="text-center text-sm font-medium text-muted-foreground mb-6 uppercase tracking-wider">
+            One photo in → showroom-quality marketing out
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {beforeAfter.map((item, i) => (
+              <div
+                key={i}
+                className={`rounded-xl border p-6 text-center transition-all ${
+                  i === 0
+                    ? "bg-muted/60 border-border"
+                    : "bg-primary/5 border-primary/20"
+                }`}
+              >
+                <span className="text-3xl mb-2 block">{item.emoji}</span>
+                <p className="font-medium text-sm">{item.label}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{item.sublabel}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-xs text-muted-foreground mt-4">
+            Replace these placeholders with your real before/after images for maximum impact
+          </p>
+        </div>
+      </section>
+
+      {/* ── Stats strip ────────────────────────────────────────────────────── */}
+      <section className="py-12 px-6">
+        <div className="max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-8 text-center">
+          {stats.map((s) => (
+            <div key={s.label}>
+              <p className="font-heading text-3xl sm:text-4xl font-bold text-primary">{s.value}</p>
+              <p className="text-sm text-muted-foreground mt-1">{s.label}</p>
+            </div>
           ))}
         </div>
       </section>
 
-      {/* Features */}
-      <section className="py-20 px-6">
-        <div className="max-w-6xl mx-auto">
+      {/* ── How It Works ───────────────────────────────────────────────────── */}
+      <section className="py-16 px-6 border-t border-border/50">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="font-heading text-3xl font-bold">
-              Everything Your Dealership Needs
+              From lot to launch in 3 steps
             </h2>
             <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
-              From vehicle spotlights to seasonal campaigns, generate
-              professional marketing content tailored to your brand.
+              No training, no onboarding call. Your team can generate their first
+              campaign in under 10 minutes.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature) => (
-              <Card
-                key={feature.title}
-                className="glass glass-hover transition-all hover:scale-[1.01]"
-              >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                step: "1",
+                icon: Camera,
+                title: "Capture",
+                desc: "Scan a VIN with your phone camera or add a vehicle from your inventory. One hero photo is all you need.",
+              },
+              {
+                step: "2",
+                icon: Wand2,
+                title: "Generate",
+                desc: "Pick a content type, channel, and style. Hit Generate. Get 8 angles + multi-channel creative in one batch — up to 4 variations.",
+              },
+              {
+                step: "3",
+                icon: Megaphone,
+                title: "Publish",
+                desc: "Download, push to social, or open in the Design Studio to add badges and text. Every asset lands in your library, every lead is tracked.",
+              },
+            ].map((item) => (
+              <Card key={item.step} className="glass relative overflow-hidden">
                 <CardContent className="p-6">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 mb-4">
-                    <feature.icon className="h-5 w-5 text-primary" />
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full gradient-primary text-white font-heading font-bold text-sm shrink-0">
+                      {item.step}
+                    </div>
+                    <item.icon className="h-5 w-5 text-primary" />
+                    <h3 className="font-heading font-semibold text-lg">{item.title}</h3>
                   </div>
-                  <h3 className="font-heading font-semibold mb-2">
-                    {feature.title}
-                  </h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    {feature.description}
+                    {item.desc}
                   </p>
                 </CardContent>
               </Card>
@@ -276,112 +320,241 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* How It Works */}
-      <section className="py-20 px-6 border-t border-border/50">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="font-heading text-3xl font-bold">How It Works</h2>
-            <p className="text-muted-foreground mt-3">
-              Three simple steps to professional dealership marketing
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                step: "01",
-                title: "Choose Content Type",
-                desc: "Select from vehicle spotlight, sales event, service promo, and more.",
-              },
-              {
-                step: "02",
-                title: "Customize Details",
-                desc: "Add your headline, select a channel, pick a style — our AI builds the perfect prompt.",
-              },
-              {
-                step: "03",
-                title: "Generate & Download",
-                desc: "Get a professional marketing visual in seconds. Download, refine, or regenerate.",
-              },
-            ].map((item) => (
-              <div key={item.step} className="text-center">
-                <div className="inline-flex h-12 w-12 items-center justify-center rounded-full gradient-primary text-white font-heading font-bold text-sm mb-4">
-                  {item.step}
-                </div>
-                <h3 className="font-heading font-semibold mb-2">
-                  {item.title}
-                </h3>
-                <p className="text-sm text-muted-foreground">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section className="py-20 px-6 border-t border-border/50">
-        <div className="max-w-3xl mx-auto">
+      {/* ── Capabilities grid ──────────────────────────────────────────────── */}
+      <section className="py-16 px-6 border-t border-border/50">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="font-heading text-3xl font-bold">
-              Frequently Asked Questions
+              Built for dealers, not generic SaaS
             </h2>
-            <p className="text-muted-foreground mt-3">
-              Get answers to common questions about DealerAdGen AI
+            <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
+              Every feature is automotive-first. VIN scanning, OEM compliance,
+              dealer license plates, inventory aging — things Canva will never do.
             </p>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {capabilities.map((cap) => (
+              <Card key={cap.title} className="glass glass-hover transition-all hover:scale-[1.01]">
+                <CardContent className="p-5">
+                  <cap.icon className="h-5 w-5 text-primary mb-3" />
+                  <h3 className="font-heading font-semibold text-sm mb-1.5">{cap.title}</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{cap.desc}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Comparison ─────────────────────────────────────────────────────── */}
+      <section className="py-16 px-6 border-t border-border/50 bg-muted/20">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="font-heading text-3xl font-bold text-center mb-10">
+            The old way vs. DealerAdGen
+          </h2>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {faqData.map((faq, index) => (
-              <div key={index} className="glass rounded-lg p-6">
-                <h3 className="font-heading font-semibold mb-2">
-                  {faq.question}
-                </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {faq.answer}
-                </p>
+            {/* Without */}
+            <div className="rounded-xl border border-border bg-background p-6 space-y-3">
+              <p className="font-heading font-semibold text-muted-foreground text-sm uppercase tracking-wider mb-4">
+                Without DealerAdGen
+              </p>
+              {[
+                "2–4 hours per vehicle on photos + creative",
+                "iPhone lot photos with parking-lot backgrounds",
+                "Hire a photographer ($150–300 per shoot)",
+                "Separate tools for photos, social, email, leads",
+                "License plates visible — privacy risk",
+                "Manually resize for every channel",
+              ].map((item) => (
+                <div key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <span className="text-red-400 mt-0.5 shrink-0">✗</span>
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* With */}
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-6 space-y-3">
+              <p className="font-heading font-semibold text-primary text-sm uppercase tracking-wider mb-4">
+                With DealerAdGen
+              </p>
+              {[
+                "Under 10 minutes per vehicle, end to end",
+                "8 photoreal angles in premium showrooms",
+                "Phone camera + AI — $249/month all-in",
+                "One platform, one dashboard, one bill",
+                "Auto-blur or branded plate inlay",
+                "13 channels auto-sized in one click",
+              ].map((item) => (
+                <div key={item} className="flex items-start gap-2 text-sm">
+                  <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Inline Pricing ─────────────────────────────────────────────────── */}
+      <section className="py-16 px-6 border-t border-border/50">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="font-heading text-3xl font-bold">
+              Simple pricing. Start free.
+            </h2>
+            <p className="text-muted-foreground mt-3">
+              No setup fees. No per-image charges. Cancel anytime.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+            {/* Free Trial */}
+            <Card className="flex flex-col">
+              <CardContent className="p-6 flex flex-col flex-1">
+                <div className="mb-4">
+                  <h3 className="font-heading font-bold text-lg">Free Trial</h3>
+                  <div className="mt-2">
+                    <span className="text-3xl font-bold">Free</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    25 image credits, no card required
+                  </p>
+                </div>
+                <ul className="space-y-2 flex-1 mb-6">
+                  {["25 AI image generations", "All 13 channels", "All content types", "Design Studio access", "Inventory management"].map((f) => (
+                    <li key={f} className="flex items-center gap-2 text-sm">
+                      <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/signup" className="mt-auto">
+                  <Button variant="outline" className="w-full">
+                    Start free trial <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Pro */}
+            <Card className="flex flex-col border-primary shadow-lg shadow-primary/10 ring-1 ring-primary relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <Badge className="bg-primary text-primary-foreground px-3">Recommended</Badge>
+              </div>
+              <CardContent className="p-6 flex flex-col flex-1">
+                <div className="mb-4">
+                  <h3 className="font-heading font-bold text-lg">Pro</h3>
+                  <div className="mt-2">
+                    <span className="text-3xl font-bold">$249</span>
+                    <span className="text-muted-foreground">/month</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Unlimited image generation
+                  </p>
+                </div>
+                <ul className="space-y-2 flex-1 mb-6">
+                  {["Unlimited AI image generations", "Everything in Free Trial", "Batch generation", "Multi-angle gallery", "AI copy assist", "Priority support"].map((f) => (
+                    <li key={f} className="flex items-center gap-2 text-sm">
+                      <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/pricing" className="mt-auto">
+                  <Button className="w-full gradient-primary text-white">
+                    Get Pro <Rocket className="h-3.5 w-3.5 ml-1" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Social Proof (placeholder) ─────────────────────────────────────── */}
+      <section className="py-12 px-6 border-t border-border/50 bg-muted/20">
+        <div className="max-w-3xl mx-auto text-center">
+          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-6">
+            Built for dealerships that move fast
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {[
+              { metric: "65%", label: "Less production time per vehicle" },
+              { metric: "8 angles", label: "From a single phone photo" },
+              { metric: "10 min", label: "From lot to every channel" },
+            ].map((item) => (
+              <div key={item.label}>
+                <p className="font-heading text-2xl font-bold text-primary">{item.metric}</p>
+                <p className="text-xs text-muted-foreground mt-1">{item.label}</p>
               </div>
             ))}
           </div>
+        </div>
+      </section>
 
-          <div className="text-center mt-12">
-            <p className="text-muted-foreground mb-4">
-              Still have questions?
-            </p>
+      {/* ── FAQ ────────────────────────────────────────────────────────────── */}
+      <section className="py-16 px-6 border-t border-border/50">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="font-heading text-3xl font-bold text-center mb-10">
+            Frequently asked questions
+          </h2>
+
+          <div className="space-y-4">
+            {faqData.map((faq, i) => (
+              <details key={i} className="group glass rounded-lg">
+                <summary className="flex items-center justify-between cursor-pointer p-5 font-heading font-semibold text-sm list-none">
+                  {faq.question}
+                  <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-90" />
+                </summary>
+                <div className="px-5 pb-5 text-sm text-muted-foreground leading-relaxed -mt-1">
+                  {faq.answer}
+                </div>
+              </details>
+            ))}
+          </div>
+
+          <div className="text-center mt-10">
             <Link href="mailto:support@dealeradgen.com">
-              <Button variant="outline">
-                Contact Our Support Team
-                <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+              <Button variant="outline" size="sm">
+                More questions? Contact us <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
               </Button>
             </Link>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 px-6">
+      {/* ── Final CTA ──────────────────────────────────────────────────────── */}
+      <section className="py-16 px-6">
         <div className="max-w-3xl mx-auto text-center">
-          <div className="glass rounded-2xl p-12">
-            <h2 className="font-heading text-3xl font-bold mb-4">
-              Ready to Transform Your Marketing?
+          <div className="glass rounded-2xl p-10 sm:p-12">
+            <h2 className="font-heading text-3xl font-bold mb-3">
+              Your inventory is aging. Your marketing shouldn&apos;t be.
             </h2>
             <p className="text-muted-foreground mb-8 max-w-lg mx-auto">
-              Join dealerships already using AI to create professional marketing
-              visuals faster than ever.
+              25 free images. No credit card. Generate your first campaign
+              in under 10 minutes and see the difference.
             </p>
-            <Link href="/signup">
-              <Button
-                size="lg"
-                className="gradient-primary text-white text-base px-8"
-              >
-                Get Started Free
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </Link>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link href="/signup">
+                <Button size="lg" className="gradient-primary text-white text-base px-8 h-12">
+                  Start free — 25 image credits
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </Link>
+              <Link href="/pricing">
+                <Button size="lg" variant="ghost" className="text-muted-foreground">
+                  See pricing
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
+      {/* ── Footer ─────────────────────────────────────────────────────────── */}
       <footer className="border-t border-border/50 py-8 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 pb-6 border-b border-border/30">
@@ -392,24 +565,14 @@ export default function LandingPage() {
               <span className="text-sm font-medium">DealerAdGen AI</span>
             </div>
             <div className="flex items-center gap-6 text-xs text-muted-foreground">
-              <Link href="/resources" className="hover:text-foreground transition-colors">
-                Resources
-              </Link>
-              <Link href="/pricing" className="hover:text-foreground transition-colors">
-                Pricing
-              </Link>
-              <Link href="/login" className="hover:text-foreground transition-colors">
-                Sign In
-              </Link>
-              <Link href="/signup" className="hover:text-foreground transition-colors">
-                Get Started
-              </Link>
+              <Link href="/resources" className="hover:text-foreground transition-colors">Resources</Link>
+              <Link href="/pricing" className="hover:text-foreground transition-colors">Pricing</Link>
+              <Link href="/login" className="hover:text-foreground transition-colors">Sign In</Link>
+              <Link href="/signup" className="hover:text-foreground transition-colors">Get Started</Link>
             </div>
           </div>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-            <p>
-              &copy; {new Date().getFullYear()} DealerAdGen AI. All rights reserved.
-            </p>
+            <p>&copy; {new Date().getFullYear()} DealerAdGen AI. All rights reserved.</p>
             <p>
               Developed by{" "}
               <Link
