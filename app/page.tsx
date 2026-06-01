@@ -95,8 +95,8 @@ const capabilities = [
   },
   {
     icon: Shield,
-    title: "Compliance Built In",
-    desc: "OEM co-op rules, state disclaimers, and license plate auto-blur or branded inlay — all handled automatically.",
+    title: "Privacy & Branding",
+    desc: "License plate auto-blur or dealer-branded inlay, state disclaimers, and your logo on every asset — handled automatically.",
   },
   {
     icon: Car,
@@ -139,7 +139,7 @@ const faqData = [
   {
     question: "How is this different from Canva or generic AI tools?",
     answer:
-      "DealerAdGen is built specifically for car dealers. Every prompt, template, badge, and workflow is automotive-first — VIN scanning, OEM compliance, dealer license plates, inventory integration, lead capture. Generic tools don't know what a VDP is.",
+      "DealerAdGen is built specifically for car dealers. Every prompt, template, badge, and workflow is automotive-first — VIN scanning, dealer license plates, inventory integration, lead capture. Generic tools don't know what a VDP is.",
   },
 ];
 
@@ -328,7 +328,7 @@ export default function LandingPage() {
               Built for dealers, not generic SaaS
             </h2>
             <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
-              Every feature is automotive-first. VIN scanning, OEM compliance,
+              Every feature is automotive-first. VIN scanning,
               dealer license plates, inventory aging — things Canva will never do.
             </p>
           </div>
