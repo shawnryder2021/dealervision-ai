@@ -97,6 +97,32 @@ export interface WidgetSettings {
   chat_greeting?: string;
 }
 
+/**
+ * A platform-curated starter template: an example image paired with the
+ * generation settings used to create it. Global (shared across all dealers).
+ * Dealers "use" one to prefill the Generate form.
+ */
+export interface StarterTemplate {
+  id: string;
+  name: string;
+  description?: string | null;
+  category?: string | null;
+  preview_image_url: string;
+  content_type: string;
+  channel?: string | null;
+  style?: string | null;
+  scene_location?: string | null;
+  headline?: string | null;
+  subheadline?: string | null;
+  cta?: string | null;
+  prompt_notes?: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Where a lead originated. Extensible — widgets add new sources. */
 export type LeadSource =
   | "landing_page"

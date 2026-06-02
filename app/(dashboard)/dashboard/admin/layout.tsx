@@ -1,6 +1,6 @@
 "use client";
 
-import { Shield, Settings, BarChart3, Users, Zap, Image, SlidersHorizontal, Camera } from "lucide-react";
+import { Shield, Settings, BarChart3, Users, Zap, Image, SlidersHorizontal, Camera, LayoutTemplate } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ const adminNavItems = [
   { href: "/dashboard/admin/stripe", label: "Stripe", icon: Settings },
   { href: "/dashboard/admin/image-generation", label: "Image Models", icon: Image },
   { href: "/dashboard/admin/reference-vehicles", label: "Reference Vehicles", icon: Camera },
+  { href: "/dashboard/admin/templates", label: "Templates", icon: LayoutTemplate },
   { href: "/dashboard/admin/dealerships", label: "Dealerships", icon: Users },
   { href: "/dashboard/admin/features", label: "Features", icon: SlidersHorizontal },
 ];

@@ -100,6 +100,7 @@ export default function GenerateTypePage() {
   useEffect(() => {
     if (searchParams.get("channel")) setChannel(searchParams.get("channel")!);
     if (searchParams.get("style")) setStyle(searchParams.get("style")!);
+    if (searchParams.get("scene")) setSceneLocation(searchParams.get("scene")!);
     if (searchParams.get("headline")) setHeadline(searchParams.get("headline")!);
     if (searchParams.get("subheadline")) setSubheadline(searchParams.get("subheadline")!);
     if (searchParams.get("cta")) setCta(searchParams.get("cta")!);
