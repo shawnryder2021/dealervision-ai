@@ -42,6 +42,7 @@ import {
   CalendarClock,
   Code2,
   PenLine,
+  Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -106,6 +107,7 @@ const bottomItems: NavItem[] = [
   { href: "/dashboard/settings/billing", label: "Billing", icon: CreditCard, featureKey: "billing" },
   { href: "/dashboard/settings/social-accounts", label: "Social Accounts", icon: Share2, featureKey: "socialAccounts" },
   { href: "/dashboard/settings/widgets", label: "Website Widgets", icon: Code2, featureKey: "conversionWidgets" },
+  { href: "/dashboard/settings/brand-memory", label: "Brand Memory", icon: Brain, featureKey: "brandMemory" },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 

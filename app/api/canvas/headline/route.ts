@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { buildBrandMemoryBlock } from "@/lib/brand-memory";
 
 const KIE_CHAT_URL = "https://api.kie.ai/gpt-5-2/v1/chat/completions";
 
@@ -46,6 +47,8 @@ export async function POST(request: NextRequest) {
     }
     if (dealership?.name) lines.push(`Dealership: ${dealership.name}`);
     if (dealership?.local_context?.personality) lines.push(`Brand voice: ${dealership.local_context.personality}`);
+    const memBlock = buildBrandMemoryBlock(dealership, "copy").trim();
+    if (memBlock) lines.push(memBlock);
 
     const userPrompt = `GOAL: ${goal}\nTONE: ${tone}\n\nCONTEXT:\n${lines.join("\n") || "(none)"}\n\nReturn 5 ${kind} options as a JSON array.`;
 

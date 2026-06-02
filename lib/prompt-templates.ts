@@ -3,6 +3,7 @@ import { CHANNEL_PRESETS } from "./constants";
 import { buildOemComplianceBlock, type OemBrandKey } from "./oem-presets";
 import { buildStateDisclaimerBlock } from "./state-disclaimers";
 import { buildSceneBlock } from "./scene-presets";
+import { buildBrandMemoryBlock } from "./brand-memory";
 
 interface PromptContext {
   content_type: string;
@@ -153,7 +154,7 @@ function getBrandContext(dealership: Dealership): string {
     ═══════════════════════════════════
   `.trim();
 
-  return `Dealership context: ${dealership.name}.${taglineStr} ${colorStr}${layoutZones}${getLocalContext(dealership)} Use primary color ${colors.primary} as the dominant brand color in overlays, banners, and accents.`;
+  return `Dealership context: ${dealership.name}.${taglineStr} ${colorStr}${layoutZones}${getLocalContext(dealership)}${buildBrandMemoryBlock(dealership, "image")} Use primary color ${colors.primary} as the dominant brand color in overlays, banners, and accents.`;
 }
 
 /**

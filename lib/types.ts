@@ -59,8 +59,32 @@ export interface Dealership {
   plate_inlay_mode?: "off" | "blur" | "branded";
   /** Per-dealership config for the embeddable conversion widgets (chat / trade-in / booking). */
   widget_settings?: WidgetSettings;
+  /** Accumulating knowledge profile injected into generations (manual notes + AI-learned summary + preferences). */
+  brand_memory?: BrandMemory;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Dealership Brand Memory — an accumulating knowledge profile stored on
+ * `dealerships.brand_memory` (JSONB). Injected into every generation so the
+ * platform "learns" the dealership over time. Context injection, not fine-tuning.
+ */
+export interface BrandMemory {
+  /** Freeform facts the dealer writes about themselves. */
+  manual_notes?: string;
+  /** AI-distilled paragraph from recent activity. Dealer-approved before use. */
+  learned_summary?: string;
+  /** Structured, learned preferences. */
+  preferences?: {
+    tones?: string[];
+    styles?: string[];
+    channels?: string[];
+    featured_models?: string[];
+    recurring_offers?: string[];
+  };
+  /** ISO timestamp of the last learned-summary approval. */
+  updated_at?: string;
 }
 
 /** Config for the embeddable conversion widgets, stored on `dealerships.widget_settings` (JSONB). */

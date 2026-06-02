@@ -6,6 +6,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { cleanGeneratedText } from "@/lib/clean-generated-text";
+import { buildBrandMemoryBlock } from "@/lib/brand-memory";
 
 const KIE_CHAT_URL = "https://api.kie.ai/gpt-5-2/v1/chat/completions";
 
@@ -50,6 +51,8 @@ export async function POST(request: NextRequest) {
     if (dealership?.name) context.push(`Dealership: ${dealership.name}`);
     if (dealership?.contact?.phone) context.push(`Phone: ${dealership.contact.phone}`);
     if (dealership?.local_context?.personality) context.push(`Brand voice: ${dealership.local_context.personality}`);
+    const memBlock = buildBrandMemoryBlock(dealership, "copy").trim();
+    if (memBlock) context.push(memBlock);
 
     const systemPrompt = `You are a social media manager for a car dealership. Rewrite the provided vehicle description into a ready-to-post social caption.
 

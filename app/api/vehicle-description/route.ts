@@ -6,6 +6,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { cleanGeneratedText } from "@/lib/clean-generated-text";
+import { buildBrandMemoryBlock } from "@/lib/brand-memory";
 
 const KIE_CHAT_URL = "https://api.kie.ai/gpt-5-2/v1/chat/completions";
 
@@ -69,6 +70,8 @@ export async function POST(request: NextRequest) {
     if (dealership?.name) facts.push(`Dealership: ${dealership.name}`);
     if (dealership?.contact?.phone) facts.push(`Phone: ${dealership.contact.phone}`);
     if (dealership?.local_context?.personality) facts.push(`Brand voice: ${dealership.local_context.personality}`);
+    const memBlock = buildBrandMemoryBlock(dealership, "copy").trim();
+    if (memBlock) facts.push(memBlock);
 
     const systemPrompt = `You are an expert automotive copywriter writing for a car dealership.
 

@@ -28,6 +28,7 @@ export const FEATURE_FLAG_KEYS = [
   "multiAngleGallery",
   "conversionWidgets",
   "vehicleDescriptions",
+  "brandMemory",
 ] as const;
 
 export type FeatureFlagKey = (typeof FEATURE_FLAG_KEYS)[number];
@@ -63,6 +64,7 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   multiAngleGallery: true,
   conversionWidgets: true,
   vehicleDescriptions: true,
+  brandMemory: true,
 };
 
 export const FEATURE_FLAG_LABELS: Record<FeatureFlagKey, string> = {
@@ -95,6 +97,7 @@ export const FEATURE_FLAG_LABELS: Record<FeatureFlagKey, string> = {
   multiAngleGallery: "Multi-Angle Gallery",
   conversionWidgets: "Conversion Widgets",
   vehicleDescriptions: "Vehicle Descriptions",
+  brandMemory: "Brand Memory",
 };
 
 export function normalizeFeatureFlags(raw: unknown): FeatureFlags {
