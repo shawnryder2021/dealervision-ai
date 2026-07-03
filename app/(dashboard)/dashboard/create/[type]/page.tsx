@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Wand2, Eye, Loader2, Download, BookmarkPlus, Plus, Minus, Trash2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Wand2, Eye, Loader2, Download, BookmarkPlus, Plus, Minus, Trash2, AlertCircle, LayoutTemplate } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import { EditImageDialog } from "@/components/create/EditImageDialog";
 import { TextOverlayEditor } from "@/components/create/TextOverlayEditor";
 import { ImageUploader } from "@/components/shared/ImageUploader";
 import { SaveTemplateDialog } from "@/components/create/TemplateGallery";
+import { SaveToGalleryDialog } from "@/components/create/SaveToGalleryDialog";
 import { SceneLocationPicker } from "@/components/create/SceneLocationPicker";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -95,6 +96,9 @@ export default function GenerateTypePage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [textEditorOpen, setTextEditorOpen] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [saveToGalleryOpen, setSaveToGalleryOpen] = useState(false);
+  /** Set by ?autogen=1 (template pick-and-go): run generation once after prefill. */
+  const [autogenPending, setAutogenPending] = useState(false);
 
   // Pre-fill from template or seasonal suggestion URL params
   useEffect(() => {
@@ -116,6 +120,12 @@ export default function GenerateTypePage() {
     if (searchParams.get("currentPrice")) setCurrentPrice(searchParams.get("currentPrice")!);
     if (searchParams.get("vin")) setVehicleVin(searchParams.get("vin")!);
     if (searchParams.get("color")) setVehicleColor(searchParams.get("color")!);
+    // Multi-channel template packs: pre-check the "Also create for…" channels
+    if (searchParams.get("alsoChannels")) {
+      setExtraChannels(searchParams.get("alsoChannels")!.split(",").filter(Boolean));
+    }
+    // Template pick-and-go: auto-run generation once, after prefill settles
+    if (searchParams.get("autogen") === "1") setAutogenPending(true);
   }, [searchParams]);
 
   // Auto-fill Now-price and VIN from the picked inventory vehicle, but only
@@ -436,6 +446,16 @@ export default function GenerateTypePage() {
     setIsGenerating(false);
     if (!quotaHit) toast.success(jobs.length > 1 ? `Generated ${jobs.length} visuals` : "Visual generated successfully!");
   }
+
+  // Template pick-and-go: auto-run generation exactly once after the prefill
+  // effect has applied and the dealership is loaded. The flag is cleared FIRST
+  // so re-renders (or searchParams identity changes) can never double-fire.
+  useEffect(() => {
+    if (!autogenPending || isGenerating || !dealership) return;
+    setAutogenPending(false);
+    handleGenerate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autogenPending, isGenerating, dealership]);
 
   // Regenerate adds one more option for the active card's channel (keeps prior attempts).
   async function handleRegenerate() {
@@ -1081,6 +1101,18 @@ export default function GenerateTypePage() {
             />
           )}
 
+          {activeAsset?.status === "completed" && activeAsset.image_url && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => setSaveToGalleryOpen(true)}
+            >
+              <LayoutTemplate className="h-4 w-4 mr-1.5" />
+              Save to Gallery — reuse this as a template
+            </Button>
+          )}
+
           {!isGenerating && results.length === 0 && (
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center justify-center py-12">
@@ -1163,6 +1195,21 @@ export default function GenerateTypePage() {
           serviceDetails: serviceDetails || undefined,
           customPrompt: customPrompt || undefined,
           campaign: campaign || undefined,
+        }}
+      />
+
+      <SaveToGalleryDialog
+        open={saveToGalleryOpen}
+        onOpenChange={setSaveToGalleryOpen}
+        imageUrl={activeAsset?.image_url ?? null}
+        settings={{
+          content_type: contentType,
+          channel: activeAsset?.channel || channel,
+          style,
+          scene_location: sceneLocation,
+          headline: headline || undefined,
+          subheadline: subheadline || undefined,
+          cta: cta || undefined,
         }}
       />
     </div>

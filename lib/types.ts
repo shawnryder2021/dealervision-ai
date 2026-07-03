@@ -118,6 +118,18 @@ export interface StarterTemplate {
   prompt_notes?: string | null;
   sort_order: number;
   is_active: boolean;
+  /** NULL = platform-curated (global); set = that dealership's own saved template. */
+  dealership_id?: string | null;
+  use_count: number;
+  /** Seasonal collection name, e.g. "Black Friday". */
+  collection?: string | null;
+  /** Visibility window — NULL = always visible. */
+  starts_at?: string | null;
+  ends_at?: string | null;
+  /** Extra channels for multi-channel packs (primary `channel` stays). */
+  channels?: string[] | null;
+  /** Client-side: whether the caller's dealership has favorited this template. */
+  favorited?: boolean;
   created_by?: string | null;
   created_at: string;
   updated_at: string;

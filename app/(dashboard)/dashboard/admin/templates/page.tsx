@@ -27,9 +27,23 @@ const EMPTY: Draft = {
   subheadline: "",
   cta: "",
   prompt_notes: "",
+  collection: "",
+  starts_at: null,
+  ends_at: null,
+  channels: [],
   sort_order: 0,
   is_active: true,
 };
+
+/** ISO timestamp → yyyy-mm-dd for a date input (empty when unset). */
+function toDateInput(iso?: string | null): string {
+  return iso ? iso.slice(0, 10) : "";
+}
+
+/** yyyy-mm-dd → ISO timestamp (start of day UTC), or null when cleared. */
+function fromDateInput(v: string): string | null {
+  return v ? new Date(`${v}T00:00:00Z`).toISOString() : null;
+}
 
 export default function AdminTemplatesPage() {
   const [templates, setTemplates] = useState<StarterTemplate[]>([]);
@@ -303,6 +317,65 @@ export default function AdminTemplatesPage() {
               </div>
             </div>
 
+            {/* Seasonal collection + visibility window */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t">
+              <div>
+                <Label>Collection (seasonal, optional)</Label>
+                <Input
+                  value={editing.collection ?? ""}
+                  onChange={(e) => setEditing({ ...editing, collection: e.target.value })}
+                  placeholder="e.g. Black Friday"
+                />
+              </div>
+              <div>
+                <Label>Visible from</Label>
+                <Input
+                  type="date"
+                  value={toDateInput(editing.starts_at)}
+                  onChange={(e) => setEditing({ ...editing, starts_at: fromDateInput(e.target.value) })}
+                />
+              </div>
+              <div>
+                <Label>Visible until</Label>
+                <Input
+                  type="date"
+                  value={toDateInput(editing.ends_at)}
+                  onChange={(e) => setEditing({ ...editing, ends_at: fromDateInput(e.target.value) })}
+                />
+              </div>
+            </div>
+
+            {/* Multi-channel pack */}
+            <div className="pt-2 border-t">
+              <Label>Multi-channel pack (also generate for…)</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Check extra channels and using this template generates the whole matched set in one click.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                {CHANNEL_PRESETS.filter((c) => c.id !== editing.channel).map((c) => {
+                  const checked = editing.channels?.includes(c.id) ?? false;
+                  return (
+                    <label key={c.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          const prev = editing.channels ?? [];
+                          setEditing({
+                            ...editing,
+                            channels: e.target.checked
+                              ? [...prev, c.id]
+                              : prev.filter((x) => x !== c.id),
+                          });
+                        }}
+                      />
+                      {c.name}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
             <div>
               <Label>Prompt notes (shown to dealers as &quot;the prompt used&quot;)</Label>
               <Textarea
@@ -336,15 +409,26 @@ export default function AdminTemplatesPage() {
               <div className="relative aspect-[4/5] bg-muted overflow-hidden rounded-t-lg">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={t.preview_image_url} alt={t.name} className="w-full h-full object-cover" />
-                {!t.is_active && (
-                  <Badge className="absolute top-2 left-2 bg-black/60 text-white border-0 text-[10px]">Hidden</Badge>
-                )}
+                <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
+                  {!t.is_active && (
+                    <Badge className="bg-black/60 text-white border-0 text-[10px]">Hidden</Badge>
+                  )}
+                  {t.dealership_id && (
+                    <Badge className="bg-emerald-600/90 text-white border-0 text-[10px]">Dealer</Badge>
+                  )}
+                  {t.collection && (
+                    <Badge className="bg-primary/90 text-white border-0 text-[10px]">{t.collection}</Badge>
+                  )}
+                </div>
               </div>
               <CardContent className="p-3 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-medium text-sm truncate">{t.name}</p>
-                    <p className="text-xs text-muted-foreground">{t.category || "Uncategorized"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t.category || "Uncategorized"} · used {t.use_count ?? 0}×
+                      {t.channels?.length ? ` · pack (${t.channels.length + 1})` : ""}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
