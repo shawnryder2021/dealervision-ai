@@ -170,8 +170,27 @@ export async function checkQuota(
   if (!isActiveSubscription(sub)) {
     // No active subscription — check if they have allocated credits instead
     // (Free trial users get 25 credits at signup — this path serves them)
-    const { getCreditBalanceAdmin } = await import("@/lib/db/credits");
-    const credits = await getCreditBalanceAdmin(dealershipId);
+    const { getCreditBalanceAdmin, grantCredits } = await import("@/lib/db/credits");
+    let credits = await getCreditBalanceAdmin(dealershipId);
+
+    // Self-heal: a dealership with NO credits row at all never received its
+    // free-trial grant (signup predates the grant, or the grant call failed).
+    // Grant it now rather than hard-blocking. Accounts that spent their credits
+    // have a row with balance 0 and are correctly blocked below.
+    if (!credits) {
+      try {
+        const { FREE_TRIAL } = await import("@/lib/stripe/plans");
+        credits = await grantCredits(
+          dealershipId,
+          FREE_TRIAL.freeCredits ?? 25,
+          "Free trial — welcome credits (auto-grant on first use)",
+          "system"
+        );
+      } catch (err) {
+        console.error("Trial credit auto-grant failed:", err);
+      }
+    }
+
     if (credits && credits.balance > 0) {
       return {
         allowed: true,
