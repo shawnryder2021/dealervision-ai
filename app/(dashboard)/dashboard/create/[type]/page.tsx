@@ -68,6 +68,10 @@ export default function GenerateTypePage() {
   const [offerDetails, setOfferDetails] = useState("");
   const [previousPrice, setPreviousPrice] = useState("");
   const [currentPrice, setCurrentPrice] = useState("");
+  /** Show the vehicle price on the ad. Off by default — no price is rendered. */
+  const [includePrice, setIncludePrice] = useState(false);
+  /** Editable price shown when includePrice is on (auto-filled from inventory). */
+  const [displayPrice, setDisplayPrice] = useState("");
   const [vehicleVin, setVehicleVin] = useState("");
   const [vehicleColor, setVehicleColor] = useState("");
   const [vinDecoding, setVinDecoding] = useState(false);
@@ -139,6 +143,16 @@ export default function GenerateTypePage() {
     if (!vehicleVin && v.vin) setVehicleVin(v.vin);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vehicleId, vehicles, contentType]);
+
+  // Auto-fill the display price from the picked inventory vehicle (only if the
+  // user hasn't typed one). VIN-decoded / preset vehicles have no price, so the
+  // field stays empty for the user to fill in.
+  useEffect(() => {
+    if (!vehicleId || displayPrice) return;
+    const v = vehicles.find((x) => x.id === vehicleId);
+    if (v?.price) setDisplayPrice(String(v.price));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicleId, vehicles]);
 
   async function handleDecodeVin() {
     const vin = vehicleVin.trim();
@@ -243,7 +257,9 @@ export default function GenerateTypePage() {
         vehicle_color: vehicleColor || undefined,
         include_vehicle_year: includeVehicleYear,
         include_vehicle_model: includeVehicleModel,
-          scene_location: sceneLocation,
+        scene_location: sceneLocation,
+        include_price: includePrice,
+        display_price: includePrice ? parsePrice(displayPrice) : undefined,
       });
       setPreviewPrompt(prompt);
       return;
@@ -272,6 +288,8 @@ export default function GenerateTypePage() {
           include_vehicle_year: includeVehicleYear,
           include_vehicle_model: includeVehicleModel,
           scene_location: sceneLocation,
+          include_price: includePrice,
+          display_price: includePrice ? parsePrice(displayPrice) : undefined,
         }),
       });
       if (!res.ok) {
@@ -291,6 +309,7 @@ export default function GenerateTypePage() {
     testimonialText, testimonialAuthor, rating, customPrompt, dealership, vehicles,
     previousPrice, currentPrice, vehicleVin, vehicleColor,
     includeVehicleYear, includeVehicleModel, sceneLocation,
+    includePrice, displayPrice,
   ]);
 
   // Upsert a result into the session strip (insert if new, replace if it exists).
@@ -354,6 +373,8 @@ export default function GenerateTypePage() {
           include_vehicle_year: includeVehicleYear,
           include_vehicle_model: includeVehicleModel,
           scene_location: sceneLocation,
+          include_price: includePrice,
+          display_price: includePrice ? parsePrice(displayPrice) : undefined,
         });
         const aspectRatio = getAspectRatioForChannel(jobChannel);
         const resolution = getResolutionForChannel(jobChannel);
@@ -398,6 +419,8 @@ export default function GenerateTypePage() {
           include_vehicle_year: includeVehicleYear,
           include_vehicle_model: includeVehicleModel,
           scene_location: sceneLocation,
+          include_price: includePrice,
+          display_price: includePrice ? parsePrice(displayPrice) : undefined,
           image_input: prodImageInput.length > 0 ? prodImageInput : undefined,
           source_image_url: baseImage[0]?.url || undefined,
         },
@@ -669,6 +692,38 @@ export default function GenerateTypePage() {
                   <p className="text-xs text-muted-foreground">
                     Leave these blank unless you want the AI to intentionally show specific year/model details in the graphic.
                   </p>
+                  )}
+                  {!showPriceDropFields && (
+                  <div className="rounded-lg border p-3 space-y-3">
+                    <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includePrice}
+                        onChange={(e) => setIncludePrice(e.target.checked)}
+                      />
+                      Show price on the ad
+                    </label>
+                    {includePrice ? (
+                      <div className="space-y-1.5">
+                        <Label htmlFor="display-price">Price to display</Label>
+                        <Input
+                          id="display-price"
+                          inputMode="decimal"
+                          placeholder="e.g., 28,995"
+                          value={displayPrice}
+                          onChange={(e) => setDisplayPrice(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          This exact price is rendered on the image. Auto-filled from
+                          inventory when available.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Off — no price, payment, or fine print will appear on the image.
+                      </p>
+                    )}
+                  </div>
                   )}
                 </>
               )}

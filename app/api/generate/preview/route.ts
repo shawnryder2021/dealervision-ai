@@ -90,6 +90,8 @@ export async function POST(request: Request) {
       include_vehicle_year: body.include_vehicle_year,
       include_vehicle_model: body.include_vehicle_model,
       scene_location: body.scene_location,
+      include_price: body.include_price,
+      display_price: body.display_price,
     });
 
     const aspectRatio = getAspectRatioForChannel(body.channel);

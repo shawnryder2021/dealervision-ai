@@ -254,6 +254,10 @@ export interface GenerateRequest {
   previous_price?: number;
   /** Price-drop: "now" price shown prominently. */
   current_price?: number;
+  /** Show the vehicle's price on the ad (default false — no price rendered). */
+  include_price?: boolean;
+  /** Manual price override used when include_price is on (falls back to vehicle.price). */
+  display_price?: number;
   /** Optional VIN — recorded in the asset's metadata for reference. */
   vehicle_vin?: string;
   /** Optional exterior paint color — forces the AI to render that color. */

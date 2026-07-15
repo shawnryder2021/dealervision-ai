@@ -129,6 +129,8 @@ export async function POST(request: NextRequest) {
       include_vehicle_year: body.include_vehicle_year,
       include_vehicle_model: body.include_vehicle_model,
       scene_location: body.scene_location,
+      include_price: body.include_price,
+      display_price: body.display_price,
     });
 
     // A user-uploaded base photo means we EDIT that photo instead of generating

@@ -37,6 +37,8 @@ interface PromptContext {
   scene_location?: string;
   /** Only show price if explicitly requested (default: false) */
   include_price?: boolean;
+  /** Manual price override — used instead of vehicle.price when include_price is on. */
+  display_price?: number;
   /** Only show mileage if explicitly requested (default: false) */
   include_mileage?: boolean;
 }
@@ -196,6 +198,60 @@ function getLogoLockdown(dealership: Dealership): string {
   ].join(" ");
 }
 
+/**
+ * Pricing guard — appended to EVERY prompt, right after the logo lockdown.
+ *
+ * Image models are trained on car ads saturated with prices, APR offers, and
+ * legal fine print, so without an explicit ban they invent them. This guard:
+ *  1. Whitelists the EXACT dollar figures the user actually supplied (vehicle
+ *     price when include_price is on, price-drop was/now prices, and any $
+ *     figures typed into text fields) and demands digit-perfect rendering.
+ *  2. Bans all other prices/dollar figures outright.
+ *  3. Always bans invented fine print / disclaimers / APR / payment terms.
+ */
+function getPricingGuard(ctx: PromptContext): string {
+  const allowed: string[] = [];
+
+  // Vehicle price — only when explicitly requested. display_price overrides.
+  const effectivePrice = ctx.display_price ?? ctx.vehicle?.price ?? null;
+  if (ctx.include_price && effectivePrice) {
+    allowed.push(`$${Number(effectivePrice).toLocaleString()}`);
+  }
+  // Price-drop was/now prices are always intentional — as is the computed
+  // savings badge and the vehicle-price fallback the template uses for "NOW".
+  if (ctx.previous_price) allowed.push(`$${Number(ctx.previous_price).toLocaleString()}`);
+  if (ctx.current_price) allowed.push(`$${Number(ctx.current_price).toLocaleString()}`);
+  if (ctx.previous_price && ctx.current_price && ctx.previous_price > ctx.current_price) {
+    allowed.push(`$${(ctx.previous_price - ctx.current_price).toLocaleString()}`);
+  }
+  if (ctx.content_type === "price-drop" && !ctx.current_price && ctx.vehicle?.price) {
+    allowed.push(`$${Number(ctx.vehicle.price).toLocaleString()}`);
+  }
+
+  // Any dollar figures the user typed into text fields are intentional too
+  // (e.g. "$500 off" in offer details, "$99/mo" in a headline).
+  const userText = [
+    ctx.headline, ctx.subheadline, ctx.cta, ctx.offer_details, ctx.event_name,
+    ctx.service_offer, ctx.service_details, ctx.custom_prompt,
+  ].filter(Boolean).join(" ");
+  const typed = userText.match(/\$[\d,]+(?:\.\d{2})?(?:\s*\/\s*\w+)?/g) ?? [];
+  allowed.push(...typed);
+
+  const unique = Array.from(new Set(allowed));
+
+  const priceRule = unique.length > 0
+    ? `The ONLY prices or dollar figures permitted anywhere in this image are exactly: ${unique.map((p) => `"${p}"`).join(", ")}. Render each digit-for-digit, character-for-character — never round, restyle, abbreviate, or alter them. NO other dollar figure, price, payment, or discount amount may appear anywhere.`
+    : `ABSOLUTELY NO prices, dollar figures, payment amounts, discounts, percentages-off, "from $..." text, or price tags anywhere in this image — not in headlines, not on badges or stickers, not in corners, not in fine print. No price has been provided, so none may be shown.`;
+
+  return [
+    "█████ PRICING & FINE-PRINT RULES █████",
+    priceRule,
+    "NEVER invent fine print, small print, legal disclaimers, footnotes, asterisk text, APR or financing terms, monthly payments, tax/fee language, or terms-and-conditions text. If disclaimer text is not explicitly quoted in this prompt, the image must contain ZERO fine print of any kind.",
+    "█████████████████████████████████████",
+    "",
+  ].join(" ");
+}
+
 function getManufacturerStyleGuidance(make?: string): string {
   if (!make) return "";
 
@@ -316,7 +372,7 @@ const TEMPLATES: Record<string, (ctx: PromptContext) => string> = {
       `Featuring a brand-new ${vehicleDesc}. ${accuracy}`,
       defaultScene,
       ctx.headline ? `Headline text overlay: "${ctx.headline}".` : '"JUST ARRIVED" bold text overlay.',
-      vehicle?.price ? `Price overlay: "$${vehicle.price.toLocaleString()}".` : "",
+      ctx.include_price && vehicle?.price ? `Price overlay: "$${vehicle.price.toLocaleString()}".` : "",
       ctx.subheadline ? `Subtext: "${ctx.subheadline}".` : "",
       ctx.cta ? `CTA: "${ctx.cta}".` : "",
       `Style: ${ctx.style}, fresh, exciting, premium.`,
@@ -569,12 +625,21 @@ export function buildPrompt(context: PromptContext): string {
     includePrompt += ` MANDATORY: Display the vehicle model name "${context.include_vehicle_model}" as a clearly legible text element in the image — do not omit it.`;
   }
 
-  const rendered = template ? template(context) : TEMPLATES.custom(context);
+  // Apply the manual price override so every template that reads vehicle.price
+  // (spotlight, new-arrival, blueprint, …) uses the user-entered display price.
+  const effectiveContext: PromptContext =
+    context.display_price && context.vehicle
+      ? { ...context, vehicle: { ...context.vehicle, price: context.display_price } }
+      : context;
+
+  const rendered = template ? template(effectiveContext) : TEMPLATES.custom(effectiveContext);
   // Logo lockdown is the FIRST thing the AI reads — before the photography,
   // headline, or scene description — so the no-duplicate-logo rule has
-  // maximum priority in attention.
+  // maximum priority in attention. The pricing guard follows immediately so
+  // price/fine-print rules get near-equal priority.
   const lockdown = getLogoLockdown(context.dealership);
-  const base = `${lockdown}${rendered} ${includePrompt}`.replace(/\s+/g, " ").trim();
+  const pricingGuard = getPricingGuard(context);
+  const base = `${lockdown}${pricingGuard}${rendered} ${includePrompt}`.replace(/\s+/g, " ").trim();
 
   const ext = context.dealership as Dealership & {
     oem_brand?: OemBrandKey | null;
