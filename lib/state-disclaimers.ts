@@ -153,13 +153,23 @@ export const STATE_OPTIONS = Object.values(STATE_DISCLAIMERS).map((d) => ({
   label: `${d.state} (${d.code})`,
 }));
 
+/**
+ * Fine print injected into image prompts.
+ *
+ * Intentionally SIMPLE: long state legalese (doc-fee caps, APR terms) gets
+ * garbled by image models and puts specific dollar figures on ads the dealer
+ * never chose (e.g. a "$225 documentary fee"). Images carry a clean
+ * "See dealer for details." only; the full state-specific legal text in
+ * STATE_DISCLAIMERS above remains available for deterministic surfaces
+ * (Design Studio disclaimer badge, landing pages, print PDFs).
+ */
 export function buildStateDisclaimerBlock(stateCode: string): string {
   const d = STATE_DISCLAIMERS[stateCode];
   if (!d) return "";
   return [
-    `\n\n=== ${d.state.toUpperCase()} COMPLIANCE FINE PRINT ===`,
-    "Render this disclaimer text legibly at the bottom of the image in a small but readable font:",
-    `"${[d.price, d.apr, d.general].filter(Boolean).join(" ")}"`,
+    "\n\n=== FINE PRINT ===",
+    'Render EXACTLY this text — and nothing else — as small, legible fine print at the bottom of the image: "See dealer for details."',
+    "Do NOT add, expand, or substitute any other disclaimer, fee, APR, or legal language.",
     "=== END FINE PRINT ===",
   ].join("\n");
 }
